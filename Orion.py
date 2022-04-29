@@ -6,7 +6,7 @@ import requests
 # custom imports
 from conf import conf
 
-def getObjectFromOrion(object_id, headers=None, data='options=keyValues', host=conf['orion_host'], port=conf['orion_port']):
+def getObjectFromOrion(object_id, host=conf['orion_host'], port=conf['orion_port']):
     '''
     Returns the object in JSON format idenfitied by object_id and the status code of the request
     '''
