@@ -154,7 +154,7 @@ def calculateOEE(day, workstationId, jobId):
 def updateOEE(workstationId, availability, performance, quality, oee):
     pass
 
-def test():
+def testcalculateOEE():
     day = datetime(2022, 4, 8)
     # some work needs to be done on Andor's side
     #####availability, performance, quality, oee = calculateOEE(day, 'urn:ngsi_ld:Job:202200045', 'urn:ngsi_ld:Workstation:1')
@@ -164,5 +164,5 @@ def test():
 
 
 if __name__ == '__main__':
-    test()
+    testcalculateOEE()
 
