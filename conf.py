@@ -1,5 +1,7 @@
 # -*- coding: utf-8 -*-
-conf = {'postgresHost': 'localhost',
+conf = {'orion_host': 'localhost',
+        'orion_port': 1026,
+        'postgresHost': 'localhost',
         'postgresSchema': 'default_service',
         'postgresUser': 'postgres',
         'postgresPassword': 'password',
