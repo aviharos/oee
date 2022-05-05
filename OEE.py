@@ -27,7 +27,7 @@ def msToDateTimeString(ms):
 def stringToDateTime(string):
     return datetime.strptime(string, DATETIME_FORMAT)
 
-def calculateOEE(day, workstationId, jobId):
+def calculateOEE(day, workstationId, jobId, _time_override=False):
     # this is how you can read a value from a DataFrame
     # value = df['column'].iloc[number of row]
 
@@ -121,8 +121,10 @@ def calculateOEE(day, workstationId, jobId):
     # we can make vectors of Booleans if checking a column of a DataFrame against a string, then we sum the vectors, thus counting the True-s
     
     
+    
     if df.size == 0:
         quality = 0
+        performance = 0
         
     else:
         GoodPartCounter = int(df[df.attrname == 'GoodPartCounter'].iloc[-1].attrvalue)
@@ -130,6 +132,20 @@ def calculateOEE(day, workstationId, jobId):
         TotalProductCounter = GoodPartCounter + RejectPartCounter
     
         quality = (TotalProductCounter - RejectPartCounter) / TotalProductCounter
+        
+        StartGoodPartCounter = int(df[df.attrname == 'GoodPartCounter'].iloc[0].attrvalue)
+        CurrentGoodPartCounter = int(df[df.attrname == 'GoodPartCounter'].iloc[-1].attrvalue)
+        TodayGoodPartCounter = CurrentGoodPartCounter - StartGoodPartCounter
+        
+        StartTime = int(df[df.attrname == 'GoodPartCounter'].iloc[0].recvtimets)
+        CurrentTime = int(df[df.attrname == 'GoodPartCounter'].iloc[-1].recvtimets)
+        FullTime = CurrentTime - StartTime
+        
+        ReferenceJobTime = 6000
+        
+        performance = ReferenceJobTime * TodayGoodPartCounter / FullTime
+ 
+        
     
     """
     
@@ -142,16 +158,13 @@ def calculateOEE(day, workstationId, jobId):
 
     quality = n_successful_mouldings / n_total_mouldings
 
-    oee = availability * performance * quality
-    return availability, performance, quality, oee
-    or if the oee cannot be calculated for some reason
+    """
     
-    return None
-"""
+    oee = availability * performance * quality
+    
+    return availability, performance, quality, oee
 
-    return availability, quality
-
-def updateOEE(workstationId, availability, performance, quality, oee):
+def insertOEE(workstationId, availability, performance, quality, oee):
     pass
 
 def testcalculateOEE():
@@ -161,7 +174,6 @@ def testcalculateOEE():
     #print(f'availability: {availability}, performance: {performance}, quality: {quality}, oee: {oee}\n')
     [availability, quality] = calculateOEE(day, 'urn:ngsi_ld:Job:202200045', 'urn:ngsi_ld:Workstation:1')
     print('Availability: ', availability, '\nQuality: ', quality)
-
 
 if __name__ == '__main__':
     testcalculateOEE()
