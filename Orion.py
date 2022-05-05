@@ -6,7 +6,7 @@ import requests
 # custom imports
 from conf import conf
 
-def getObjectFromOrion(object_id, host=conf['orion_host'], port=conf['orion_port']):
+def getObject(object_id, host=conf['orion_host'], port=conf['orion_port']):
     '''
     Returns the object in JSON format idenfitied by object_id and the status code of the request
     '''
@@ -18,7 +18,7 @@ def getObjectFromOrion(object_id, host=conf['orion_host'], port=conf['orion_port
     except:
         raise RuntimeError(f'Get request failed to URL: {url}')
 
-def getWorkstationIdsFromOrion():
+def getWorkstationIds():
     #return workstationIds
     pass
 
@@ -26,10 +26,10 @@ def getActiveJobId(workstationId):
     # return jobId
     pass
 
-def testgetObjectFromOrion():
-    status_code, OperatorSchedule = getObjectFromOrion('urn:ngsi_ld:OperatorSchedule:1')
+def testgetObject():
+    status_code, OperatorSchedule = getObject('urn:ngsi_ld:OperatorSchedule:1')
     print(status_code)
     print(OperatorSchedule)
 
 if __name__ == '__main__':
-    testgetObjectFromOrion()
+    testgetObject()
