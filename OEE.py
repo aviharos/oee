@@ -43,7 +43,6 @@ def calculateOEE(day, workstationId, jobId, _time_override=False):
     # convert timestamps to integers
     df['recvtimets'] = df['recvtimets'].map(float)
     df['recvtimets'] = df['recvtimets'].map(int)
-    df['recvtimets'] = df['recvtimets'] - 7200
     # filter data for today
     df = df[(timeTodayStart < df.recvtimets) & (df.recvtimets <= timeTodayEnd)]
     # Available is true and false in this periodical order, starting with true
@@ -81,7 +80,6 @@ def calculateOEE(day, workstationId, jobId, _time_override=False):
     # convert timestamps to integers
     df['recvtimets'] = df['recvtimets'].map(float)
     df['recvtimets'] = df['recvtimets'].map(int)
-    df['recvtimets'] = df['recvtimets'] - 7200
     # filter for today
     df = df[(timeTodayStart < df.recvtimets) & (df.recvtimets <= timeTodayEnd)]
     
