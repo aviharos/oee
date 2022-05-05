@@ -28,6 +28,10 @@ def stringToDateTime(string):
     return datetime.strptime(string, DATETIME_FORMAT)
 
 def calculateOEE(day, workstationId, jobId, _time_override=False):
+    now = datetime.now()
+    if _time_override:
+        now = _time_override
+
     # this is how you can read a value from a DataFrame
     # value = df['column'].iloc[number of row]
 
@@ -36,7 +40,6 @@ def calculateOEE(day, workstationId, jobId, _time_override=False):
     
     # availability
     # we read the Workstation logs into a pandas DataFrame (that is in memory)
-
     
     global engine, con
     engine = create_engine('postgresql://{}:{}@localhost:5432'.format(conf['postgresUser'], conf['postgresPassword']))
