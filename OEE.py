@@ -7,7 +7,7 @@ import time
 import pandas as pd
 from sqlalchemy import create_engine, inspect
 from sqlalchemy.schema import CreateSchema
-from sqlalchemy.types import Text
+from sqlalchemy.types import DateTime, Float, BigInteger, Text
 
 # custom imports
 from conf import conf
@@ -16,8 +16,15 @@ import Orion
 global engine, con
 global conf, postgresSchema, day
 postgresSchema = conf['postgresSchema']
-
 DATETIME_FORMAT='%Y-%m-%d %H:%M:%S.%f'
+col_dtypes={'recvtimets': BigInteger(),
+            'recvtime': DateTime(),
+            'availability': Float(),
+            'performance': Float(),
+            'quality': Float(),
+            'oee': Float(),
+            'throughput_shift': Float(),
+            'jobs': Text()}
 
 def msToDateTimeString(ms):
     return str(datetime.fromtimestamp(ms/1000.0).strftime(DATETIME_FORMAT))[:-3]
@@ -38,7 +45,8 @@ def calculateOEE(day, workstationId, jobId, _time_override=False):
     timeTodayEnd = int((day + pd.DateOffset(days=1)).timestamp()*1000)
     
     # availability        
-    # todo: use workstationId 
+    # todo: use workstationId
+    # 'urn:ngsi_ld:Workstation:1'.replace(':','_')
     df = pd.read_sql_query(f'select * from default_service.urn_ngsi_ld_workstation_1_workstation',con=con)
     # convert timestamps to integers
     df['recvtimets'] = df['recvtimets'].map(float)
@@ -68,6 +76,8 @@ def calculateOEE(day, workstationId, jobId, _time_override=False):
     OperatorScheduleStartsAt = stringToDateTime('2022-04-10 8:00:00.000')
     OperatorScheduleStopsAt = stringToDateTime('2022-04-10 16:00:00.000')
     
+    # todo return None if now is past the OperatorScheduleStopsAt value
+    
     # todo: we do not change OperatorScheduleStopsAt, use a variable called "now" instead
     if (df.iloc[-1].attrvalue =='true'):
         OperatorScheduleStopsAt = datetime.now()
@@ -84,8 +94,7 @@ def calculateOEE(day, workstationId, jobId, _time_override=False):
     df = df[(timeTodayStart < df.recvtimets) & (df.recvtimets <= timeTodayEnd)]
     
     if df.size == 0:
-        quality = 0
-        performance = 0
+        return None
     else:
         GoodPartCounter = int(df[df.attrname == 'GoodPartCounter'].iloc[-1].attrvalue)
         RejectPartCounter = int(df[df.attrname == 'RejectPartCounter'].iloc[-1].attrvalue)
@@ -112,6 +121,8 @@ def calculateOEE(day, workstationId, jobId, _time_override=False):
     # we do not need to know the exact number of good parts or reject parts made today
     # find n_successful_mouldings, n_failed_mouldings
     # there may be duplicate rows that do not represent a moulding, that is why we use unique
+    # 4000, 4000, 4000, 4008, 4008, 4008, 4016, 4016, 4024
+    # [4000, 4008, 4016, 4024]
     n_successful_mouldings = len(df[df['attrname'] == 'GoodPartCounter']['GoodPartCounter'].unique())
     n_failed_mouldings = len(df[df['attrname'] == 'RejectPartCounter']['RejectPartCounter'].unique())
     n_total_mouldings = n_successful_mouldings + n_failed_mouldings
@@ -135,6 +146,8 @@ def calculateOEE(day, workstationId, jobId, _time_override=False):
 def insertOEE(workstationId, availability, performance, quality, oee):
     # todo insert a new row into the OEE table
     # create table if not exists, append row if it does
+    # df: DataFrame with only one row
+    # df.to_sql(name=table, con=con, schema=postgresSchema, index=False, dtype=col_dtypes, if_exists='append')
     pass
 
 def testcalculateOEE():
