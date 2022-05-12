@@ -1,6 +1,7 @@
 ﻿# -*- coding: utf-8 -*-
 # Standard Library imports
 # PyPI packages
+import json
 import requests
 
 # custom imports
@@ -27,9 +28,10 @@ def getActiveJobId(workstationId):
     pass
 
 def testgetObject():
-    status_code, OperatorSchedule = getObject('urn:ngsi_ld:Job:202200045') #urn:ngsi_ld:Constants:1
+    status_code, parsedJob = getObject('urn:ngsi_ld:Job:202200045')
     print(status_code)
-    print(OperatorSchedule)
+    print(parsedJob['id'])
+    print(parsedJob['GoodPartCounter']['value'])
 
 if __name__ == '__main__':
     testgetObject()
