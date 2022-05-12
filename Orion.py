@@ -27,7 +27,7 @@ def getActiveJobId(workstationId):
     pass
 
 def testgetObject():
-    status_code, OperatorSchedule = getObject('urn:ngsi_ld:OperatorSchedule:1')
+    status_code, OperatorSchedule = getObject('urn:ngsi_ld:Job:202200045') #urn:ngsi_ld:Constants:1
     print(status_code)
     print(OperatorSchedule)
 

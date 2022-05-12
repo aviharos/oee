@@ -76,12 +76,15 @@ def calculateOEE(day, workstationId, jobId, _time_override=False):
     
     # OperatorScheduleStartsAt and the OperatorScheduleStopsAt will be requested from the Orion broker
     # if the shift has not ended yet, the current time needs to be used instead of OperatorScheduleStopsAt
-    # todo: use Orion.getObject to fetch OperatorSchedule object as JSON, extract these variables :(
+    # todo: use Orion.getObject to fetch OperatorSchedule object as JSON, extract these variables :)
     
-    JSON = Orion.getObject('urn:ngsi_ld:OperatorSchedule:1')
-    #print(JSON)
-    OperatorScheduleStartsAt = stringToDateTime('2022-04-10 8:00:00.000')
-    OperatorScheduleStopsAt = stringToDateTime('2022-04-10 16:00:00.000')
+    sch_json = str(Orion.getObject('urn:ngsi_ld:OperatorSchedule:1'))
+    
+    find1 = sch_json.find('OperatorWorkingScheduleStartsAt')
+    OperatorScheduleStartsAt = datetime.strptime('2022-05-01 ' + str(sch_json[find1+50:find1+80][11:sch_json[find1+50:find1+80].find(',')-1]), '%Y-%m-%d %H:%M:%S')
+    
+    find2 = sch_json.find('OperatorWorkingScheduleStopsAt')
+    OperatorScheduleStopsAt = datetime.strptime('2022-05-01 ' + str(sch_json[find2+50:find2+80][10:sch_json[find2+50:find2+80].find(',')-1]), '%Y-%m-%d %H:%M:%S')
     
     # todo return None if now is past the OperatorScheduleStopsAt value :(
     
@@ -110,33 +113,25 @@ def calculateOEE(day, workstationId, jobId, _time_override=False):
         n_failed_mouldings = len(df[df.attrname == 'RejectPartCounter']['attrvalue'].unique())
         n_total_mouldings = n_successful_mouldings + n_failed_mouldings
         
-        referenceInjectionTime = 50000
+        job_json = str(Orion.getObject(jobId))
+        find1 = job_json[job_json.find('JobType'):job_json.find('JobType')+60]
+        job_type = find1[40:find1.find('}')-14]
+        print(job_type)
+        
+        # a jobtype itt 'JobCover', ez alapján kellene megtalálni a 'TOOL_COVER_REFERENCE_INJECTION_TIME'-t?
+        
+        constants_json = str(Orion.getObject('urn:ngsi_ld:Constants:1'))
+        
+        tofind = job_type.upper() + '_REFERENCE_INJECTION_TIME'
+        
+        find1 = constants_json[constants_json.find(tofind):constants_json.find(tofind)+80]
+        
+        referenceInjectionTime = float(find1[find1.find('value') + 8:find1.find('metadata')-3]) * 1000
+        
         performance = n_total_mouldings * referenceInjectionTime / total_available_time
         quality = n_successful_mouldings / n_total_mouldings
         
         
-    
-    """
-    # we do not need to know the exact number of good parts or reject parts made today
-    # find n_successful_mouldings, n_failed_mouldings
-    # there may be duplicate rows that do not represent a moulding, that is why we use unique
-    # 4000, 4000, 4000, 4008, 4008, 4008, 4016, 4016, 4024
-    # [4000, 4008, 4016, 4024]
-    n_successful_mouldings = len(df[df['attrname'] == 'GoodPartCounter']['GoodPartCounter'].unique())
-    n_failed_mouldings = len(df[df['attrname'] == 'RejectPartCounter']['RejectPartCounter'].unique())
-    n_total_mouldings = n_successful_mouldings + n_failed_mouldings
-
-    # todo get Job from Orion based on jobId :(
-    # todo extract JobTpye from JSON
-    # todo get urn:ngsi_ld:Constants:1 from Orion, extract referenceInjectionTime
-    # referenceInjectionTime depends on the JobId - look up
-    # also, check that the code works even if there is no counter at all for one of the types, for example no reject
-    # it should work because of len(unique)
-    performance = n_total_mouldings * referenceInjectionTime / total_available_time
-
-    quality = n_successful_mouldings / n_total_mouldings
-
-    """
     oee = availability * performance * quality
     
     return availability, performance, quality, oee
@@ -148,7 +143,7 @@ def insertOEE(workstationId, availability, performance, quality, oee):
     current_time = datetime.now().timestamp()*1000
 
     #csak akkor fogadta el a timestamp számokat, ha az oszlopok nevét átírtam valami értelmetlenre az eredetiről, mert így már nem vár idő formátumot    
-    df = pd.DataFrame(data=[[current_time,current_time - 7200000, availability, performance, quality, oee,4,'job']], columns=['xrecvtimets','xrecvtime','availability','performance','quality','oee','throughput_shift','jobs'])
+    df = pd.DataFrame(data=[[current_time,current_time - 7200000, availability, performance, quality, oee, 4, 'job']], columns=['xrecvtimets','xrecvtime','availability','performance','quality','oee','throughput_shift','jobs'])
 
     df.iloc[[0]].to_sql(name=table_name, con=con, schema=postgresSchema, index=False, dtype=col_dtypes, if_exists='append')
     
@@ -164,7 +159,6 @@ def testcalculateOEE():
     engine = create_engine('postgresql://{}:{}@localhost:5432'.format(conf['postgresUser'], conf['postgresPassword']))
     con = engine.connect()
     # some work needs to be done on Andor's side
-    #####availability, performance, quality, oee = calculateOEE(day, 'urn:ngsi_ld:Job:202200045', 'urn:ngsi_ld:Workstation:1')
     #print(f'availability: {availability}, performance: {performance}, quality: {quality}, oee: {oee}\n')
     # todo why does it return only 2 values? I see 4. :)
     [availability, performance, quality, oee] = calculateOEE(day, 'urn:ngsi_ld:Workstation:1', 'urn:ngsi_ld:Job:202200045', stringToDateTime('2022-04-04 16:38:27.87'))
