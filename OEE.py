@@ -40,93 +40,90 @@ def calculateOEE(day, workstationId, jobId, _time_override=False):
 
     #integer unix time in milliseconds at 0:00:00
     timeTodayStart = int(day.timestamp()*1000)
-    #integer unix time in milliseconds at 24:00:00
-    if _time_override:
-        timeTodayEnd = now.timestamp()*1000
-    else:
-        timeTodayEnd = int((day + pd.DateOffset(days=1)).timestamp()*1000)
-    #print(timeTodayEnd)
-    
+   
     # availability        
     workstation = workstationId.replace(':', '_').lower() + '_workstation'
-    df = pd.read_sql_query(f'select * from default_service.' + workstation,con=con)
-      
-    # convert timestamps to integers
+    df = pd.read_sql_query(f'select * from default_service.{workstation}',con=con)      
     df['recvtimets'] = df['recvtimets'].map(float)
     df['recvtimets'] = df['recvtimets'].map(int)
-    # filter data for today
-    df = df[(timeTodayStart < df.recvtimets) & (df.recvtimets <= timeTodayEnd)]
+    df = df[(timeTodayStart < df.recvtimets) & (df.recvtimets <= now)]
+
+    if df.size == 0:
+        return None
+
     # Available is true and false in this periodical order, starting with true
     # we can sum the timestamps of the true values and the false values disctinctly, getting 2 sums
     # the total available time is their difference    
-    available_true = df[df.attrvalue == 'true'] #filter_ data # pandas DataFrame
-    available_false = df[df.attrvalue == 'false'] #filter_ data # pandas DataFrame
+    available_true = df[df.attrvalue == 'true']
+    available_false = df[df.attrvalue == 'false']
     total_available_time = available_false['recvtimets'].sum() - available_true['recvtimets'].sum()
-    if df.size == 0:
+    # if the Workstation is available currently, we need to add
+    # the current timestamp to the true timestamps' sum
+    if (df.iloc[-1].attrvalue =='true'):
+        now_unix = now.timestamp()
+        total_available_time += now_unix*1000
+    
+    total_available_time_hours = time.strftime("%H:%M:%S", time.gmtime(total_available_time/1000))
+    
+    print('Total available time: ', total_available_time_hours)
+    
+    # OperatorScheduleStartsAt and the OperatorScheduleStopsAt
+    # will be requested from the Orion broker
+    # if the shift has not ended yet, the current time needs to be used
+    # instead of OperatorScheduleStopsAt
+    
+    status_code, sch_json = Orion.getObject('urn:ngsi_ld:OperatorSchedule:1')
+    # todo: use variable day
+    OperatorScheduleStartsAt = datetime.strptime('2022-05-01 ' + str(sch_json['OperatorWorkingScheduleStartsAt']['value']), '%Y-%m-%d %H:%M:%S')        
+    OperatorScheduleStopsAt = datetime.strptime('2022-05-01 ' + str(sch_json['OperatorWorkingScheduleStopsAt']['value']), '%Y-%m-%d %H:%M:%S')
+    
+    # todo return None if now is before the OperatorScheduleStartsAt
+    # todo fix pseudocode
+    if now is past OperatorScheduleStopsAt:
         return None
-    else: 
-        
-        # if the Workstation is available currently, we need to add the current timestamp to the true timestamps' sum
-        #print(df)
-        if (df.iloc[-1].attrvalue =='true'):
-            now_unix = now.timestamp()
-            total_available_time += now_unix*1000
-        
-        #total_available_time = datetime.utcfromtimestamp(total_available_time).strftime(DATETIME_FORMAT)
-        total_available_time_hours = time.strftime("%H:%M:%S", time.gmtime(total_available_time/1000))
-        
-        print('Total available time: ', total_available_time_hours)
-        
-        # OperatorScheduleStartsAt and the OperatorScheduleStopsAt will be requested from the Orion broker
-        # if the shift has not ended yet, the current time needs to be used instead of OperatorScheduleStopsAt
-        
-        status_code, sch_json = Orion.getObject('urn:ngsi_ld:OperatorSchedule:1')
-        
-        OperatorScheduleStartsAt = datetime.strptime('2022-05-01 ' + str(sch_json['OperatorWorkingScheduleStartsAt']['value']), '%Y-%m-%d %H:%M:%S')
-        
-        OperatorScheduleStopsAt = datetime.strptime('2022-05-01 ' + str(sch_json['OperatorWorkingScheduleStopsAt']['value']), '%Y-%m-%d %H:%M:%S')
-        
-        
-        # todo return None if now is past the OperatorScheduleStopsAt value :(
-        
-        if (df.iloc[-1].attrvalue =='true'):
-            availability = total_available_time/(now.timestamp()*1000-OperatorScheduleStartsAt.timestamp()*1000)
-        else:
-            availability = total_available_time/(OperatorScheduleStopsAt.timestamp()*1000-OperatorScheduleStartsAt.timestamp()*1000)
+    # todo return None if now is past the OperatorScheduleStopsAt value :(
+    if now is past OperatorScheduleStopsAt:
+        return None
+    # it is now sure that we are still in the shift
+    availability = total_available_time/(now.timestamp()*1000-OperatorScheduleStartsAt.timestamp()*1000)
     
     # performance, quality
     job = jobId.replace(':', '_').lower() + '_job'
-    df = pd.read_sql_query(f'select * from default_service.' + job,con=con)
+    df = pd.read_sql_query(f'select * from default_service.{job}',con=con)
     # convert timestamps to integers
     df['recvtimets'] = df['recvtimets'].map(float)
     df['recvtimets'] = df['recvtimets'].map(int)
     # filter for today
-    df = df[(timeTodayStart < df.recvtimets) & (df.recvtimets <= timeTodayEnd)]
+    df = df[(timeTodayStart < df.recvtimets) & (df.recvtimets <= now)]
     
     if df.size == 0:
         return None
-    else:
-        n_successful_mouldings = len(df[df.attrname == 'GoodPartCounter']['attrvalue'].unique())
-        n_failed_mouldings = len(df[df.attrname == 'RejectPartCounter']['attrvalue'].unique())
-        n_total_mouldings = n_successful_mouldings + n_failed_mouldings
-        
-        job_json = str(Orion.getObject(jobId))
-        find1 = job_json[job_json.find('JobType'):job_json.find('JobType')+60]
-        job_type = find1[40:find1.find('}')-14]
-        #print(job_type)
-        
-        # a jobtype itt 'JobCover', ez alapján kellene megtalálni a 'TOOL_COVER_REFERENCE_INJECTION_TIME'-t?
-        
-        constants_json = str(Orion.getObject('urn:ngsi_ld:Constants:1'))
-        
-        tofind = job_type.upper() + '_REFERENCE_INJECTION_TIME'
-        
-        find1 = constants_json[constants_json.find(tofind):constants_json.find(tofind)+80]
-        
-        referenceInjectionTime = float(find1[find1.find('value') + 8:find1.find('metadata')-3]) * 1000
-        
-        performance = n_total_mouldings * referenceInjectionTime / total_available_time
-        quality = n_successful_mouldings / n_total_mouldings
+
+    n_successful_mouldings = len(df[df.attrname == 'GoodPartCounter']['attrvalue'].unique())
+    n_failed_mouldings = len(df[df.attrname == 'RejectPartCounter']['attrvalue'].unique())
+    n_total_mouldings = n_successful_mouldings + n_failed_mouldings
+    
+    # todo parse job, parse constant json
+    # jobtype = job_json['JobType']['value']
+    # 
+    # reference_time = constant_json['TOOL_COVER_REFERENCE_INJECTION_TIME']
+    job_json = str(Orion.getObject(jobId))
+    find1 = job_json[job_json.find('JobType'):job_json.find('JobType')+60]
+    job_type = find1[40:find1.find('}')-14]
+    #print(job_type)
+    
+    # a jobtype itt 'JobCover', ez alapján kellene megtalálni a 'TOOL_COVER_REFERENCE_INJECTION_TIME'-t?
+    
+    constants_json = str(Orion.getObject('urn:ngsi_ld:Constants:1'))
+    
+    tofind = job_type.upper() + '_REFERENCE_INJECTION_TIME'
+    
+    find1 = constants_json[constants_json.find(tofind):constants_json.find(tofind)+80]
+    
+    referenceInjectionTime = float(find1[find1.find('value') + 8:find1.find('metadata')-3]) * 1000
+    
+    performance = n_total_mouldings * referenceInjectionTime / total_available_time
+    quality = n_successful_mouldings / n_total_mouldings
         
         
     oee = availability * performance * quality
