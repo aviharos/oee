@@ -41,14 +41,14 @@ def calculateOEE(workstationId, jobId, _time_override=False):
     #integer unix time in milliseconds at 00:00:00
     timeTodayStart = int(stringToDateTime(str(now.date()) + ' 00:00:00.000').timestamp()*1000)
     
-    timeTodayEnd = now.timestamp()*1000
+    now_unix = now.timestamp()*1000
 
     # availability        
     workstation = workstationId.replace(':', '_').lower() + '_workstation'
     df = pd.read_sql_query(f'select * from default_service.{workstation}',con=con)      
     df['recvtimets'] = df['recvtimets'].map(float)
     df['recvtimets'] = df['recvtimets'].map(int)
-    df = df[(timeTodayStart < df.recvtimets) & (df.recvtimets <= timeTodayEnd)]
+    df = df[(timeTodayStart < df.recvtimets) & (df.recvtimets <= now_unix)]
 
     if df.size == 0:
         return None
@@ -62,8 +62,7 @@ def calculateOEE(workstationId, jobId, _time_override=False):
     # if the Workstation is available currently, we need to add
     # the current timestamp to the true timestamps' sum
     if (df.iloc[-1].attrvalue =='true'):
-        now_unix = now.timestamp()
-        total_available_time += now_unix*1000
+        total_available_time += now_unix
     
     total_available_time_hours = time.strftime("%H:%M:%S", time.gmtime(total_available_time/1000))
     
@@ -75,14 +74,13 @@ def calculateOEE(workstationId, jobId, _time_override=False):
     # instead of OperatorScheduleStopsAt
     
     status_code, sch_json = Orion.getObject('urn:ngsi_ld:OperatorSchedule:1')
-    OperatorScheduleStartsAt = datetime.strptime(f'{str(now.date())} ' + str(sch_json['OperatorWorkingScheduleStartsAt']['value']), '%Y-%m-%d %H:%M:%S')        
-    OperatorScheduleStopsAt = datetime.strptime(f'{str(now.date())} ' + str(sch_json['OperatorWorkingScheduleStopsAt']['value']), '%Y-%m-%d %H:%M:%S')
+    OperatorScheduleStartsAt = datetime.strptime(str(now.date())+ ' ' + str(sch_json['OperatorWorkingScheduleStartsAt']['value']), '%Y-%m-%d %H:%M:%S')        
+    OperatorScheduleStopsAt = datetime.strptime(str(now.date())+ ' ' + str(sch_json['OperatorWorkingScheduleStopsAt']['value']), '%Y-%m-%d %H:%M:%S')
     
     if now < OperatorScheduleStartsAt:
         return None
     if now > OperatorScheduleStopsAt:
         return None
-    
     
     availability = total_available_time/(now.timestamp()*1000-OperatorScheduleStartsAt.timestamp()*1000)
     
@@ -93,11 +91,11 @@ def calculateOEE(workstationId, jobId, _time_override=False):
     df['recvtimets'] = df['recvtimets'].map(float)
     df['recvtimets'] = df['recvtimets'].map(int)
     # filter for today
-    df = df[(timeTodayStart < df.recvtimets) & (df.recvtimets <= timeTodayEnd)]
-    
+    df = df[(timeTodayStart < df.recvtimets) & (df.recvtimets <= now_unix)]
+
     if df.size == 0:
         return None
-
+    
     n_successful_mouldings = len(df[df.attrname == 'GoodPartCounter']['attrvalue'].unique())
     n_failed_mouldings = len(df[df.attrname == 'RejectPartCounter']['attrvalue'].unique())
     n_total_mouldings = n_successful_mouldings + n_failed_mouldings
@@ -126,43 +124,45 @@ def calculateOEE(workstationId, jobId, _time_override=False):
     oee = availability * performance * quality
     
     
-    shiftLengthInSeconds = OperatorScheduleStopsAt.timestamp()*1000 - OperatorScheduleStartsAt.timestamp()*1000
+    shiftLengthInMilliseconds = OperatorScheduleStopsAt.timestamp()*1000 - OperatorScheduleStartsAt.timestamp()*1000
     
-    throughput = (shiftLengthInSeconds / referenceInjectionTime) * partsPerMoulding * oee
+    throughput = (shiftLengthInMilliseconds / referenceInjectionTime) * partsPerMoulding * oee
     
     return availability, performance, quality, oee, throughput
 
-def insertOEE(workstationId, availability, performance, quality, oee):
-    # create table if not exists, append row if it does
-    table_name = workstationId.replace(':', '_').lower() + '_workstation_oee_tryyyyyy'
-    current_time = datetime.now().timestamp()*1000
+def insertOEE(workstationId, availability, performance, quality, oee, throughput, jobIds):
+    table_name = workstationId.replace(':', '_').lower() + '_workstation_oee'
+    now_ms = datetime.now().timestamp()*1000
+    oeeData = pd.DataFrame.from_dict({'recvtimets': [now_ms],
+                                      'recvtime': [msToDateTimeString(now_ms)],
+                                      'availability': [availability],
+                                      'performance': [performance],
+                                      'quality': [quality],
+                                      'oee': [oee],
+                                      'throughput_shift': [throughput],
+                                      'jobs': [jobIds]})
+    oeeData.to_sql(name=table_name, con=con, schema=postgresSchema, index=False, dtype=col_dtypes, if_exists='append')
 
-    #csak akkor fogadta el a timestamp számokat, ha az oszlopok nevét átírtam valami értelmetlenre az eredetiről, mert így már nem vár idő formátumot    
-    df = pd.DataFrame(data=[[current_time,current_time - 7200000, availability, performance, quality, oee, 4, 'job']], columns=['xrecvtimets','xrecvtime','availability','performance','quality','oee','throughput_shift','jobs'])
-
-    df.iloc[[0]].to_sql(name=table_name, con=con, schema=postgresSchema, index=False, dtype=col_dtypes, if_exists='append')
-    
-    #df_read = pd.read_sql_query(f'select * from default_service.' + table_name,con=con)
-    #print(df_read)
-    
-    
-    pass
+def testinsertOEE():
+    availability = 0.98
+    performance = 0.99
+    quality = 0.95
+    oee = availability * performance * quality
+    throughput = 8
+    insertOEE('urn:ngsi_ld:Workstation:1', availability, performance, quality, oee, throughput, 'urn:ngsi_ld:Job:202200045')
 
 def testcalculateOEE():
-    global engine, con
-    engine = create_engine('postgresql://{}:{}@localhost:5432'.format(conf['postgresUser'], conf['postgresPassword']))
-    con = engine.connect()
-    # some work needs to be done on Andor's side
-    
-    oeeData = calculateOEE('urn:ngsi_ld:Workstation:1', 'urn:ngsi_ld:Job:202200045', stringToDateTime('2022-04-05 13:38:27.87'))
+    oeeData = calculateOEE('urn:ngsi_ld:Workstation:1', 'urn:ngsi_ld:Job:202200045', _time_override=stringToDateTime('2022-04-05 13:38:27.87'))
     if oeeData is not None:
         (availability, performance, quality, oee, throughput)= oeeData
         print('Availability: ', availability, '\nPerformance: ', performance, '\nQuality: ', quality, '\nOEE: ', oee, '\nThroughput: ', throughput)
-        insertOEE('urn:ngsi_ld:Workstation:1', availability, performance, quality, oee)
-    
-    con.close()
-    engine.dispose()
+        insertOEE('urn:ngsi_ld:Workstation:1', availability, performance, quality, oee, throughput, 'urn:ngsi_ld:Job:202200045')
 
 if __name__ == '__main__':
+    global engine, con
+    engine = create_engine('postgresql://{}:{}@localhost:5432'.format(conf['postgresUser'], conf['postgresPassword']))
+    con = engine.connect()
     testcalculateOEE()
-
+    # testinsertOEE()
+    con.close()
+    engine.dispose()
