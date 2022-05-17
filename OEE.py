@@ -5,8 +5,7 @@ import time
 
 # PyPI packages
 import pandas as pd
-from sqlalchemy import create_engine, inspect
-from sqlalchemy.schema import CreateSchema
+from sqlalchemy import create_engine
 from sqlalchemy.types import DateTime, Float, BigInteger, Text
 
 # custom imports
