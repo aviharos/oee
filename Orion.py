@@ -1,11 +1,23 @@
 ﻿# -*- coding: utf-8 -*-
 # Standard Library imports
 # PyPI packages
-import json
+import logging
 import requests
 
 # custom imports
 from conf import conf
+
+log_levels={'DEBUG': logging.DEBUG,
+            'INFO': logging.INFO,
+            'WARNING': logging.WARNING,
+            'ERROR': logging.ERROR,
+            'CRITICAL': logging.CRITICAL}
+logger_Orion = logging.getLogger(__name__)
+formatter = logging.Formatter('%(asctime)s:%(name)s:%(message)s')
+logger_Orion.setLevel(log_levels[conf['logging_level']])
+file_handler = logging.FileHandler('Orion.log')
+file_handler.setFormatter(formatter)
+logger_Orion.addHandler(file_handler)
 
 def getObject(object_id, host=conf['orion_host'], port=conf['orion_port']):
     '''
@@ -15,9 +27,15 @@ def getObject(object_id, host=conf['orion_host'], port=conf['orion_port']):
     try:
         response = requests.get(url)
         response.close()
-        return response.status_code, response.json()
     except:
-        raise RuntimeError(f'Get request failed to URL: {url}')
+        logger_Orion.error(f'Get request failed to URL for unknown reason: {url}')
+        return None, None
+    else:
+        if response.status_code == 200:
+            return response.status_code, response.json()
+        else:
+            logger_Orion.error(f'Get request failed to URL: {url}, status code:{response.status_code}')
+            return response.status_code, None
 
 def getWorkstationIds():
     #return workstationIds

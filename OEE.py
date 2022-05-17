@@ -1,6 +1,7 @@
 ﻿# -*- coding: utf-8 -*-
 # Standard Library imports
 from datetime import datetime
+import logging
 import time
 
 # PyPI packages
@@ -14,6 +15,19 @@ import Orion
 
 global engine, con
 global conf, postgresSchema, day
+
+log_levels={'DEBUG': logging.DEBUG,
+            'INFO': logging.INFO,
+            'WARNING': logging.WARNING,
+            'ERROR': logging.ERROR,
+            'CRITICAL': logging.CRITICAL}
+logger_OEE = logging.getLogger(__name__)
+formatter = logging.Formatter('%(asctime)s:%(name)s:%(message)s')
+logger_OEE.setLevel(log_levels[conf['logging_level']])
+file_handler = logging.FileHandler('OEE.log')
+file_handler.setFormatter(formatter)
+logger_OEE.addHandler(file_handler)
+
 postgresSchema = conf['postgresSchema']
 DATETIME_FORMAT='%Y-%m-%d %H:%M:%S.%f'
 col_dtypes={'recvtimets': BigInteger(),
@@ -31,25 +45,40 @@ def msToDateTimeString(ms):
 def stringToDateTime(string):
     return datetime.strptime(string, DATETIME_FORMAT)
 
-def calculateOEE(workstationId, jobId, _time_override=False):
-    # _time_override will never be used in production,we will work with the current time
+def calculateOEE(workstationId, jobId, _time_override=None):
+    # _time_override will never be used in production, we will work with the current time
     now = datetime.now()
-    if _time_override:
+    if _time_override is not None:
         now = _time_override
+        logger_OEE.warning(f'Time override: {_time_override}')
     
     #integer unix time in milliseconds at 00:00:00
     timeTodayStart = int(stringToDateTime(str(now.date()) + ' 00:00:00.000').timestamp()*1000)
     
+    today = now.date()
     now_unix = now.timestamp()*1000
+    status_code, sch_json = Orion.getObject('urn:ngsi_ld:OperatorSchedule:1')
+    if status_code != 200:
+        logger_OEE.error(f'Failed to get object from Orion broker:urn:ngsi_ld:OperatorSchedule:1, status_code:{status_code}')
+        return None
+    OperatorScheduleStartsAt = datetime.strptime(str(now.date())+ ' ' + str(sch_json['OperatorWorkingScheduleStartsAt']['value']), '%Y-%m-%d %H:%M:%S')        
+    OperatorScheduleStopsAt = datetime.strptime(str(now.date())+ ' ' + str(sch_json['OperatorWorkingScheduleStopsAt']['value']), '%Y-%m-%d %H:%M:%S')
+    
+    if now < OperatorScheduleStartsAt:
+        logger_OEE.info(f'The shift has not started yet before time: {now}, no OEE data')
+        return None
+    if now > OperatorScheduleStopsAt:
+        logger_OEE.info(f'The shift ended before time: {now}, no OEE data')
+        return None
 
     # availability        
     workstation = workstationId.replace(':', '_').lower() + '_workstation'
     df = pd.read_sql_query(f'select * from default_service.{workstation}',con=con)      
-    df['recvtimets'] = df['recvtimets'].map(float)
-    df['recvtimets'] = df['recvtimets'].map(int)
+    df['recvtimets'] = df['recvtimets'].map(float).map(int)
     df = df[(timeTodayStart < df.recvtimets) & (df.recvtimets <= now_unix)]
 
-    if df.size == 0:
+    if df.size == 0:   
+        logger_OEE.warning(f'No workstation data found for {workstationId} up to time {now} on day {today}, no OEE data')
         return None
 
     # Available is true and false in this periodical order, starting with true
@@ -65,44 +94,34 @@ def calculateOEE(workstationId, jobId, _time_override=False):
     
     total_available_time_hours = time.strftime("%H:%M:%S", time.gmtime(total_available_time/1000))
     
-    print('Total available time: ', total_available_time_hours)
-    
-    # OperatorScheduleStartsAt and the OperatorScheduleStopsAt
-    # will be requested from the Orion broker
-    # if the shift has not ended yet, the current time needs to be used
-    # instead of OperatorScheduleStopsAt
-    
-    status_code, sch_json = Orion.getObject('urn:ngsi_ld:OperatorSchedule:1')
-    OperatorScheduleStartsAt = datetime.strptime(str(now.date())+ ' ' + str(sch_json['OperatorWorkingScheduleStartsAt']['value']), '%Y-%m-%d %H:%M:%S')        
-    OperatorScheduleStopsAt = datetime.strptime(str(now.date())+ ' ' + str(sch_json['OperatorWorkingScheduleStopsAt']['value']), '%Y-%m-%d %H:%M:%S')
-    
-    if now < OperatorScheduleStartsAt:
-        return None
-    if now > OperatorScheduleStopsAt:
-        return None
-    
+    logger_OEE.info(f'Total available time: {total_available_time_hours}')
+        
     availability = total_available_time/(now.timestamp()*1000-OperatorScheduleStartsAt.timestamp()*1000)
     
     # performance, quality
     job = jobId.replace(':', '_').lower() + '_job'
     df = pd.read_sql_query(f'select * from default_service.{job}',con=con)
-    # convert timestamps to integers
-    df['recvtimets'] = df['recvtimets'].map(float)
-    df['recvtimets'] = df['recvtimets'].map(int)
-    # filter for today
+    df['recvtimets'] = df['recvtimets'].map(float).map(int)
     df = df[(timeTodayStart < df.recvtimets) & (df.recvtimets <= now_unix)]
 
     if df.size == 0:
+        logger_OEE.warning(f'No job data found for {jobId} up to time {now} on day {today}.')
         return None
     
     n_successful_mouldings = len(df[df.attrname == 'GoodPartCounter']['attrvalue'].unique())
     n_failed_mouldings = len(df[df.attrname == 'RejectPartCounter']['attrvalue'].unique())
     n_total_mouldings = n_successful_mouldings + n_failed_mouldings
     
-
-    
     status_code, job_json = Orion.getObject(jobId)
+    if status_code != 200:
+        logger_OEE.error(f'Failed to get object from Orion broker:{jobId}, status_code:{status_code}; no OEE data')
+        return None
+
     status_code, constants_json = Orion.getObject('urn:ngsi_ld:Constants:1')
+    if status_code != 200:
+        logger_OEE.error(f'Failed to get object from Orion broker:urn:ngsi_ld:Constants:1, status_code:{status_code}; no OEE data')
+        return None
+
     job_type = job_json['JobType']['value']
     
     if job_type == 'JobCover':
@@ -117,14 +136,10 @@ def calculateOEE(workstationId, jobId, _time_override=False):
     
 
     performance = n_total_mouldings * referenceInjectionTime / total_available_time
-    
-    quality = n_successful_mouldings / n_total_mouldings
-        
+    quality = n_successful_mouldings / n_total_mouldings        
     oee = availability * performance * quality
     
-    
-    shiftLengthInMilliseconds = OperatorScheduleStopsAt.timestamp()*1000 - OperatorScheduleStartsAt.timestamp()*1000
-    
+    shiftLengthInMilliseconds = OperatorScheduleStopsAt.timestamp()*1000 - OperatorScheduleStartsAt.timestamp()*1000   
     throughput = (shiftLengthInMilliseconds / referenceInjectionTime) * partsPerMoulding * oee
     
     return availability, performance, quality, oee, throughput
@@ -154,7 +169,7 @@ def testcalculateOEE():
     oeeData = calculateOEE('urn:ngsi_ld:Workstation:1', 'urn:ngsi_ld:Job:202200045', _time_override=stringToDateTime('2022-04-05 13:38:27.87'))
     if oeeData is not None:
         (availability, performance, quality, oee, throughput)= oeeData
-        print('Availability: ', availability, '\nPerformance: ', performance, '\nQuality: ', quality, '\nOEE: ', oee, '\nThroughput: ', throughput)
+        logger_OEE.debug(f'Availability: {availability}, Performance: {performance}, Quality: {quality}, OEE: {oee}, Throughput: {throughput}')
         insertOEE('urn:ngsi_ld:Workstation:1', availability, performance, quality, oee, throughput, 'urn:ngsi_ld:Job:202200045')
 
 if __name__ == '__main__':

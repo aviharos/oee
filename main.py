@@ -5,7 +5,6 @@ conda install python=3.8 spyder sqlalchemy pandas psycopg2
 """
 
 # Standard Library imports
-from datetime import datetime
 
 # PyPI packages
 from sqlalchemy import create_engine
@@ -15,10 +14,9 @@ from conf import conf
 import OEE
 import Orion
 
-global conf, postgresSchema, day
+global conf, postgresSchema
 
 postgresSchema = conf['postgresSchema']
-day = datetime(2022, 4, 4)
 
 def loop():
     global engine, con
@@ -28,9 +26,8 @@ def loop():
     workstationIds = Orion.getWorkstationIdsFromOrion()
     for workstationId in workstationIds:
         jobId = Orion.getActiveJobId(workstationId)
-        # availability, performance, quality, oee
-        oeeData = OEE.calculateOEE(day, jobId)
-        #oee = pd.DataFrame.from_dict({'day': mai nap, ' availability':availability, 'performance':performance, 'quality':quality, 'oee':oee})
+        # availability, performance, quality, oee, throughput
+        oeeData = OEE.calculateOEE(workstationId, jobId)
         if oeeData is not None:
             OEE.updateOEE(workstationId, *oeeData)
 
