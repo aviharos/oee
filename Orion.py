@@ -3,6 +3,7 @@
 # PyPI packages
 import logging
 import requests
+import sys
 
 # custom imports
 from conf import conf
@@ -15,9 +16,14 @@ log_levels={'DEBUG': logging.DEBUG,
 logger_Orion = logging.getLogger(__name__)
 formatter = logging.Formatter('%(asctime)s:%(name)s:%(message)s')
 logger_Orion.setLevel(log_levels[conf['logging_level']])
-file_handler = logging.FileHandler('Orion.log')
-file_handler.setFormatter(formatter)
-logger_Orion.addHandler(file_handler)
+# TODO change in production
+#file_handler_Orion = logging.FileHandler('Orion.log')
+#file_handler_Orion.setFormatter(formatter)
+stream_handler_Orion = logging.StreamHandler(sys.stdout)
+stream_handler_Orion.setFormatter(formatter)
+#logger_Orion.addHandler(file_handler_Orion)
+logger_Orion.addHandler(stream_handler_Orion)
+
 
 def getObject(object_id, host=conf['orion_host'], port=conf['orion_port']):
     '''
@@ -28,7 +34,7 @@ def getObject(object_id, host=conf['orion_host'], port=conf['orion_port']):
         response = requests.get(url)
         response.close()
     except:
-        logger_Orion.error(f'Get request failed to URL for unknown reason: {url}')
+        logger_Orion.error(f'Get request failed to URL: {url} for unknown reason')
         return None, None
     else:
         if response.status_code == 200:

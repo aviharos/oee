@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-conf = {'logging_level': 'DEBUG',
+conf = {'logging_level': 'WARNING',
         'orion_host': 'localhost',
         'orion_port': 1026,
         'postgresHost': 'localhost',

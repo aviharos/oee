@@ -2,6 +2,7 @@
 # Standard Library imports
 from datetime import datetime
 import logging
+import sys
 import time
 
 # PyPI packages
@@ -24,9 +25,12 @@ log_levels={'DEBUG': logging.DEBUG,
 logger_OEE = logging.getLogger(__name__)
 formatter = logging.Formatter('%(asctime)s:%(name)s:%(message)s')
 logger_OEE.setLevel(log_levels[conf['logging_level']])
-file_handler = logging.FileHandler('OEE.log')
-file_handler.setFormatter(formatter)
-logger_OEE.addHandler(file_handler)
+file_handler_OEE = logging.FileHandler('OEE.log')
+file_handler_OEE.setFormatter(formatter)
+stream_handler_OEE = logging.StreamHandler(sys.stdout)
+stream_handler_OEE.setFormatter(formatter)
+logger_OEE.addHandler(file_handler_OEE)
+logger_OEE.addHandler(stream_handler_OEE)
 
 postgresSchema = conf['postgresSchema']
 DATETIME_FORMAT='%Y-%m-%d %H:%M:%S.%f'
@@ -50,7 +54,7 @@ def calculateOEE(workstationId, jobId, _time_override=None):
     now = datetime.now()
     if _time_override is not None:
         now = _time_override
-        logger_OEE.warning(f'Time override: {_time_override}')
+        logger_OEE.warning(f'Time override in calculateOEE: {_time_override}')
     
     #integer unix time in milliseconds at 00:00:00
     timeTodayStart = int(stringToDateTime(str(now.date()) + ' 00:00:00.000').timestamp()*1000)
@@ -73,9 +77,12 @@ def calculateOEE(workstationId, jobId, _time_override=None):
 
     # availability        
     workstation = workstationId.replace(':', '_').lower() + '_workstation'
-    df = pd.read_sql_query(f'select * from default_service.{workstation}',con=con)      
+    # TODO change to bigint in production
+    df = pd.read_sql_query(f'''select * from default_service.{workstation}
+                           where {timeTodayStart} < cast (recvtimets as numeric(14,1))
+                           and cast (recvtimets as numeric(14,1)) <= {now_unix};''',con=con)      
     df['recvtimets'] = df['recvtimets'].map(float).map(int)
-    df = df[(timeTodayStart < df.recvtimets) & (df.recvtimets <= now_unix)]
+    #df = df[(timeTodayStart < df.recvtimets) & (df.recvtimets <= now_unix)]
 
     if df.size == 0:   
         logger_OEE.warning(f'No workstation data found for {workstationId} up to time {now} on day {today}, no OEE data')
@@ -100,9 +107,12 @@ def calculateOEE(workstationId, jobId, _time_override=None):
     
     # performance, quality
     job = jobId.replace(':', '_').lower() + '_job'
-    df = pd.read_sql_query(f'select * from default_service.{job}',con=con)
+    # TODO change to bigint in production
+    df = pd.read_sql_query(f'''select * from default_service.{job}
+                           where {timeTodayStart} < cast (recvtimets as numeric(14,1))
+                           and cast (recvtimets as numeric(14,1)) <= {now_unix};''',con=con)
     df['recvtimets'] = df['recvtimets'].map(float).map(int)
-    df = df[(timeTodayStart < df.recvtimets) & (df.recvtimets <= now_unix)]
+    #df = df[(timeTodayStart < df.recvtimets) & (df.recvtimets <= now_unix)]
 
     if df.size == 0:
         logger_OEE.warning(f'No job data found for {jobId} up to time {now} on day {today}.')
@@ -144,11 +154,15 @@ def calculateOEE(workstationId, jobId, _time_override=None):
     
     return availability, performance, quality, oee, throughput
 
-def insertOEE(workstationId, availability, performance, quality, oee, throughput, jobIds):
+def insertOEE(workstationId, availability, performance, quality, oee, throughput, jobIds, _time_override=False):
     table_name = workstationId.replace(':', '_').lower() + '_workstation_oee'
-    now_ms = datetime.now().timestamp()*1000
-    oeeData = pd.DataFrame.from_dict({'recvtimets': [now_ms],
-                                      'recvtime': [msToDateTimeString(now_ms)],
+    now = datetime.now()
+    if _time_override is not None:
+        now = _time_override
+        logger_OEE.warning(f'Time override in insertOEE: {_time_override}')
+    now_unix = now.timestamp()*1000
+    oeeData = pd.DataFrame.from_dict({'recvtimets': [now_unix],
+                                      'recvtime': [msToDateTimeString(now_unix)],
                                       'availability': [availability],
                                       'performance': [performance],
                                       'quality': [quality],
@@ -165,18 +179,41 @@ def testinsertOEE():
     throughput = 8
     insertOEE('urn:ngsi_ld:Workstation:1', availability, performance, quality, oee, throughput, 'urn:ngsi_ld:Job:202200045')
 
-def testcalculateOEE():
+def testcalculateOEE1():
     oeeData = calculateOEE('urn:ngsi_ld:Workstation:1', 'urn:ngsi_ld:Job:202200045', _time_override=stringToDateTime('2022-04-05 13:38:27.87'))
     if oeeData is not None:
         (availability, performance, quality, oee, throughput)= oeeData
         logger_OEE.debug(f'Availability: {availability}, Performance: {performance}, Quality: {quality}, OEE: {oee}, Throughput: {throughput}')
         insertOEE('urn:ngsi_ld:Workstation:1', availability, performance, quality, oee, throughput, 'urn:ngsi_ld:Job:202200045')
 
+def testcalculateOEEall():
+    firstTimeStamp = 1649047794800
+    lastTimeStamp = 1649343921547 + 2*3600*1e3
+    timestamp = firstTimeStamp
+    logger_OEE.removeHandler(file_handler_OEE)
+    jobId = 'urn:ngsi_ld:Job:202200045'
+    try:
+        while timestamp <= lastTimeStamp:
+            logger_OEE.info(f'Calculating OEE data for timestamp: {timestamp}')
+            oeeData = calculateOEE('urn:ngsi_ld:Workstation:1', jobId , _time_override=stringToDateTime(msToDateTimeString(timestamp)))
+            if oeeData is not None:
+                logger_OEE.info(f'OEE data: {oeeData}')
+                (availability, performance, quality, oee, throughput) = oeeData
+                logger_OEE.debug(f'Availability: {availability}, Performance: {performance}, Quality: {quality}, OEE: {oee}, Throughput: {throughput}')
+                insertOEE('urn:ngsi_ld:Workstation:1',availability, performance, quality, oee, throughput, jobId, _time_override=stringToDateTime(msToDateTimeString(timestamp)))      
+            timestamp += 60e3
+    except KeyboardInterrupt:
+        logger_OEE.info('KeyboardInterrupt. Exiting.')
+        con.close()
+        engine.dispose()
+        sys.exit(0)
+
 if __name__ == '__main__':
     global engine, con
     engine = create_engine('postgresql://{}:{}@localhost:5432'.format(conf['postgresUser'], conf['postgresPassword']))
     con = engine.connect()
-    testcalculateOEE()
+    # testcalculateOEE1()
     # testinsertOEE()
+    testcalculateOEEall()
     con.close()
     engine.dispose()
