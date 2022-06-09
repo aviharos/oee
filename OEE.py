@@ -43,11 +43,21 @@ col_dtypes={'recvtimets': BigInteger(),
             'throughput_shift': Float(),
             'jobs': Text()}
 
+
 def msToDateTimeString(ms):
     return str(datetime.fromtimestamp(ms/1000.0).strftime(DATETIME_FORMAT))[:-3]
 
+
 def stringToDateTime(string):
     return datetime.strptime(string, DATETIME_FORMAT)
+
+
+def find_operation(part, operationType):
+    for operation in part['Operations']['value']:
+        if operation['OperationType']['value'] == operationType:
+            return operation
+    raise AttributeError(f'The part {part} has no operation with type {operationType}')
+
 
 def calculateOEE(workstationId, jobId, _time_override=None):
     # _time_override will never be used in production, we will work with the current time
@@ -127,7 +137,6 @@ def calculateOEE(workstationId, jobId, _time_override=None):
         logger_OEE.error(f'Failed to get object from Orion broker:{jobId}, status_code:{status_code}; no OEE data')
         return None
 
-    jobType = job_json['JobType']['value']
     partId = job_json['RefPart']['value']
 
     status_code, part_json = Orion.getObject(partId)
@@ -135,8 +144,10 @@ def calculateOEE(workstationId, jobId, _time_override=None):
         logger_OEE.error(f'Failed to get object from Orion broker:{partId}, status_code:{status_code}; no OEE data')
         return None
 
-    operationTime = part_json['OperationTime'][jobType]
-    partsPerOperation = part_json['PartsPerOperation'][jobType]
+    current_operation_type = job_json['CurrentOperationType']['value']
+    operation = find_operation(part_json, current_operation_type)
+    operationTime = operation['OperationTime']['value']
+    partsPerOperation = operation['PartsPerOperation']['value']
 
     performance = n_total_mouldings * operationTime / total_available_time
     quality = n_successful_mouldings / n_total_mouldings
