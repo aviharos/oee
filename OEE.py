@@ -127,32 +127,26 @@ def calculateOEE(workstationId, jobId, _time_override=None):
         logger_OEE.error(f'Failed to get object from Orion broker:{jobId}, status_code:{status_code}; no OEE data')
         return None
 
-    status_code, constants_json = Orion.getObject('urn:ngsi_ld:Constants:1')
+    jobType = job_json['JobType']['value']
+    partId = job_json['RefPart']['value']
+
+    status_code, part_json = Orion.getObject(partId)
     if status_code != 200:
-        logger_OEE.error(f'Failed to get object from Orion broker:urn:ngsi_ld:Constants:1, status_code:{status_code}; no OEE data')
+        logger_OEE.error(f'Failed to get object from Orion broker:{partId}, status_code:{status_code}; no OEE data')
         return None
 
-    job_type = job_json['JobType']['value']
-    
-    if job_type == 'JobCover':
-        referenceInjectionTime = constants_json['TOOL_COVER_REFERENCE_INJECTION_TIME']['value'] * 1000
-        partsPerMoulding = constants_json['COVER_PARTS_PER_MOULDING']['value']
-    elif job_type == 'JobCore':
-        referenceInjectionTime = constants_json['TOOL_CORE_REFERENCE_INJECTION_TIME']['value'] * 1000
-        partsPerMoulding = constants_json['COVER_PARTS_PER_MOULDING']['value']
-    elif job_type == 'JobCube':
-        referenceInjectionTime = constants_json['TOOL_CUBE_REFERENCE_INJECTION_TIME']['value'] * 1000
-        partsPerMoulding = constants_json['COVER_PARTS_PER_MOULDING']['value']
-    
+    operationTime = part_json['OperationTime'][jobType]
+    partsPerOperation = part_json['PartsPerOperation'][jobType]
 
-    performance = n_total_mouldings * referenceInjectionTime / total_available_time
-    quality = n_successful_mouldings / n_total_mouldings        
+    performance = n_total_mouldings * operationTime / total_available_time
+    quality = n_successful_mouldings / n_total_mouldings
     oee = availability * performance * quality
-    
-    shiftLengthInMilliseconds = OperatorScheduleStopsAt.timestamp()*1000 - OperatorScheduleStartsAt.timestamp()*1000   
-    throughput = (shiftLengthInMilliseconds / referenceInjectionTime) * partsPerMoulding * oee
-    
+
+    shiftLengthInMilliseconds = OperatorScheduleStopsAt.timestamp()*1000 - OperatorScheduleStartsAt.timestamp()*1000
+    throughput = (shiftLengthInMilliseconds / operationTime) * partsPerOperation * oee
+
     return availability, performance, quality, oee, throughput
+
 
 def insertOEE(workstationId, availability, performance, quality, oee, throughput, jobIds, _time_override=False):
     table_name = workstationId.replace(':', '_').lower() + '_workstation_oee'
@@ -171,6 +165,7 @@ def insertOEE(workstationId, availability, performance, quality, oee, throughput
                                       'jobs': [jobIds]})
     oeeData.to_sql(name=table_name, con=con, schema=postgresSchema, index=False, dtype=col_dtypes, if_exists='append')
 
+
 def testinsertOEE():
     availability = 0.98
     performance = 0.99
@@ -179,12 +174,14 @@ def testinsertOEE():
     throughput = 8
     insertOEE('urn:ngsi_ld:Workstation:1', availability, performance, quality, oee, throughput, 'urn:ngsi_ld:Job:202200045')
 
+
 def testcalculateOEE1():
     oeeData = calculateOEE('urn:ngsi_ld:Workstation:1', 'urn:ngsi_ld:Job:202200045', _time_override=stringToDateTime('2022-04-05 13:38:27.87'))
     if oeeData is not None:
-        (availability, performance, quality, oee, throughput)= oeeData
+        (availability, performance, quality, oee, throughput) = oeeData
         logger_OEE.debug(f'Availability: {availability}, Performance: {performance}, Quality: {quality}, OEE: {oee}, Throughput: {throughput}')
         insertOEE('urn:ngsi_ld:Workstation:1', availability, performance, quality, oee, throughput, 'urn:ngsi_ld:Job:202200045')
+
 
 def testcalculateOEEall():
     firstTimeStamp = 1649047794800
@@ -195,18 +192,19 @@ def testcalculateOEEall():
     try:
         while timestamp <= lastTimeStamp:
             logger_OEE.info(f'Calculating OEE data for timestamp: {timestamp}')
-            oeeData = calculateOEE('urn:ngsi_ld:Workstation:1', jobId , _time_override=stringToDateTime(msToDateTimeString(timestamp)))
+            oeeData = calculateOEE('urn:ngsi_ld:Workstation:1', jobId, _time_override=stringToDateTime(msToDateTimeString(timestamp)))
             if oeeData is not None:
                 logger_OEE.info(f'OEE data: {oeeData}')
                 (availability, performance, quality, oee, throughput) = oeeData
                 logger_OEE.debug(f'Availability: {availability}, Performance: {performance}, Quality: {quality}, OEE: {oee}, Throughput: {throughput}')
-                insertOEE('urn:ngsi_ld:Workstation:1',availability, performance, quality, oee, throughput, jobId, _time_override=stringToDateTime(msToDateTimeString(timestamp)))      
+                insertOEE('urn:ngsi_ld:Workstation:1', availability, performance, quality, oee, throughput, jobId, _time_override=stringToDateTime(msToDateTimeString(timestamp)))
             timestamp += 60e3
     except KeyboardInterrupt:
         logger_OEE.info('KeyboardInterrupt. Exiting.')
         con.close()
         engine.dispose()
         sys.exit(0)
+
 
 if __name__ == '__main__':
     global engine, con
