@@ -5,6 +5,10 @@ conda install python=3.8 spyder sqlalchemy pandas psycopg2
 """
 
 # Standard Library imports
+import logging
+import sched
+import sys
+import time
 
 # PyPI packages
 from sqlalchemy import create_engine
@@ -16,28 +20,53 @@ import Orion
 
 global conf, postgresSchema
 
+log_levels = {'DEBUG': logging.DEBUG,
+              'INFO': logging.INFO,
+              'WARNING': logging.WARNING,
+              'ERROR': logging.ERROR,
+              'CRITICAL': logging.CRITICAL}
+logger_main = logging.getLogger(__name__)
+formatter = logging.Formatter('%(asctime)s:%(name)s:%(message)s')
+logger_main.setLevel(log_levels[conf['logging_level']])
+if conf['log_to_file']:
+    file_handler_main = logging.FileHandler('OEE.log')
+    file_handler_main.setFormatter(formatter)
+    logger_main.addHandler(file_handler_main)
+if conf['log_to_stdout']:
+    stream_handler_main = logging.StreamHandler(sys.stdout)
+    stream_handler_main.setFormatter(formatter)
+    logger_main.addHandler(stream_handler_main)
+
 postgresSchema = conf['postgresSchema']
 
-def loop():
-    global engine, con
-    engine = create_engine('postgresql://{}:{}@localhost:5432'.format(conf['postgresUser'], conf['postgresPassword']))
-    con = engine.connect()
 
-    workstationIds = Orion.getWorkstationIdsFromOrion()
-    for workstationId in workstationIds:
-        jobId = Orion.getActiveJobId(workstationId)
-        # availability, performance, quality, oee, throughput
-        oeeData = OEE.calculateOEE(workstationId, jobId)
-        if oeeData is not None:
-            OEE.updateOEE(workstationId, *oeeData)
+def loop(scheduler_):
+    try:
+        global engine, con
+        engine = create_engine(f'postgresql://{conf["postgresUser"]}:{conf["postgresPassword"]}@{conf["postgresHost"]}:{conf["postgresPort"]}')
+        con = engine.connect()
+    
+        workstationIds = Orion.getWorkstationIdsFromOrion()
+        for workstationId in workstationIds:
+            jobId = Orion.getActiveJobId(workstationId)
+            # availability, performance, quality, oee, throughput
+            oeeData = OEE.calculateOEE(workstationId, jobId)
+            if oeeData is not None:
+                OEE.updateOEE(workstationId, *oeeData)
+    
+        con.close()
+        engine.dispose()
+        scheduler_.enter(conf['period_time'], 1, loop, (scheduler_,))
+    except KeyboardInterrupt:
+        logger_main.info('KeyboardInterrupt. Stopping OEE app...')
 
-    con.close()
-    engine.dispose()
 
 def main():
-    # the app will be a microservice, and will call loop periodically
-    loop
+    scheduler = sched.scheduler(time.time, time.sleep)
+    scheduler.enter(conf['period_time'], 1, loop, (scheduler,))
+    logger_main.info('Starting OEE app...')
+    scheduler.run()
+
 
 if __name__ == '__main__':
     main()
-
