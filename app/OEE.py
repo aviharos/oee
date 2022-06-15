@@ -7,6 +7,8 @@ import time
 
 # PyPI packages
 import pandas as pd
+import psycopg2
+import sqlalchemy
 from sqlalchemy import create_engine
 from sqlalchemy.types import DateTime, Float, BigInteger, Text
 
@@ -75,22 +77,32 @@ def calculateOEE(workstationId, jobId, _time_override=None):
     if status_code != 200:
         logger_OEE.error(f'Failed to get object from Orion broker:urn:ngsi_ld:OperatorSchedule:1, status_code:{status_code}')
         return None
-    OperatorScheduleStartsAt = datetime.strptime(str(now.date())+ ' ' + str(sch_json['OperatorWorkingScheduleStartsAt']['value']), '%Y-%m-%d %H:%M:%S')        
-    OperatorScheduleStopsAt = datetime.strptime(str(now.date())+ ' ' + str(sch_json['OperatorWorkingScheduleStopsAt']['value']), '%Y-%m-%d %H:%M:%S')
+    try:
+        OperatorScheduleStartsAt = datetime.strptime(str(now.date())+ ' ' + str(sch_json['OperatorWorkingScheduleStartsAt']['value']), '%Y-%m-%d %H:%M:%S')        
+        OperatorScheduleStopsAt = datetime.strptime(str(now.date())+ ' ' + str(sch_json['OperatorWorkingScheduleStopsAt']['value']), '%Y-%m-%d %H:%M:%S')
+    except (ValueError, KeyError) as error:
+        logger_OEE.error(f'Invalid time format in OperatorSchedule. Traceback: {error}')
+        return None
     
     if now < OperatorScheduleStartsAt:
         logger_OEE.info(f'The shift has not started yet before time: {now}, no OEE data')
         return None
     if now > OperatorScheduleStopsAt:
-        logger_OEE.info(f'The shift ended before time: {now}, no OEE data')
+        logger_OEE.info(f'The current time: {now} is after the shift\'s end, no OEE data')
         return None
 
     # availability        
     workstation = workstationId.replace(':', '_').lower() + '_workstation'
     # TODO change to bigint in production
-    df = pd.read_sql_query(f'''select * from default_service.{workstation}
-                           where {timeTodayStart} < cast (recvtimets as numeric(14,1))
-                           and cast (recvtimets as numeric(14,1)) <= {now_unix};''',con=con)      
+    try:
+        df = pd.read_sql_query(f'''select * from {postgresSchema}.{workstation}
+                               where {timeTodayStart} < cast (recvtimets as numeric(14,1))
+                               and cast (recvtimets as numeric(14,1)) <= {now_unix};''',con=con)
+    except (psycopg2.errors.UndefinedTable,
+            sqlalchemy.exc.ProgrammingError) as error:
+        logger_OEE.error(f'The SQL table: {workstation} does not exist within the schema: {postgresSchema}')
+        return None
+
     df['recvtimets'] = df['recvtimets'].map(float).map(int)
     #df = df[(timeTodayStart < df.recvtimets) & (df.recvtimets <= now_unix)]
 
@@ -100,7 +112,8 @@ def calculateOEE(workstationId, jobId, _time_override=None):
 
     # Available is true and false in this periodical order, starting with true
     # we can sum the timestamps of the true values and the false values disctinctly, getting 2 sums
-    # the total available time is their difference    
+    # the total available time is their difference
+    # TODO availability df
     available_true = df[df.attrvalue == 'true']
     available_false = df[df.attrvalue == 'false']
     total_available_time = available_false['recvtimets'].sum() - available_true['recvtimets'].sum()
@@ -159,7 +172,7 @@ def calculateOEE(workstationId, jobId, _time_override=None):
     return availability, performance, quality, oee, throughput
 
 
-def insertOEE(workstationId, availability, performance, quality, oee, throughput, jobIds, _time_override=False):
+def insertOEE(workstationId, availability, performance, quality, oee, throughput, jobIds, _time_override=None):
     table_name = workstationId.replace(':', '_').lower() + '_workstation_oee'
     now = datetime.now()
     if _time_override is not None:
@@ -219,10 +232,10 @@ def testcalculateOEEall():
 
 if __name__ == '__main__':
     global engine, con
-    engine = create_engine('postgresql://{conf["postgresUser"]}:{conf["postgresPassword"]}@{conf["postgresHost"]}:conf["postgresPort"]')
+    engine = create_engine(f'postgresql://{conf["postgresUser"]}:{conf["postgresPassword"]}@{conf["postgresHost"]}:5432')
     con = engine.connect()
-    # testcalculateOEE1()
-    # testinsertOEE()
-    testcalculateOEEall()
+    testcalculateOEE1()
+    testinsertOEE()
+    # testcalculateOEEall()
     con.close()
     engine.dispose()
