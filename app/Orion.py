@@ -64,7 +64,12 @@ def getActiveJobId(workstationId):
     status_code, workstation = getObject(workstationId)
     if status_code != 200:
         return status_code, workstation
-    return status_code, workstation['RefJob']['value']
+    try:
+        refJobId = workstation['RefJob']['value']
+        return status_code, refJobId
+    except KeyError:
+        logger_Orion.error(f'Missing RefJob attribute in Workstation: {workstation}, no OEE data')
+        return 200, None
 
 
 def test_getObject():
