@@ -51,11 +51,13 @@ def loop(scheduler_):
         engine = create_engine(f'postgresql://{conf["postgresUser"]}:{conf["postgresPassword"]}@{conf["postgresHost"]}:{conf["postgresPort"]}')
         con = engine.connect()
     
-        status_code_ws, workstationIds = Orion.getWorkstationIdsFromOrion()
+        status_code_ws, workstationIds = Orion.getWorkstationIds()
         if status_code_ws == 200:
+            if len(workstationIds) == 0:
+                logger_main.critical(f'No Workstation is found in the Orion broker, no OEE data')
             for workstationId in workstationIds:
                 status_code_job, jobId = Orion.getActiveJobId(workstationId)
-                if status_code_job == 200:
+                if status_code_job == 200 and jobId is not None:
                     # availability, performance, quality, oee, throughput
                     oeeData = OEE.calculateOEE(workstationId, jobId)
                     if oeeData is not None:
