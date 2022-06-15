@@ -19,20 +19,22 @@ import Orion
 global engine, con
 global conf, postgresSchema, day
 
-log_levels={'DEBUG': logging.DEBUG,
-            'INFO': logging.INFO,
-            'WARNING': logging.WARNING,
-            'ERROR': logging.ERROR,
-            'CRITICAL': logging.CRITICAL}
+logging_levels = {'DEBUG': logging.DEBUG,
+                  'INFO': logging.INFO,
+                  'WARNING': logging.WARNING,
+                  'ERROR': logging.ERROR,
+                  'CRITICAL': logging.CRITICAL}
 logger_OEE = logging.getLogger(__name__)
 formatter = logging.Formatter('%(asctime)s:%(name)s:%(message)s')
-logger_OEE.setLevel(log_levels[conf['logging_level']])
-file_handler_OEE = logging.FileHandler('OEE.log')
-file_handler_OEE.setFormatter(formatter)
-stream_handler_OEE = logging.StreamHandler(sys.stdout)
-stream_handler_OEE.setFormatter(formatter)
-logger_OEE.addHandler(file_handler_OEE)
-logger_OEE.addHandler(stream_handler_OEE)
+logger_OEE.setLevel(logging_levels[conf['logging_level']])
+if conf['log_to_file']:
+    file_handler_OEE = logging.FileHandler('OEE.log')
+    file_handler_OEE.setFormatter(formatter)
+    logger_OEE.addHandler(file_handler_OEE)
+if conf['log_to_stdout']:
+    stream_handler_OEE = logging.StreamHandler(sys.stdout)
+    stream_handler_OEE.setFormatter(formatter)
+    logger_OEE.addHandler(stream_handler_OEE)
 
 postgresSchema = conf['postgresSchema']
 DATETIME_FORMAT='%Y-%m-%d %H:%M:%S.%f'

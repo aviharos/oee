@@ -22,14 +22,14 @@ import Orion
 
 global conf, postgresSchema
 
-log_levels = {'DEBUG': logging.DEBUG,
-              'INFO': logging.INFO,
-              'WARNING': logging.WARNING,
-              'ERROR': logging.ERROR,
-              'CRITICAL': logging.CRITICAL}
+logging_levels = {'DEBUG': logging.DEBUG,
+                  'INFO': logging.INFO,
+                  'WARNING': logging.WARNING,
+                  'ERROR': logging.ERROR,
+                  'CRITICAL': logging.CRITICAL}
 logger_main = logging.getLogger(__name__)
 formatter = logging.Formatter('%(asctime)s:%(name)s:%(message)s')
-logger_main.setLevel(log_levels[conf['logging_level']])
+logger_main.setLevel(logging_levels[conf['logging_level']])
 if conf['log_to_file']:
     file_handler_main = logging.FileHandler('OEE.log')
     file_handler_main.setFormatter(formatter)
