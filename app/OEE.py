@@ -219,7 +219,7 @@ def testcalculateOEEall():
 
 if __name__ == '__main__':
     global engine, con
-    engine = create_engine('postgresql://{}:{}@localhost:5432'.format(conf['postgresUser'], conf['postgresPassword']))
+    engine = create_engine('postgresql://{conf["postgresUser"]}:{conf["postgresPassword"]}@{conf["postgresHost"]}:conf["postgresPort"]')
     con = engine.connect()
     # testcalculateOEE1()
     # testinsertOEE()
