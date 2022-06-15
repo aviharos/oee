@@ -11,7 +11,9 @@ import sys
 import time
 
 # PyPI packages
+import sqlalchemy
 from sqlalchemy import create_engine
+import psycopg2
 
 # Custom imports, config
 from conf import conf
@@ -39,6 +41,9 @@ if conf['log_to_stdout']:
 
 postgresSchema = conf['postgresSchema']
 
+if conf['test_mode']:
+    conf['period_time'] = 1
+
 
 def loop(scheduler_):
     try:
@@ -52,20 +57,31 @@ def loop(scheduler_):
             # availability, performance, quality, oee, throughput
             oeeData = OEE.calculateOEE(workstationId, jobId)
             if oeeData is not None:
-                OEE.updateOEE(workstationId, *oeeData)
-    
+                (availability, performance, quality, oee, throughput) = oeeData
+                OEE.insertOEE(workstationId,
+                              availability,
+                              performance,
+                              quality,
+                              oee,
+                              throughput,
+                              jobId)
         con.close()
         engine.dispose()
+    except (psycopg2.OperationalError,
+            sqlalchemy.exc.OperationalError) as error:
+        logger_main.error(f'Failed to connect to PostgreSQL. Traceback:\n{error}')
+    finally:
         scheduler_.enter(conf['period_time'], 1, loop, (scheduler_,))
-    except KeyboardInterrupt:
-        logger_main.info('KeyboardInterrupt. Stopping OEE app...')
 
 
 def main():
     scheduler = sched.scheduler(time.time, time.sleep)
     scheduler.enter(conf['period_time'], 1, loop, (scheduler,))
     logger_main.info('Starting OEE app...')
-    scheduler.run()
+    try:
+        scheduler.run()
+    except KeyboardInterrupt:
+        logger_main.info('KeyboardInterrupt. Stopping OEE app...')
 
 
 if __name__ == '__main__':
