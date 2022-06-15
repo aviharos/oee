@@ -51,20 +51,22 @@ def loop(scheduler_):
         engine = create_engine(f'postgresql://{conf["postgresUser"]}:{conf["postgresPassword"]}@{conf["postgresHost"]}:{conf["postgresPort"]}')
         con = engine.connect()
     
-        workstationIds = Orion.getWorkstationIdsFromOrion()
-        for workstationId in workstationIds:
-            jobId = Orion.getActiveJobId(workstationId)
-            # availability, performance, quality, oee, throughput
-            oeeData = OEE.calculateOEE(workstationId, jobId)
-            if oeeData is not None:
-                (availability, performance, quality, oee, throughput) = oeeData
-                OEE.insertOEE(workstationId,
-                              availability,
-                              performance,
-                              quality,
-                              oee,
-                              throughput,
-                              jobId)
+        status_code_ws, workstationIds = Orion.getWorkstationIdsFromOrion()
+        if status_code_ws == 200:
+            for workstationId in workstationIds:
+                status_code_job, jobId = Orion.getActiveJobId(workstationId)
+                if status_code_job == 200:
+                    # availability, performance, quality, oee, throughput
+                    oeeData = OEE.calculateOEE(workstationId, jobId)
+                    if oeeData is not None:
+                        (availability, performance, quality, oee, throughput) = oeeData
+                        OEE.insertOEE(workstationId,
+                                      availability,
+                                      performance,
+                                      quality,
+                                      oee,
+                                      throughput,
+                                      jobId)
         con.close()
         engine.dispose()
     except (psycopg2.OperationalError,
