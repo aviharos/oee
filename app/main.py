@@ -19,19 +19,25 @@ from Logger import getLogger
 import OEE
 import Orion
 
-global conf, postgresSchema
-
 logger_main = getLogger(__name__)
 
-postgresSchema = conf['postgresSchema']
 
+# TODO remove before production
 if conf['test_mode']:
+    from datetime import datetime
     conf['period_time'] = 1
+    DATETIME_FORMAT = '%Y-%m-%d %H:%M:%S.%f'
+    time_override = datetime.strptime('2022-04-05 13:38:27.87', DATETIME_FORMAT)
+else:
+    time_override = None
+
+
+def stringToDateTime(string):
+    return datetime.strptime(string, DATETIME_FORMAT)
 
 
 def loop(scheduler_):
     try:
-        global engine, con
         engine = create_engine(f'postgresql://{conf["postgresUser"]}:{conf["postgresPassword"]}@{conf["postgresHost"]}:{conf["postgresPort"]}')
         con = engine.connect()
     
@@ -43,7 +49,7 @@ def loop(scheduler_):
                 status_code_job, jobId = Orion.getActiveJobId(workstationId)
                 if status_code_job == 200 and jobId is not None:
                     # availability, performance, quality, oee, throughput
-                    oeeData = OEE.calculateOEE(workstationId, jobId)
+                    oeeData = OEE.calculateOEE(workstationId, jobId, con, _time_override=time_override)
                     if oeeData is not None:
                         (availability, performance, quality, oee, throughput) = oeeData
                         OEE.insertOEE(workstationId,
@@ -52,7 +58,8 @@ def loop(scheduler_):
                                       quality,
                                       oee,
                                       throughput,
-                                      jobId)
+                                      jobId,
+                                      con)
         con.close()
         engine.dispose()
     except (psycopg2.OperationalError,
