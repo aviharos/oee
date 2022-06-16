@@ -1,29 +1,13 @@
 ﻿# -*- coding: utf-8 -*-
 # Standard Library imports
 # PyPI packages
-import logging
 import requests
-import sys
 
 # custom imports
 from conf import conf
+from Logger import getLogger
 
-logging_levels = {'DEBUG': logging.DEBUG,
-                  'INFO': logging.INFO,
-                  'WARNING': logging.WARNING,
-                  'ERROR': logging.ERROR,
-                  'CRITICAL': logging.CRITICAL}
-logger_Orion = logging.getLogger(__name__)
-formatter = logging.Formatter('%(asctime)s:%(name)s:%(message)s')
-logger_Orion.setLevel(logging_levels[conf['logging_level']])
-if conf['log_to_file']:
-    file_handler_Orion = logging.FileHandler('Orion.log')
-    file_handler_Orion.setFormatter(formatter)
-    logger_Orion.addHandler(file_handler_Orion)
-if conf['log_to_stdout']:
-    stream_handler_Orion = logging.StreamHandler(sys.stdout)
-    stream_handler_Orion.setFormatter(formatter)
-    logger_Orion.addHandler(stream_handler_Orion)
+logger_Orion = getLogger(__name__)
 
 
 def getRequestToOrion(url):

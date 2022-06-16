@@ -1,7 +1,6 @@
 ﻿# -*- coding: utf-8 -*-
 # Standard Library imports
 from datetime import datetime
-import logging
 import sys
 import time
 
@@ -14,27 +13,13 @@ from sqlalchemy.types import DateTime, Float, BigInteger, Text
 
 # custom imports
 from conf import conf
+from Logger import getLogger
 import Orion
 
 global engine, con
 global conf, postgresSchema, day
 
-logging_levels = {'DEBUG': logging.DEBUG,
-                  'INFO': logging.INFO,
-                  'WARNING': logging.WARNING,
-                  'ERROR': logging.ERROR,
-                  'CRITICAL': logging.CRITICAL}
-logger_OEE = logging.getLogger(__name__)
-formatter = logging.Formatter('%(asctime)s:%(name)s:%(message)s')
-logger_OEE.setLevel(logging_levels[conf['logging_level']])
-if conf['log_to_file']:
-    file_handler_OEE = logging.FileHandler('OEE.log')
-    file_handler_OEE.setFormatter(formatter)
-    logger_OEE.addHandler(file_handler_OEE)
-if conf['log_to_stdout']:
-    stream_handler_OEE = logging.StreamHandler(sys.stdout)
-    stream_handler_OEE.setFormatter(formatter)
-    logger_OEE.addHandler(stream_handler_OEE)
+logger_OEE = getLogger(__name__)
 
 postgresSchema = conf['postgresSchema']
 DATETIME_FORMAT='%Y-%m-%d %H:%M:%S.%f'
@@ -213,7 +198,6 @@ def testcalculateOEEall():
     firstTimeStamp = 1649047794800
     lastTimeStamp = 1649343921547 + 2*3600*1e3
     timestamp = firstTimeStamp
-    logger_OEE.removeHandler(file_handler_OEE)
     jobId = 'urn:ngsi_ld:Job:202200045'
     try:
         while timestamp <= lastTimeStamp:

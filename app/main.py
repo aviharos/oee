@@ -5,9 +5,7 @@ conda install python=3.8 spyder sqlalchemy pandas psycopg2
 """
 
 # Standard Library imports
-import logging
 import sched
-import sys
 import time
 
 # PyPI packages
@@ -17,27 +15,13 @@ import psycopg2
 
 # Custom imports, config
 from conf import conf
+from Logger import getLogger
 import OEE
 import Orion
 
 global conf, postgresSchema
 
-logging_levels = {'DEBUG': logging.DEBUG,
-                  'INFO': logging.INFO,
-                  'WARNING': logging.WARNING,
-                  'ERROR': logging.ERROR,
-                  'CRITICAL': logging.CRITICAL}
-logger_main = logging.getLogger(__name__)
-formatter = logging.Formatter('%(asctime)s:%(name)s:%(message)s')
-logger_main.setLevel(logging_levels[conf['logging_level']])
-if conf['log_to_file']:
-    file_handler_main = logging.FileHandler('OEE.log')
-    file_handler_main.setFormatter(formatter)
-    logger_main.addHandler(file_handler_main)
-if conf['log_to_stdout']:
-    stream_handler_main = logging.StreamHandler(sys.stdout)
-    stream_handler_main.setFormatter(formatter)
-    logger_main.addHandler(stream_handler_main)
+logger_main = getLogger(__name__)
 
 postgresSchema = conf['postgresSchema']
 
