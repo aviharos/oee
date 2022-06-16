@@ -58,14 +58,14 @@ def calculateOEE(workstationId, jobId, con, _time_override=None):
     now_unix = now.timestamp()*1000
     status_code, sch_json = Orion.getObject('urn:ngsi_ld:OperatorSchedule:1')
     if status_code != 200:
-        logger_OEE.error(f'Failed to get object from Orion broker:urn:ngsi_ld:OperatorSchedule:1, status_code:{status_code}')
+        logger_OEE.error(f'Failed to get object from Orion broker: urn:ngsi_ld:OperatorSchedule:1, status_code:{status_code}')
         return None
 
     try:
         OperatorScheduleStartsAt = datetime.strptime(str(now.date()) + ' ' + str(sch_json['OperatorWorkingScheduleStartsAt']['value']), '%Y-%m-%d %H:%M:%S')
         OperatorScheduleStopsAt = datetime.strptime(str(now.date()) + ' ' + str(sch_json['OperatorWorkingScheduleStopsAt']['value']), '%Y-%m-%d %H:%M:%S')
     except (ValueError, KeyError) as error:
-        logger_OEE.error(f'Invalid time format in OperatorSchedule. Traceback: {error}')
+        logger_OEE.critical(f'Critical: Invalid time format in OperatorSchedule. Traceback: {error}')
         return None
 
     if now < OperatorScheduleStartsAt:
@@ -128,22 +128,49 @@ def calculateOEE(workstationId, jobId, con, _time_override=None):
     n_failed_mouldings = len(df[df.attrname == 'RejectPartCounter']['attrvalue'].unique())
     n_total_mouldings = n_successful_mouldings + n_failed_mouldings
 
+    if n_total_mouldings == 0:
+        logger_OEE.warning('No operation was completed yet, no OEE data')
+        return None
+
     status_code, job_json = Orion.getObject(jobId)
     if status_code != 200:
         logger_OEE.error(f'Failed to get object from Orion broker:{jobId}, status_code:{status_code}; no OEE data')
         return None
 
-    partId = job_json['RefPart']['value']
+    try:
+        partId = job_json['RefPart']['value']
+    except (KeyError, TypeError):
+        logger_OEE.critical('Critical: RefPart not found in the Job {jobId}: {job_json}')
+        return None
 
     status_code, part_json = Orion.getObject(partId)
     if status_code != 200:
         logger_OEE.error(f'Failed to get object from Orion broker:{partId}, status_code:{status_code}; no OEE data')
         return None
 
-    current_operation_type = job_json['CurrentOperationType']['value']
-    operation = find_operation(part_json, current_operation_type)
-    operationTime = operation['OperationTime']['value']
-    partsPerOperation = operation['PartsPerOperation']['value']
+    try:
+        current_operation_type = job_json['CurrentOperationType']['value']
+    except (KeyError, TypeError):
+        logger_OEE.critical(f'Critical: CurrentOperationType not found in the Job {jobId}: {job_json}')
+        return None
+
+    try:
+        operation = find_operation(part_json, current_operation_type)
+    except (KeyError, TypeError):
+        logger_OEE.critical(f'Critical: Operation {current_operation_type} not found in the Part: {part_json}')
+        return None
+
+    try:
+        operationTime = operation['OperationTime']['value']
+    except (KeyError, TypeError):
+        logger_OEE.critical(f'Critical: OperationTime not found in the Part: {part_json}')
+        return None
+
+    try:
+        partsPerOperation = operation['PartsPerOperation']['value']
+    except (KeyError, TypeError):
+        logger_OEE.critical(f'Critical: partsPerOperation not found in the Part: {part_json}')
+        return None
 
     performance = n_total_mouldings * operationTime / total_available_time
     quality = n_successful_mouldings / n_total_mouldings
