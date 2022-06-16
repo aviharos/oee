@@ -120,11 +120,15 @@ def calculateOEE(workstationId, jobId, _time_override=None):
     # performance, quality
     job = jobId.replace(':', '_').lower() + '_job'
     # TODO change to bigint in production
-    df = pd.read_sql_query(f'''select * from default_service.{job}
-                           where {timeTodayStart} < cast (recvtimets as numeric(14,1))
-                           and cast (recvtimets as numeric(14,1)) <= {now_unix};''',con=con)
+    try:
+        df = pd.read_sql_query(f'''select * from default_service.{job}
+                               where {timeTodayStart} < cast (recvtimets as numeric(14,1))
+                               and cast (recvtimets as numeric(14,1)) <= {now_unix};''',con=con)
+    except (psycopg2.errors.UndefinedTable,
+            sqlalchemy.exc.ProgrammingError) as error:
+        logger_OEE.error(f'The SQL table: {job} does not exist within the schema: {postgresSchema}')
+        return None
     df['recvtimets'] = df['recvtimets'].map(float).map(int)
-    #df = df[(timeTodayStart < df.recvtimets) & (df.recvtimets <= now_unix)]
 
     if df.size == 0:
         logger_OEE.warning(f'No job data found for {jobId} up to time {now} on day {today}.')
