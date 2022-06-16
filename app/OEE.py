@@ -22,15 +22,15 @@ global conf, postgresSchema, day
 logger_OEE = getLogger(__name__)
 
 postgresSchema = conf['postgresSchema']
-DATETIME_FORMAT='%Y-%m-%d %H:%M:%S.%f'
-col_dtypes={'recvtimets': BigInteger(),
-            'recvtime': DateTime(),
-            'availability': Float(),
-            'performance': Float(),
-            'quality': Float(),
-            'oee': Float(),
-            'throughput_shift': Float(),
-            'jobs': Text()}
+DATETIME_FORMAT = '%Y-%m-%d %H:%M:%S.%f'
+col_dtypes = {'recvtimets': BigInteger(),
+              'recvtime': DateTime(),
+              'availability': Float(),
+              'performance': Float(),
+              'quality': Float(),
+              'oee': Float(),
+              'throughput_shift': Float(),
+              'jobs': Text()}
 
 
 def msToDateTimeString(ms):
@@ -64,6 +64,7 @@ def calculateOEE(workstationId, jobId, _time_override=None):
     if status_code != 200:
         logger_OEE.error(f'Failed to get object from Orion broker:urn:ngsi_ld:OperatorSchedule:1, status_code:{status_code}')
         return None
+    
     try:
         OperatorScheduleStartsAt = datetime.strptime(str(now.date())+ ' ' + str(sch_json['OperatorWorkingScheduleStartsAt']['value']), '%Y-%m-%d %H:%M:%S')        
         OperatorScheduleStopsAt = datetime.strptime(str(now.date())+ ' ' + str(sch_json['OperatorWorkingScheduleStopsAt']['value']), '%Y-%m-%d %H:%M:%S')
@@ -101,12 +102,13 @@ def calculateOEE(workstationId, jobId, _time_override=None):
     # we can sum the timestamps of the true values and the false values disctinctly, getting 2 sums
     # the total available time is their difference
     # TODO availability df
-    available_true = df[df.attrvalue == 'true']
-    available_false = df[df.attrvalue == 'false']
+    df_av = df[df['attrname'] == 'Available']
+    available_true = df_av[df_av['attrvalue'] == 'true']
+    available_false = df_av[df_av['attrvalue'] == 'false']
     total_available_time = available_false['recvtimets'].sum() - available_true['recvtimets'].sum()
     # if the Workstation is available currently, we need to add
     # the current timestamp to the true timestamps' sum
-    if (df.iloc[-1].attrvalue =='true'):
+    if (df_av.iloc[-1].attrvalue =='true'):
         total_available_time += now_unix
     
     total_available_time_hours = time.strftime("%H:%M:%S", time.gmtime(total_available_time/1000))
