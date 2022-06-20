@@ -6,6 +6,8 @@ ARG GROUP=appuser
 
 ENV HOME /home/$USER
 
+ENV PYTHONPATH "${PYTHONPATH}:$HOME/app"
+
 RUN groupadd --system $GROUP && \
     useradd --system --gid $USER $GROUP
 
@@ -13,8 +15,8 @@ WORKDIR $HOME/app
 
 COPY --chown=$USER:$GROUP dependencies.txt ./
 
-RUN pip3 install --no-cache-dir --upgrade pip --user && \
-    pip3 install --no-cache-dir -r dependencies.txt --user
+RUN pip3 install --no-cache-dir --upgrade pip && \
+    pip3 install --no-cache-dir -r dependencies.txt
 
 USER $USER
 
