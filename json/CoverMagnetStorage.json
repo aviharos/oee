@@ -1,0 +1,6 @@
+{
+	"type": "CoverMagnetStorage",
+	"id": "urn:ngsi_ld:CoverMagnetStorage:1",
+	"CoverMagnetStorageCapacity": {"type": "Number", "value": 300},
+	"CoverMagnetStorageMagnetCounter": {"type": "Number", "value": 300}
+}

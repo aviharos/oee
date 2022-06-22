@@ -1,0 +1,6 @@
+{
+	"type": "TrayLoaderStorage",
+	"id": "urn:ngsi_ld:TrayLoaderStorage:1",
+	"TrayLoaderStorageCapacity": {"type": "Number", "value": 100},
+	"TrayLoaderStorageTrayCounter": {"type": "Number", "value": 100}
+}

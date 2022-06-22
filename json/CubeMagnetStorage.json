@@ -1,0 +1,6 @@
+{
+	"type": "CubeMagnetStorage",
+	"id": "urn:ngsi_ld:CubeMagnetStorage:1",
+	"CubeMagnetStorageCapacity": {"type": "Number", "value": 300},
+	"CubeMagnetStorageMagnetCounter": {"type": "Number", "value": 300}
+}
