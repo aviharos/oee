@@ -3,5 +3,4 @@
 	"id": "urn:ngsi_ld:Workstation:1",
 	"Available": {"type": "Boolean", "value": true},
 	"RefJob": {"type": "Relationship", "value": "urn:ngsi_ld:Job:202200045"}
-	"CurrentOperationType": {"type": "Text", "value": "Core001_injection_moulding"},
 }
