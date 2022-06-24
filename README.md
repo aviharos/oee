@@ -34,10 +34,10 @@ The OEE microservice is designed to be able to handle manufacturing systems that
 - For each Job, only one Operation can be processed at any given time.
 - Each Operation can be processed only at a specific Workstation.
 
-Currently, the ROSE-AP is not intended to be fully automatic. Whenever a new operation is started, human intervention is needed. A human must update the Workstation's RefJob attribute the CurrentOperationNumber and CurrentOperationType attributes.
+Currently, the ROSE-AP is not intended to be fully automatic. Whenever a new operation is started, human intervention is needed. A human must update the Workstation's following attributes: RefJob, CurrentOperationNumber and CurrentOperationType.
 
 ## Usage
-The component is designed to run inside a docker-compose project defined in the Robo4Toys ROSE-AP's [docker-compose.yml](https://github.com/aviharos/Manufacturing_OEE_alert_management_system/blob/main/docker-compose.yml) file. Whenever the docker-compose project is started, the OEE microservice also starts.
+The component is designed to run inside a docker-compose project defined in the Robo4Toys ROSE-AP's [docker-compose.yml](https://github.com/aviharos/Manufacturing_OEE_alert_management_system/blob/main/docker-compose.yml) file. Whenever the docker-compose project is started, the OEE microservice also starts. However, the Component does not depend on any microservice besides the Orion Context Broker, Cygnus, MongoDB and PostgreSQL; so it can be used without many of the Robo4Toys TTE's microservices.
 
 ### Notifying Cygnus of all context changes
 After running the docker-compose project, you need to set Orion to notify Cygnus of all context changes using the script:
@@ -69,14 +69,14 @@ You need to create and keep these objects up-to-date in the Orion Context Broker
 - One Job object for each Job.
 - One object for each of the following storages: CubeMagnetStorage, CoverMagnetStorage,            TrayLoaderStorage, TrayUnloaderStorage. The magnet storage objects store magnets needed for        assembly. The TrayLoaderStorage stores the trays that will be filled with injection moulded parts. The TrayUnLoaderStorage stores trays that cannot contain more of the current Part.
 - One OperatorSchedule object containing the shift data.
-- One object for each produced Part in the system. These contain OperationTime and                 PartsPerOperation values, one for each type of Job. For example, a part could have many JobTypes   (injection moulding, quality control, deburring, etc.). These operations have specific times and   batch sizes in the OperationTime and PartsPerOperation attributes, respectively.
+- One object for each produced Part in the system. These contain OperationTime and PartsPerOperation values, one for each type of Job. For example, a part could have many JobTypes   (injection moulding, quality control, deburring, etc.). These operations have specific times and   batch sizes in the OperationTime and PartsPerOperation attributes, respectively.
 
 ### Relationships among the objects
 
 The OEE microservice iterates over all Workstations.
 For each Workstation, the app gets the current Job from the Workstation's RefJob attribute.
 Then it downloads the current Job from the Orion broker. Then it gets the CurrentOperationType and the Part being processed.
-Then it downloads the currently processed Part from the Orion broker. It then reads the            OperationTime and PartsPerOperation based on the CurrentOperationType.
+Then it downloads the currently processed Part from the Orion broker. It then reads the OperationTime and PartsPerOperation based on the CurrentOperationType.
 
 ## Example
 
@@ -91,7 +91,7 @@ Downloads "urn:ngsi_ld:Part:Core001"
 Current OperationTime: part_json --> find operation --> operation["OperationTime"]["value"] -> 46 sec.
 Current PartsPerOperation: part_json --> find operation --> operation["PartsPerOperation"]["value"] -> 8 pcs.
 
-If you cannot trace the Workstation through the Job object to the Part object's Operation, you 
+If you cannot trace the Workstation through the Job object to the Part object's Operation, somethings is missing.
 
 ## API
 
@@ -99,12 +99,19 @@ The microservice does not contain an API.
 
 ## Testing
 
-The tests are yet to be written.
+Some tests are included in the source code, but further testing needs to be done. 
 
-For performing a basic end-to-end test, you have to follow the step below. 
+For testing, you need to create a conda environment and install necessary packages, then run the following files.
 
-TODO create conda environment, tests
+conda create -n oee python=3.7
+conda activate oee
+conda install pandas psycopg2 requests sqlalchemy
+cd app
+python OEE.py
+python Orion.py
+
+We intend to to more thorough testing and refactoring in the future.
 
 ## License
 
-No license yet.
+The license is not determined yet.
