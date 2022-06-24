@@ -9,5 +9,6 @@
 	"JobEndDate": {"type": "Date", "value": "2022-03-24"},
 	"JobDueDate": {"type": "Date", "value": "2022-03-31"},
 	"GoodPartCounter": {"type": "Number", "value": 0},
-	"RejectPartCounter": {"type": "Number", "value": 0}
+	"RejectPartCounter": {"type": "Number", "value": 0},
+	"Finished": {"type": "Boolean", "value": false}
 }
