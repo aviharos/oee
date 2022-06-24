@@ -11,6 +11,7 @@ An OEE calculator microservice to be used with Fiware Cygnus time series data. F
   - [Usage](#usage)
   - [API](#api)
   - [Testing](#testing)
+  - [Limitations](#limitations)
   - [License](#license)
 
 ## Background
@@ -111,6 +112,9 @@ python OEE.py
 python Orion.py
 
 We intend to to more thorough testing and refactoring in the future.
+
+## Limitations
+We intend to more thorough testing and refactoring in the future. The OEE microservice cannot handle HTTPS and Fiware’s authentication system.
 
 ## License
 
