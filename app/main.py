@@ -46,6 +46,10 @@ def loop(scheduler_):
             if len(workstationIds) == 0:
                 logger_main.critical(f'No Workstation is found in the Orion broker, no OEE data')
             for workstationId in workstationIds:
+                if OEE.checkConditions(workstationId):
+                    availability, performance, quality, oee, throughput, jobIds = OEE.calculateOEE(workstationId, con, _time_override=time_override)
+                    OEE.insertOEE(workstationId, availability, performance, quality, oee, throughput, jobIds, con)
+                '''
                 status_code_job, jobId = Orion.getActiveJobId(workstationId)
                 if status_code_job == 200 and jobId is not None:
                     # availability, performance, quality, oee, throughput
@@ -59,7 +63,7 @@ def loop(scheduler_):
                                       oee,
                                       throughput,
                                       jobId,
-                                      con)
+                                      con)'''
         con.close()
         engine.dispose()
     except (psycopg2.OperationalError,

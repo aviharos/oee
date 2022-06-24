@@ -15,14 +15,13 @@ def getRequestToOrion(url):
         response = requests.get(url)
         response.close()
     except:
-        logger_Orion.error(f'Get request failed to URL: {url} ')
-        return None, None
+        raise RuntimeError(f'Get request failed to URL: {url}, status code:{response.status_code}')
+
     else:
         if response.status_code == 200:
-            return response.status_code, response.json()
+            return response.json()
         else:
-            logger_Orion.error(f'Get request failed to URL: {url}, status code:{response.status_code}')
-            return response.status_code, None
+            raise RuntimeError(f'Get request failed to URL: {url}, status code:{response.status_code}')
 
 
 def getObject(object_id, host=conf['orion_host'], port=conf['orion_port']):
@@ -35,25 +34,20 @@ def getObject(object_id, host=conf['orion_host'], port=conf['orion_port']):
 
 def getWorkstationIds():
     url = f'http://{conf["orion_host"]}:{conf["orion_port"]}/v2/entities?type=Workstation'
-    status_code, entities = getRequestToOrion(url)
+    entities = getRequestToOrion(url)
     workstation_ids = []
-    if status_code != 200:
-        return status_code, workstation_ids
     for ws in entities:
         workstation_ids.append(ws['id'])
-    return status_code, workstation_ids
+    return workstation_ids
 
 
 def getActiveJobId(workstationId):
-    status_code, workstation = getObject(workstationId)
-    if status_code != 200:
-        return status_code, workstation
+    workstation = getObject(workstationId)
     try:
         refJobId = workstation['RefJob']['value']
-        return status_code, refJobId
+        return refJobId
     except KeyError:
-        logger_Orion.error(f'Missing RefJob attribute in Workstation: {workstation}, no OEE data')
-        return 200, None
+        raise KeyError(f'Missing RefJob attribute in Workstation: {workstation}, no OEE data')
 
 
 def test_getObject():
