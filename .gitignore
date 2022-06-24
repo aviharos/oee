@@ -1,3 +1,6 @@
+# Vim swp files
+*.swp
+
 .pylint.d/*
 
 # Byte-compiled / optimized / DLL files
