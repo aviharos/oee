@@ -18,15 +18,11 @@ import Orion
 
 
 class OEE():
+    '''
+    A class that builds on Fiware Cygnus logs.
+    It uses milliseconds for the time unit, just like Cygnus.
+    '''
     def __init__(self, wsId):
-        self.operatorSchedule = None
-        self.wsId = None
-        self.ws = None
-        self.job = None
-        self.part = None
-        self.ws_df = None
-        self.job_df = None
-        self.logger = getLogger(__name__)
         self.DATETIME_FORMAT = '%Y-%m-%d %H:%M:%S.%f'
         self.col_dtypes = {'recvtimets': BigInteger(),
                            'recvtime': DateTime(),
@@ -36,6 +32,17 @@ class OEE():
                            'oee': Float(),
                            'throughput_shift': Float(),
                            'jobs': Text()}
+        self.job = {'id': None,
+                    'orion': None,
+                    'postgres_table': None,
+                    'df': None}
+        self.logger = getLogger(__name__)
+        self.operatorSchedule = None
+        self.part = None
+        self.ws = {'id': wsId,
+                   'orion': None,
+                   'postgres_table': wsId.replace(':', '_').lower() + '_workstation',
+                   'df': None}
 
     def msToDateTimeString(self, ms):
         return str(datetime.fromtimestamp(ms/1000.0).strftime(self.DATETIME_FORMAT))[:-3]
@@ -44,9 +51,12 @@ class OEE():
         return datetime.strptime(string, self.DATETIME_FORMAT)
     
     def timeToDatetime(self, string):
-        datetime.strptime(str(now.date() + ' ' + string), '%Y-%m-%d %H:%M:%S')
+        datetime.strptime(str(self.now.date()) + ' ' + string, '%Y-%m-%d %H:%M:%S')
 
-    def find_operation(self, part, operationType):
+    def datetimeToMilliseconds(self, datetime_):
+        return datetime_.timestamp()*1000
+
+    def get_operation(self, part, operationType):
         for operation in part['Operations']['value']:
             if operation['OperationType']['value'] == operationType:
                 return operation
@@ -59,10 +69,10 @@ class OEE():
                 self.today[time_] = self.timeToDatetime(self.operatorSchedule[time_]['value'])
         except (ValueError, KeyError) as error:
             raise ValueError(f'Critical: could not convert time in Operatorschedule. Traceback:\n{error}')
-        self.ws = Orion.getObject(self.wsId)
-        del(self.wsId)
-        self.job = Orion.getObject(self.ws['RefJob']['value'])
-        self.part = Orion.getObject(self.job['RefPart']['value'])
+        self.ws = Orion.getObject(self.ws['id'])
+        self.job['oriont'] = Orion.getObject(self.ws['orion']['RefJob']['value'])
+        self.job['postgres_table'] = self.job['id'].replace(':', '_').lower() + '_job'
+        self.part = Orion.getObject(self.job['orion']['RefPart']['value'])
 
     def checkTime(self):
         if self.now < self.today['OperatorScheduleStartsAt']:
@@ -73,44 +83,40 @@ class OEE():
             return False
 
     def areConditionsOK(self):
-        if (not self.checkTime(),
+        if (not self.checkTime() or 
             not True):
             return False
 
     def prepare(self):
         self.now = datetime.now()
         self.now_unix = datetime.now().timestamp() * 1000
-        self.today = {'day': datetime.now().date()}
+        self.today = {'day': datetime.now().date(),
+                      'start': self.stringToDateTime(str(self.now.date()) + ' 00:00:00.000')}
         try:
             self.updateObjects()
         except (RuntimeError, KeyError, AttributeError) as error:
             self.logger.error(f'Could not prepare for OEE calculations. Traceback:\n{error}')
             raise error
-        if not self.areConditionsOK():
-            self.logger
+        if self.areConditionsOK():
+            return True
+        else:
+            return False
 
-    def calculateOEE(self, workstationId, jobId, con,):
-
-        # availability
-        workstation = workstationId.replace(':', '_').lower() + '_workstation'
+    def download_ws_df(self, con):
         try:
-            df = pd.read_sql_query(f'''select * from {conf['postgresSchema']}.{workstation}
-                                   where {timeTodayStart} < cast (recvtimets as bigint)
-                                   and cast (recvtimets as bigint) <= {now_unix};''', con=con)
+            self.ws['df'] = pd.read_sql_query(f'''select * from {conf['postgresSchema']}.{self.ws['table_name']}
+                                               where {self.datetimeToMilliseconds(self.today['start'])} < cast (recvtimets as bigint) 
+                                               and cast (recvtimets as bigint) <= {self.now_unix};''', con=con)
         except (psycopg2.errors.UndefinedTable,
                 sqlalchemy.exc.ProgrammingError) as error:
-            self.logger.error(f'The SQL table: {workstation} does not exist within the schema: {conf["postgresSchema"]}. Traceback:\n{error}')
+            self.logger.error(f'The SQL table: {self.ws["postgres_table"]} does not exist within the schema: {conf["postgresSchema"]}. Traceback:\n{error}')
             return None
 
-        df['recvtimets'] = df['recvtimets'].map(float).map(int)
-
-        if df.size == 0:
-            self.logger.warning(f'No workstation data found for {workstationId} up to time {now} on day {today}, no OEE data')
-            return None
-
+    def calc_availability(self):
         # Available is true and false in this periodical order, starting with true
         # we can sum the timestamps of the true values and the false values disctinctly, getting 2 sums
         # the total available time is their difference
+        df = self.ws['df']
         df_av = df[df['attrname'] == 'Available']
         available_true = df_av[df_av['attrvalue'] == 'true']
         available_false = df_av[df_av['attrvalue'] == 'false']
@@ -118,22 +124,28 @@ class OEE():
         # if the Workstation is available currently, we need to add
         # the current timestamp to the true timestamps' sum
         if (df_av.iloc[-1]['attrvalue'] == 'true'):
-            total_available_time += now_unix
+            total_available_time += self.now_unix
+        # total_available_time_hours = time.strftime("%H:%M:%S", time.gmtime(total_available_time/1000))
+        return total_available_time/(now.timestamp()*1000-self.today['OperatorScheduleStartsAt'].timestamp()*1000)
 
-        total_available_time_hours = time.strftime("%H:%M:%S", time.gmtime(total_available_time/1000))
-
-        availability = total_available_time/(now.timestamp()*1000-OperatorScheduleStartsAt.timestamp()*1000)
-
-        # performance, quality
-        job = jobId.replace(':', '_').lower() + '_job'
+    def download_job_df(self, con):
         try:
-            df = pd.read_sql_query(f'''select * from {conf['postgresSchema']}.{job}
-                                   where {timeTodayStart} < cast (recvtimets as bigint)
-                                   and cast (recvtimets as bigint) <= {now_unix};''', con=con)
+            self.job['df'] = pd.read_sql_query(f'''select * from {conf['postgresSchema']}.{self.job["postgres_table"]}
+                                                where {self.datetimeToMilliseconds(self.today['start'])} < cast (recvtimets as bigint)
+                                                and cast (recvtimets as bigint) <= {self.now_unix};''', con=con)
         except (psycopg2.errors.UndefinedTable,
                 sqlalchemy.exc.ProgrammingError) as error:
             self.logger.error(f'The SQL table: {job} does not exist within the schema: {conf["postgresSchema"]}. Traceback:\n{error}')
             return None
+
+
+    def calculate(self, con):
+        self.download_ws_df(con)
+        self.ws['df']['recvtimets'] = self.ws['df']['recvtimets'].map(float).map(int)
+        if self.ws['df'].size == 0:
+            self.logger.warning(f'No workstation data found for {self.ws["id"]} up to time {self.now} on day {self.today["day"]}, no OEE data')
+            return None
+        availability = self.calc_availability()
         df['recvtimets'] = df['recvtimets'].map(float).map(int)
 
         if df.size == 0:
@@ -171,7 +183,7 @@ class OEE():
             return None
 
         try:
-            operation = self.find_operation(part_json, current_operation_type)
+            operation = self.get_operation(part_json, current_operation_type)
         except (KeyError, TypeError):
             self.logger.critical(f'Critical: Operation {current_operation_type} not found in the Part: {part_json}')
             return None
@@ -191,7 +203,7 @@ class OEE():
         performance = n_total_mouldings * operationTime / total_available_time
         quality = n_successful_mouldings / n_total_mouldings
         oee = availability * performance * quality
-        shiftLengthInMilliseconds = OperatorScheduleStopsAt.timestamp()*1000 - OperatorScheduleStartsAt.timestamp()*1000
+        shiftLengthInMilliseconds = self.datetimeToMilliseconds(self.today['OperatorScheduleStopsAt']) - self.datetimeToMilliseconds(self.today['OperatorScheduleStartsAt'])
         throughput = (shiftLengthInMilliseconds / operationTime) * partsPerOperation * oee
         self.logger.info(f'Availability: {availability}, Performance: {performance}, Quality: {quality}, OEE: {oee}, Throughput: {throughput}')
 
