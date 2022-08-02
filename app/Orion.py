@@ -15,7 +15,7 @@ def getRequestToOrion(url):
         response = requests.get(url)
         response.close()
     except:
-        raise RuntimeError(f'Get request failed to URL: {url}, status code:{response.status_code}')
+        raise RuntimeError(f'Get request failed to URL: {url} for unknown reason')
 
     else:
         if response.status_code == 200:
@@ -49,6 +49,18 @@ def getActiveJobId(workstationId):
     except KeyError:
         raise KeyError(f'Missing RefJob attribute in Workstation: {workstation}, no OEE data')
 
+def postObjectToOrion(url, obj):
+    try:
+        response = requests.post(url, json=obj)
+        response.close()
+    except:
+        raise RuntimeError(f'Put request failed to URL: {url} for unknown reason')
+
+    else:
+        if response.status_code == 201:
+            return response.json()
+        else:
+            raise RuntimeError(f'The object could not be created in Orion. URL: {url}, status code:{response.status_code}')
 
 def test_getObject():
     status_code, parsedJob = getObject('urn:ngsi_ld:Job:202200045')
