@@ -105,12 +105,12 @@ Some tests are included in the source code, but further testing needs to be done
 
 For testing, you need to create a conda environment and install necessary packages, then run the following files.
 
-conda create -n oee python=3.8
-conda activate oee
-conda install pandas psycopg2 requests sqlalchemy
-cd app
-python OEE.py
-python Orion.py
+    conda create -n oee python=3.8
+    conda activate oee
+    conda install pandas psycopg2 requests sqlalchemy
+    cd app
+    python OEE.py
+    python Orion.py
 
 We intend to to more thorough testing and refactoring in the future.
 
