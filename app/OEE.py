@@ -95,12 +95,12 @@ class OEE():
         try:
             self.updateObjects()
         except (RuntimeError, KeyError, AttributeError) as error:
-            self.logger.error(f'Could not prepare for OEE calculations. Traceback:\n{error}')
+            self.logger.error(f'Could not update objects from Orion. Traceback:\n{error}')
             raise error
-        if self.areConditionsOK():
-            return True
-        else:
-            return False
+        # if self.areConditionsOK():
+        #     return True
+        # else:
+        #     return False
 
     def download_ws_df(self, con):
         try:
@@ -126,7 +126,9 @@ class OEE():
         if (df_av.iloc[-1]['attrvalue'] == 'true'):
             total_available_time += self.now_unix
         # total_available_time_hours = time.strftime("%H:%M:%S", time.gmtime(total_available_time/1000))
-        return total_available_time/(now.timestamp()*1000-self.today['OperatorScheduleStartsAt'].timestamp()*1000)
+        # return total_available_time/(now.timestamp()*1000-self.today['OperatorScheduleStartsAt'].timestamp()*1000)
+        total_time_so_far_in_shift = self.datetimeToMilliseconds(self.now) - self.datetimeToMilliseconds(self.today['OperatorScheduleStartsAt'])
+        return total_available_time / total_time_so_far_in_shift
 
     def download_job_df(self, con):
         try:
@@ -137,7 +139,6 @@ class OEE():
                 sqlalchemy.exc.ProgrammingError) as error:
             self.logger.error(f'The SQL table: {job} does not exist within the schema: {conf["postgresSchema"]}. Traceback:\n{error}')
             return None
-
 
     def calculate(self, con):
         self.download_ws_df(con)
