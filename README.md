@@ -1,5 +1,7 @@
 # oee
 
+[![License: MIT](https://img.shields.io/github/license/ramp-eu/TTE.project1.svg)](https://opensource.org/licenses/MIT)
+
 An OEE calculator microservice to be used with Fiware Cygnus time series data. For more information, see the relevant [Fiware Cygnus tutorial](https://github.com/FIWARE/tutorials.Historic-Context-Flume).
 
 ## Contents
@@ -38,7 +40,7 @@ The OEE microservice is designed to be able to handle manufacturing systems that
 Currently, the ROSE-AP is not intended to be fully automatic. Whenever a new operation is started, human intervention is needed. A human must update the Workstation's following attributes: RefJob, CurrentOperationNumber and CurrentOperationType.
 
 ## Usage
-The component is designed to run inside a docker-compose project defined in the Robo4Toys ROSE-AP's [docker-compose.yml](https://github.com/aviharos/Manufacturing_OEE_alert_management_system/blob/main/docker-compose.yml) file. Whenever the docker-compose project is started, the OEE microservice also starts. However, the Component does not depend on any microservice besides the Orion Context Broker, Cygnus, MongoDB and PostgreSQL; so it can be used without many of the Robo4Toys TTE's microservices.
+The component is designed to run inside a docker-compose project defined in the Robo4Toys ROSE-AP's [docker-compose.yml](https://github.com/aviharos/momams/blob/main/docker-compose.yml) file. Whenever the docker-compose project is started, the OEE microservice also starts. However, the Component does not depend on any microservice besides the Orion Context Broker, Cygnus, MongoDB and PostgreSQL; so it can be used without many of the Robo4Toys TTE's microservices.
 
 ### Notifying Cygnus of all context changes
 After running the docker-compose project, you need to set Orion to notify Cygnus of all context changes using the script:
@@ -104,7 +106,7 @@ Some tests are included in the source code, but further testing needs to be done
 
 For testing, you need to create a conda environment and install necessary packages, then run the following files.
 
-conda create -n oee python=3.7
+conda create -n oee python=3.8
 conda activate oee
 conda install pandas psycopg2 requests sqlalchemy
 cd app
@@ -118,4 +120,5 @@ We intend to more thorough testing and refactoring in the future. The OEE micros
 
 ## License
 
-The license is not determined yet.
+[MIT license](LICENSE)
+
