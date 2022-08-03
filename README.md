@@ -117,3 +117,6 @@ We intend to to more thorough testing and refactoring in the future.
 ## License
 
 [MIT license](LICENSE)
+
+The Robo4Toys TTE does not hold any copyright of any FIWARE or 3rd party software.
+
