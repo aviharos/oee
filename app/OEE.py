@@ -37,8 +37,12 @@ class OEE():
                     'postgres_table': None,
                     'df': None}
         self.logger = getLogger(__name__)
+        self.oee = {'availability': None,
+                    'quality': None,
+                    'performance': None}
         self.operatorSchedule = None
         self.part = None
+        self.throughput = None
         self.ws = {'id': wsId,
                    'orion': None,
                    'postgres_table': wsId.replace(':', '_').lower() + '_workstation',
@@ -130,6 +134,16 @@ class OEE():
         total_time_so_far_in_shift = self.datetimeToMilliseconds(self.now) - self.datetimeToMilliseconds(self.today['OperatorScheduleStartsAt'])
         return total_available_time / total_time_so_far_in_shift
 
+    def handleAvailability(self):
+        self.download_ws_df(con)
+        self.convertRecvtimetsToInt(self.ws['df']['recvtimets'])
+        self.ws['df']['recvtimets'] = self.ws['df']['recvtimets'].map(float).map(int)
+
+        if self.ws['df'].size == 0:
+            self.logger.warning(f'No workstation data found for {self.ws["id"]} up to time {self.now} on day {self.today["day"]}, no OEE data')
+            return None
+        self.oee['availability'] = self.calc_availability()
+
     def download_job_df(self, con):
         try:
             self.job['df'] = pd.read_sql_query(f'''select * from {conf['postgresSchema']}.{self.job["postgres_table"]}
@@ -140,27 +154,29 @@ class OEE():
             self.logger.error(f'The SQL table: {job} does not exist within the schema: {conf["postgresSchema"]}. Traceback:\n{error}')
             return None
 
-    def calculate(self, con):
-        self.download_ws_df(con)
-        self.ws['df']['recvtimets'] = self.ws['df']['recvtimets'].map(float).map(int)
-        if self.ws['df'].size == 0:
-            self.logger.warning(f'No workstation data found for {self.ws["id"]} up to time {self.now} on day {self.today["day"]}, no OEE data')
-            return None
-        availability = self.calc_availability()
-        df['recvtimets'] = df['recvtimets'].map(float).map(int)
+    def convertRecvtimetsToInt(self, col):
+        col = col.map(float).map(int)
 
+    def countMouldings(self):
+        df = self.job['df']
+        self.n_successful_mouldings = len(df[df.attrname == 'GoodPartCounter']['attrvalue'].unique())
+        self.n_failed_mouldings = len(df[df.attrname == 'RejectPartCounter']['attrvalue'].unique())
+        self.n_total_mouldings = self.n_successful_mouldings + self.n_failed_mouldings
+
+    def handleQuality(self):
+        self.download_job_df()
+        self.convertRecvtimetsToInt(self.job['df']['recvtimets'])
+        # self.job['df']['recvtimets'] = self.job['df']['recvtimets'].map(float).map(int)
         if df.size == 0:
-            self.logger.warning(f'No job data found for {jobId} up to time {now} on day {today}.')
+            self.logger.warning(f'No job data found for {self.["job"]["id"]} up to time {self.now} on day {self.today}.')
             return None
-
-        n_successful_mouldings = len(df[df.attrname == 'GoodPartCounter']['attrvalue'].unique())
-        n_failed_mouldings = len(df[df.attrname == 'RejectPartCounter']['attrvalue'].unique())
-        n_total_mouldings = n_successful_mouldings + n_failed_mouldings
-
-        if n_total_mouldings == 0:
+        self.countMouldings()
+        if self.n_total_mouldings == 0:
             self.logger.warning('No operation was completed yet, no OEE data')
             return None
-
+        self.oee['quality'] = self.n_successful_mouldings / self.n_total_mouldings
+        
+    def handlePerformance(self):
         status_code, job_json = Orion.getObject(jobId)
         if status_code != 200:
             self.logger.error(f'Failed to get object from Orion broker:{jobId}, status_code:{status_code}; no OEE data')
@@ -202,7 +218,12 @@ class OEE():
             return None
 
         performance = n_total_mouldings * operationTime / total_available_time
-        quality = n_successful_mouldings / n_total_mouldings
+
+    def calculate(self, con):
+        self.handleAvailability()
+        self.handleQuality()
+        self.handlePerformance()
+
         oee = availability * performance * quality
         shiftLengthInMilliseconds = self.datetimeToMilliseconds(self.today['OperatorScheduleStopsAt']) - self.datetimeToMilliseconds(self.today['OperatorScheduleStartsAt'])
         throughput = (shiftLengthInMilliseconds / operationTime) * partsPerOperation * oee
