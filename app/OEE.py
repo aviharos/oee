@@ -77,7 +77,7 @@ class OEE():
         except (ValueError, KeyError) as error:
             raise ValueError(f'Critical: could not convert time in Operatorschedule. Traceback:\n{error}')
         self.ws = Orion.getObject(self.ws['id'])
-        self.job['oriont'] = Orion.getObject(self.ws['orion']['RefJob']['value'])
+        self.job['orion'] = Orion.getObject(self.ws['orion']['RefJob']['value'])
         self.job['postgres_table'] = self.job['id'].replace(':', '_').lower() + '_job'
         self.part = Orion.getObject(self.job['orion']['RefPart']['value'])
 
