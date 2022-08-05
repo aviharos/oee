@@ -16,7 +16,7 @@ import psycopg2
 # Custom imports, config
 from conf import conf
 from Logger import getLogger
-import OEE
+from OEE import OEE
 import Orion
 
 logger_main = getLogger(__name__)
@@ -48,7 +48,7 @@ def loop(scheduler_):
                 oee = OEE(workstationId)
                 oee.prepare()
                 if oee.checkConditions(workstationId):
-                    oee, jobIds = oee.calculateOEE(con, _time_override=time_override)
+                    oee, jobIds = oee.calculateOEE(con)
                     throughput = oee.calculateThroughput()
                     oee.insert(workstationId, oee, throughput, jobIds, con)
                 else:
@@ -61,8 +61,11 @@ def loop(scheduler_):
             sqlalchemy.exc.OperationalError) as error:
         logger_main.error(error)
     finally:
-        con.close()
-        engine.dispose()
+        try:
+            con.close()
+            engine.dispose()
+        except NameError:
+            pass
         scheduler_.enter(conf['period_time'], 1, loop, (scheduler_,))
 
 
