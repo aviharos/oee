@@ -130,6 +130,7 @@ class OEE():
             total_available_time += self.now_unix
         # total_available_time_hours = time.strftime("%H:%M:%S", time.gmtime(total_available_time/1000))
         # return total_available_time/(now.timestamp()*1000-self.today['OperatorScheduleStartsAt'].timestamp()*1000)
+        self.total_available_time = total_available_time
         total_time_so_far_in_shift = self.datetimeToMilliseconds(self.now) - self.datetimeToMilliseconds(self.today['OperatorScheduleStartsAt'])
         if total_time_so_far_in_shift == 0:
             raise ZeroDivisionError('Total time so far in the shift is 0, no OEE data')
@@ -170,47 +171,33 @@ class OEE():
         self.oee['quality'] = self.n_successful_mouldings / self.n_total_mouldings
         
     def handlePerformance(self):
-        status_code, job_json = Orion.getObject(jobId)
+        status_code, job_json = Orion.getObject(self.job['id'])
         if status_code != 200:
-            self.logger.error(f'Failed to get object from Orion broker:{jobId}, status_code:{status_code}; no OEE data')
-            return None
-
+            raise RunTimeError(f'Failed to get object from Orion broker:{self.job["id"]}, status_code:{status_code}; no OEE data')
         try:
             partId = job_json['RefPart']['value']
-        except (KeyError, TypeError):
-            self.logger.critical('Critical: RefPart not found in the Job {jobId}: {job_json}')
-            return None
-
+        except (KeyError, TypeError) as error:
+            raise RuntimeError('Critical: RefPart not found in the Job {self.job["id"]}: {job_json}') from error
         status_code, part_json = Orion.getObject(partId)
         if status_code != 200:
-            self.logger.error(f'Failed to get object from Orion broker:{partId}, status_code:{status_code}; no OEE data')
-            return None
-
+            raise RunTimeError(f'Failed to get object from Orion broker:{partId}, status_code:{status_code}; no OEE data')
         try:
             current_operation_type = job_json['CurrentOperationType']['value']
-        except (KeyError, TypeError):
-            self.logger.critical(f'Critical: CurrentOperationType not found in the Job {jobId}: {job_json}')
-            return None
-
+        except (KeyError, TypeError) as error:
+            raise RunTimeError(f'Critical: CurrentOperationType not found in the Job {self.job["id"]}: {job_json}') from error
         try:
             operation = self.get_operation(part_json, current_operation_type)
-        except (KeyError, TypeError):
-            self.logger.critical(f'Critical: Operation {current_operation_type} not found in the Part: {part_json}')
-            return None
-
+        except (KeyError, TypeError) as error:
+            raise RuntimeError(f'Critical: Operation {current_operation_type} not found in the Part: {part_json}') from error
         try:
             operationTime = operation['OperationTime']['value']
-        except (KeyError, TypeError):
-            self.logger.critical(f'Critical: OperationTime not found in the Part: {part_json}')
-            return None
-
+        except (KeyError, TypeError) as error:
+            raise RuntimeError(f'Critical: OperationTime not found in the Part: {part_json}') from error
         try:
             partsPerOperation = operation['PartsPerOperation']['value']
-        except (KeyError, TypeError):
-            self.logger.critical(f'Critical: partsPerOperation not found in the Part: {part_json}')
-            return None
-
-        performance = n_total_mouldings * operationTime / total_available_time
+        except (KeyError, TypeError) as error:
+            raise RuntimeError(f'Critical: partsPerOperation not found in the Part: {part_json}') from error
+        self.oee['performance'] = self.n_total_mouldings * operationTime / self.total_available_time
 
     def calculateOEE(self, con):
         self.handleAvailability()
