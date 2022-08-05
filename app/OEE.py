@@ -95,9 +95,12 @@ class OEE():
         else:
             return True
 
-    def prepare(self):
+    def prepare(self, _time_override=None):
         self.now = datetime.now()
-        self.now_unix = datetime.now().timestamp() * 1000
+        if _time_override is not None:
+            self.logger.warning(f'Warning: time override:  {_time_override}')
+            self.now = _time_override
+        self.now_unix = self.now.timestamp() * 1000
         self.today = {'day': datetime.now().date(),
                       'start': self.stringToDateTime(str(self.now.date()) + ' 00:00:00.000')}
         try:
@@ -136,7 +139,7 @@ class OEE():
             raise ZeroDivisionError('Total time so far in the shift is 0, no OEE data')
         return total_available_time / total_time_so_far_in_shift
 
-    def handleAvailability(self):
+    def handleAvailability(self, con):
         self.download_ws_df(con)
         self.convertRecvtimetsToInt(self.ws['df']['recvtimets'])
         # self.ws['df']['recvtimets'] = self.ws['df']['recvtimets'].map(float).map(int)
@@ -151,7 +154,7 @@ class OEE():
                                                 and cast (recvtimets as bigint) <= {self.now_unix};''', con=con)
         except (psycopg2.errors.UndefinedTable,
                 sqlalchemy.exc.ProgrammingError) as error:
-            raise RuntimeError(f'The SQL table: {job} does not exist within the schema: {conf["postgresSchema"]}. Traceback:\n{error}') from error
+            raise RuntimeError(f'The SQL table: {self.job["postgres_table"]} does not exist within the schema: {conf["postgresSchema"]}. Traceback:\n{error}') from error
 
     def countMouldings(self):
         df = self.job['df']
@@ -159,12 +162,12 @@ class OEE():
         self.n_failed_mouldings = len(df[df.attrname == 'RejectPartCounter']['attrvalue'].unique())
         self.n_total_mouldings = self.n_successful_mouldings + self.n_failed_mouldings
 
-    def handleQuality(self):
-        self.download_job_df()
+    def handleQuality(self, con):
+        self.download_job_df(con)
         self.convertRecvtimetsToInt(self.job['df']['recvtimets'])
         # self.job['df']['recvtimets'] = self.job['df']['recvtimets'].map(float).map(int)
-        if df.size == 0:
-            raise ValueError(f'No job data found for {self.["job"]["id"]} up to time {self.now} on day {self.today}.')
+        if self.job['df'].size == 0:
+            raise ValueError(f'No job data found for {self.job["id"]} up to time {self.now} on day {self.today}.')
         self.countMouldings()
         if self.n_total_mouldings == 0:
             raise ValueError('No operation was completed yet, no OEE data')
@@ -173,62 +176,57 @@ class OEE():
     def handlePerformance(self):
         status_code, job_json = Orion.getObject(self.job['id'])
         if status_code != 200:
-            raise RunTimeError(f'Failed to get object from Orion broker:{self.job["id"]}, status_code:{status_code}; no OEE data')
+            raise RuntimeError(f'Failed to get object from Orion broker:{self.job["id"]}, status_code:{status_code}; no OEE data')
         try:
             partId = job_json['RefPart']['value']
         except (KeyError, TypeError) as error:
             raise RuntimeError('Critical: RefPart not found in the Job {self.job["id"]}: {job_json}') from error
         status_code, part_json = Orion.getObject(partId)
         if status_code != 200:
-            raise RunTimeError(f'Failed to get object from Orion broker:{partId}, status_code:{status_code}; no OEE data')
+            raise RuntimeError(f'Failed to get object from Orion broker:{partId}, status_code:{status_code}; no OEE data')
         try:
             current_operation_type = job_json['CurrentOperationType']['value']
         except (KeyError, TypeError) as error:
-            raise RunTimeError(f'Critical: CurrentOperationType not found in the Job {self.job["id"]}: {job_json}') from error
+            raise RuntimeError(f'Critical: CurrentOperationType not found in the Job {self.job["id"]}: {job_json}') from error
         try:
             operation = self.get_operation(part_json, current_operation_type)
         except (KeyError, TypeError) as error:
             raise RuntimeError(f'Critical: Operation {current_operation_type} not found in the Part: {part_json}') from error
         try:
-            operationTime = operation['OperationTime']['value']
+            self.operationTime = operation['OperationTime']['value']
         except (KeyError, TypeError) as error:
             raise RuntimeError(f'Critical: OperationTime not found in the Part: {part_json}') from error
         try:
-            partsPerOperation = operation['PartsPerOperation']['value']
+            self.partsPerOperation = operation['PartsPerOperation']['value']
         except (KeyError, TypeError) as error:
             raise RuntimeError(f'Critical: partsPerOperation not found in the Part: {part_json}') from error
-        self.oee['performance'] = self.n_total_mouldings * operationTime / self.total_available_time
+        self.oee['performance'] = self.n_total_mouldings * self.operationTime / self.total_available_time
 
     def calculateOEE(self, con):
-        self.handleAvailability()
-        self.handleQuality()
+        self.handleAvailability(con)
+        self.handleQuality(con)
         self.handlePerformance()
-
-        oee = availability * performance * quality
-        shiftLengthInMilliseconds = self.datetimeToMilliseconds(self.today['OperatorScheduleStopsAt']) - self.datetimeToMilliseconds(self.today['OperatorScheduleStartsAt'])
-        throughput = (shiftLengthInMilliseconds / operationTime) * partsPerOperation * oee
-        self.logger.info(f'Availability: {availability}, Performance: {performance}, Quality: {quality}, OEE: {oee}, Throughput: {throughput}')
-
-        return availability, performance, quality, oee, throughput
+        self.oee['oee'] = self.oee['availability'] * self.oee['performance'] * self.oee['quality']
+        self.jobIds = self.job['id']
+        self.logger.info(f'oee: {self.oee}, jobIds: {self.job["id"]}')
+        return self.oee, self.job['id']
 
     def calculateThroughput(self):
-        pass
+        shiftLengthInMilliseconds = self.datetimeToMilliseconds(self.today['OperatorScheduleStopsAt']) - self.datetimeToMilliseconds(self.today['OperatorScheduleStartsAt'])
+        self.throughput = (shiftLengthInMilliseconds / self.operationTime) * self.partsPerOperation * self.oee['oee']
+        self.logger.info(f'Throughput: {self.throughput}')
+        return self.throughput
 
-    def insert(self, workstationId, availability, performance, quality, oee, throughput, jobIds, con, _time_override=None):
-        table_name = workstationId.replace(':', '_').lower() + '_workstation_oee'
-        now = datetime.now()
-        if _time_override is not None:
-            now = _time_override
-            self.logger.warning(f'Time override in insertOEE: {_time_override}')
-        now_unix = now.timestamp()*1000
-        oeeData = pd.DataFrame.from_dict({'recvtimets': [now_unix],
-                                          'recvtime': [self.msToDateTimeString(now_unix)],
-                                          'availability': [availability],
-                                          'performance': [performance],
-                                          'quality': [quality],
-                                          'oee': [oee],
-                                          'throughput_shift': [throughput],
-                                          'jobs': [jobIds]})
+    def insert(self, con):
+        table_name = self.ws['id'].replace(':', '_').lower() + '_workstation_oee'
+        oeeData = pd.DataFrame.from_dict({'recvtimets': [self.now_unix],
+                                          'recvtime': [self.msToDateTimeString(self.now_unix)],
+                                          'availability': [self.oee['availability']],
+                                          'performance': [self.oee['performance']],
+                                          'quality': [self.oee['quality']],
+                                          'oee': [self.oee['oee']],
+                                          'throughput_shift': [self.throughput],
+                                          'jobs': [self.jobIds]})
         oeeData.to_sql(name=table_name, con=con, schema=conf['postgresSchema'], index=False, dtype=self.col_dtypes, if_exists='append')
         self.logger.debug('Successfully inserted OEE data into Postgres')
 
