@@ -40,36 +40,29 @@ def loop(scheduler_):
     try:
         engine = create_engine(f'postgresql://{conf["postgresUser"]}:{conf["postgresPassword"]}@{conf["postgresHost"]}:{conf["postgresPort"]}')
         con = engine.connect()
-    
         status_code_ws, workstationIds = Orion.getWorkstationIds()
         if status_code_ws == 200:
             if len(workstationIds) == 0:
                 logger_main.critical(f'No Workstation is found in the Orion broker, no OEE data')
             for workstationId in workstationIds:
-                if OEE.checkConditions(workstationId):
-                    availability, performance, quality, oee, throughput, jobIds = OEE.calculateOEE(workstationId, con, _time_override=time_override)
-                    OEE.insertOEE(workstationId, availability, performance, quality, oee, throughput, jobIds, con)
-                '''
-                status_code_job, jobId = Orion.getActiveJobId(workstationId)
-                if status_code_job == 200 and jobId is not None:
-                    # availability, performance, quality, oee, throughput
-                    oeeData = OEE.calculateOEE(workstationId, jobId, con, _time_override=time_override)
-                    if oeeData is not None:
-                        (availability, performance, quality, oee, throughput) = oeeData
-                        OEE.insertOEE(workstationId,
-                                      availability,
-                                      performance,
-                                      quality,
-                                      oee,
-                                      throughput,
-                                      jobId,
-                                      con)'''
+                oee = OEE(workstationId)
+                oee.prepare()
+                if oee.checkConditions(workstationId):
+                    oee, jobIds = oee.calculateOEE(con, _time_override=time_override)
+                    throughput = oee.calculateThroughput()
+                    oee.insert(workstationId, oee, throughput, jobIds, con)
+                else:
+                    logger.info('The necessary conditions not met for OEE calculation, no OEE data.')
+    except (AttributeError,
+            KeyError,
+            RuntimeError,
+            ValueError,
+            psycopg2.OperationalError,
+            sqlalchemy.exc.OperationalError) as error:
+        logger_main.error(error)
+    finally:
         con.close()
         engine.dispose()
-    except (psycopg2.OperationalError,
-            sqlalchemy.exc.OperationalError) as error:
-        logger_main.error(f'Failed to connect to PostgreSQL. Traceback:\n{error}')
-    finally:
         scheduler_.enter(conf['period_time'], 1, loop, (scheduler_,))
 
 

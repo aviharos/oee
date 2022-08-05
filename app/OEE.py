@@ -60,6 +60,9 @@ class OEE():
     def datetimeToMilliseconds(self, datetime_):
         return datetime_.timestamp()*1000
 
+    def convertRecvtimetsToInt(self, col):
+        col = col.map(float).map(int)
+
     def get_operation(self, part, operationType):
         for operation in part['Operations']['value']:
             if operation['OperationType']['value'] == operationType:
@@ -87,9 +90,10 @@ class OEE():
             return False
 
     def areConditionsOK(self):
-        if (not self.checkTime() or 
-            not True):
+        if not self.checkTime():
             return False
+        else:
+            return True
 
     def prepare(self):
         self.now = datetime.now()
@@ -101,10 +105,6 @@ class OEE():
         except (RuntimeError, KeyError, AttributeError) as error:
             self.logger.error(f'Could not update objects from Orion. Traceback:\n{error}')
             raise error
-        # if self.areConditionsOK():
-        #     return True
-        # else:
-        #     return False
 
     def download_ws_df(self, con):
         try:
@@ -113,8 +113,7 @@ class OEE():
                                                and cast (recvtimets as bigint) <= {self.now_unix};''', con=con)
         except (psycopg2.errors.UndefinedTable,
                 sqlalchemy.exc.ProgrammingError) as error:
-            self.logger.error(f'The SQL table: {self.ws["postgres_table"]} does not exist within the schema: {conf["postgresSchema"]}. Traceback:\n{error}')
-            return None
+            raise RuntimeError(f'The SQL table: {self.ws["postgres_table"]} does not exist within the schema: {conf["postgresSchema"]}. Traceback:\n{error}') from error
 
     def calc_availability(self):
         # Available is true and false in this periodical order, starting with true
@@ -132,16 +131,16 @@ class OEE():
         # total_available_time_hours = time.strftime("%H:%M:%S", time.gmtime(total_available_time/1000))
         # return total_available_time/(now.timestamp()*1000-self.today['OperatorScheduleStartsAt'].timestamp()*1000)
         total_time_so_far_in_shift = self.datetimeToMilliseconds(self.now) - self.datetimeToMilliseconds(self.today['OperatorScheduleStartsAt'])
+        if total_time_so_far_in_shift == 0:
+            raise ZeroDivisionError('Total time so far in the shift is 0, no OEE data')
         return total_available_time / total_time_so_far_in_shift
 
     def handleAvailability(self):
         self.download_ws_df(con)
         self.convertRecvtimetsToInt(self.ws['df']['recvtimets'])
-        self.ws['df']['recvtimets'] = self.ws['df']['recvtimets'].map(float).map(int)
-
+        # self.ws['df']['recvtimets'] = self.ws['df']['recvtimets'].map(float).map(int)
         if self.ws['df'].size == 0:
-            self.logger.warning(f'No workstation data found for {self.ws["id"]} up to time {self.now} on day {self.today["day"]}, no OEE data')
-            return None
+            raise ValueError(f'No workstation data found for {self.ws["id"]} up to time {self.now} on day {self.today["day"]}, no OEE data')
         self.oee['availability'] = self.calc_availability()
 
     def download_job_df(self, con):
@@ -151,11 +150,7 @@ class OEE():
                                                 and cast (recvtimets as bigint) <= {self.now_unix};''', con=con)
         except (psycopg2.errors.UndefinedTable,
                 sqlalchemy.exc.ProgrammingError) as error:
-            self.logger.error(f'The SQL table: {job} does not exist within the schema: {conf["postgresSchema"]}. Traceback:\n{error}')
-            return None
-
-    def convertRecvtimetsToInt(self, col):
-        col = col.map(float).map(int)
+            raise RuntimeError(f'The SQL table: {job} does not exist within the schema: {conf["postgresSchema"]}. Traceback:\n{error}') from error
 
     def countMouldings(self):
         df = self.job['df']
@@ -168,12 +163,10 @@ class OEE():
         self.convertRecvtimetsToInt(self.job['df']['recvtimets'])
         # self.job['df']['recvtimets'] = self.job['df']['recvtimets'].map(float).map(int)
         if df.size == 0:
-            self.logger.warning(f'No job data found for {self.["job"]["id"]} up to time {self.now} on day {self.today}.')
-            return None
+            raise ValueError(f'No job data found for {self.["job"]["id"]} up to time {self.now} on day {self.today}.')
         self.countMouldings()
         if self.n_total_mouldings == 0:
-            self.logger.warning('No operation was completed yet, no OEE data')
-            return None
+            raise ValueError('No operation was completed yet, no OEE data')
         self.oee['quality'] = self.n_successful_mouldings / self.n_total_mouldings
         
     def handlePerformance(self):
@@ -219,7 +212,7 @@ class OEE():
 
         performance = n_total_mouldings * operationTime / total_available_time
 
-    def calculate(self, con):
+    def calculateOEE(self, con):
         self.handleAvailability()
         self.handleQuality()
         self.handlePerformance()
@@ -230,6 +223,9 @@ class OEE():
         self.logger.info(f'Availability: {availability}, Performance: {performance}, Quality: {quality}, OEE: {oee}, Throughput: {throughput}')
 
         return availability, performance, quality, oee, throughput
+
+    def calculateThroughput(self):
+        pass
 
     def insert(self, workstationId, availability, performance, quality, oee, throughput, jobIds, con, _time_override=None):
         table_name = workstationId.replace(':', '_').lower() + '_workstation_oee'
