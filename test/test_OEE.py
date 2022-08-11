@@ -1,80 +1,113 @@
+# Standard Library imports
 import datetime
-import unittest
+import json
+import os
 import sys
-sys.path.insert(0, '../app')
+import unittest
 
-from OEE import OEE
+# PyPI imports
+import pandas as pd
+import numpy as np
+
+# Custom imports
+sys.path.insert(0, os.path.join('..', 'app')
+
 from conf import conf
+from OEE import OEE
+import upload_jsons_to_Orion
 
 class testOrion(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        pass
+        upload_jsons_to_Orion.main()
+        self.oee = OEE('urn:ngsi_ld:Workstation:1')
+        self.oee.ws['df'] = pd.read_csv(os.path.join('csv', 'urn_ngsi_ld_workstation_1_workstation.csv'))
 
     @classmethod
     def tearDownClass(cls):
         pass
 
     def setUp(self):
-        oee = OEE('urn:ngsi_ld:Workstation:1')
+        oee = self.oee.copy() 
 
     def tearDown(self):
         pass
 
-    def test_msToDateTimeString(self, ms):
+    def test_msToDateTimeString(self):
         self.assertEqual('2022-04-05 13:46:40.000', oee.msToDateTimeString(1649159200))
 
     def test_stringToDateTime(self, string):
         self.assertEqual(datetime.datetime(2022, 04, 05, 13, 46, 40), oee.stringToDateTime('2022-04-05 13:46:40.000'))
     
-    def test_timeToDatetime(self, string):
+    def test_timeToDatetime(self):
         self.assertEqual(datetime.datetime(2022, 04, 05, 13, 46, 40), oee.timeToDatetime('13:46:40.000'))
 
-    def test_datetimeToMilliseconds(self, datetime_):
-        pass
-        # return datetime_.timestamp()*1000
+    def test_datetimeToMilliseconds(self):
+        self.assertEqual(datetime.datetime(2022, 04, 05, 13, 46, 40), oee.datetimeToMilliseconds(1649159200))
 
-    def test_convertRecvtimetsToInt(self, col):
-        pass
-        # col = col.map(float).map(int)
+    def test_convertRecvtimetsToInt(self):
+        oee.convertRecvtimetsToInt(oee.ws['df']['recvtimets'])
+        self.assertEqual(oee.ws['df']['recvtimets'].dtype == np.int64)
 
-    def test_get_operation(self, part, operationType):
-        pass
-        # for operation in part['Operations']['value']:
-        #     if operation['OperationType']['value'] == operationType:
-        #         return operation
-        # raise AttributeError(f'The part {part} has no operation with type {operationType}')
+    def test_get_operation(self):
+        part = {
+                "type": "Part",
+                "id": "urn:ngsi_ld:Part:Core001",
+                "Operations": {
+                    "type": "List",
+                    "value": [
+                        {
+                            "type": "Operation",
+                            "OperationNumber": {"type": "Number", "value": 10},
+                            "OperationTime": {"type": "Number", "value": 46},
+                            "OperationType": {"type": "Text", "value": "Core001_injection_moulding"},
+                            "PartsPerOperation": {"type": "Number", "value": 8}
+                        },
+                        {
+                            "type": "Operation",
+                            "OperationNumber": {"type": "Number", "value": 20},
+                            "OperationTime": {"type": "Number", "value": 33},
+                            "OperationType": {"type": "Text", "value": "Core001_deburring"},
+                            "PartsPerOperation": {"type": "Number", "value": 16}
+                        },
+                    ]
+                }
+            }
+        op = {
+                "type": "Operation",
+                "OperationNumber": {"type": "Number", "value": 10},
+                "OperationTime": {"type": "Number", "value": 46},
+                "OperationType": {"type": "Text", "value": "Core001_injection_moulding"},
+                "PartsPerOperation": {"type": "Number", "value": 8}
+            }
+        self.assertEqual(oee.get_operation(part, 'Core001_injection_moulding'), op)
+        with self.assertRaises(AttributeError):
+            oee.get_operation(part, 'Core001_painting')
 
     def test_updateObjects(self):
-        pass
-        # self.operatorSchedule = Orion.getObject('urn:ngsi_ld:OperatorSchedule:1')
-        # try:
-        #     for time_ in ('OperatorScheduleStartsAt', 'OperatorScheduleStopsAt'):
-        #         self.today[time_] = self.timeToDatetime(self.operatorSchedule[time_]['value'])
-        # except (ValueError, KeyError) as error:
-        #     raise ValueError(f'Critical: could not convert time in Operatorschedule. Traceback:\n{error}')
-        # self.ws = Orion.getObject(self.ws['id'])
-        # self.job['orion'] = Orion.getObject(self.ws['orion']['RefJob']['value'])
-        # self.job['postgres_table'] = self.job['id'].replace(':', '_').lower() + '_job'
-        # self.part = Orion.getObject(self.job['orion']['RefPart']['value'])
+        oee.updateObjects()
+        operator_schedule = json.load(os.path.join('..', 'json', 'Operatorschedule.json'))
+        ws = json.load(os.path.join('..', 'json', 'Workstation.json'))
+        job = json.load(os.path.join('..', 'json', 'Job202200045.json'))
+        part = json.load(os.path.join('..', 'json', 'Core001.json'))
+        self.assertEqual(oee.operator_schedule, operator_schedule)
+        self.assertEqual(oee.ws, ws)
+        self.assertEqual(oee.job, job)
+        self.assertEqual(oee.part, part)
+        self.assertEqual(oee.job['postgres_table'], 'urn_ngsi_ld_Job_202200045_job')
 
     def test_checkTime(self):
-        pass
-        # if self.now < self.today['OperatorScheduleStartsAt']:
-        #     self.logger.info(f'The shift has not started yet before time: {self.now}, no OEE data')
-        #     return False
-        # if self.now > self.today['OperatorScheduleStopsAt']:
-        #     self.logger.info(f'The current time: {self.now} is after the shift\'s end, no OEE data')
-        #     return False
+        oee.now = datetime.today() + datetime.timedelta(hours = 3)
+        self.assertEqual(oee.checkTime(), True)
+        oee.now = datetime.today() + datetime.timedelta(hours = 3)
+        self.assertEqual(oee.checkTime(), False)
+        oee.now = datetime.today() + datetime.timedelta(hours = 23)
+        self.assertEqual(oee.checkTime(), False)
 
     def test_areConditionsOK(self):
         pass
-        # if not self.checkTime():
-        #     return False
-        # else:
-        #     return True
 
-    def test_prepare(self, _time_override=None):
+    def test_prepare(self):
         pass
         # self.now = datetime.now()
         # if _time_override is not None:
@@ -89,7 +122,7 @@ class testOrion(unittest.TestCase):
         #     self.logger.error(f'Could not update objects from Orion. Traceback:\n{error}')
         #     raise error
 
-    def test_download_ws_df(self, con):
+    def test_download_ws_df(self):
         pass
         # try:
         #     self.ws['df'] = pd.read_sql_query(f'''select * from {conf['postgresSchema']}.{self.ws['table_name']}
@@ -123,7 +156,7 @@ class testOrion(unittest.TestCase):
         return total_available_time / total_time_so_far_in_shift
         '''
 
-    def test_handleAvailability(self, con):
+    def test_handleAvailability(self):
         pass
         # self.download_ws_df(con)
         # self.convertRecvtimetsToInt(self.ws['df']['recvtimets'])
@@ -131,7 +164,7 @@ class testOrion(unittest.TestCase):
         #     raise ValueError(f'No workstation data found for {self.ws["id"]} up to time {self.now} on day {self.today["day"]}, no OEE data')
         # self.oee['availability'] = self.calc_availability()
 
-    def test_download_job_df(self, con):
+    def test_download_job_df(self):
         pass
         # try:
         #     self.job['df'] = pd.read_sql_query(f'''select * from {conf['postgresSchema']}.{self.job["postgres_table"]}
@@ -148,7 +181,7 @@ class testOrion(unittest.TestCase):
         # self.n_failed_mouldings = len(df[df.attrname == 'RejectPartCounter']['attrvalue'].unique())
         # self.n_total_mouldings = self.n_successful_mouldings + self.n_failed_mouldings
 
-    def test_handleQuality(self, con):
+    def test_handleQuality(self):
         pass
         # self.download_job_df(con)
         # self.convertRecvtimetsToInt(self.job['df']['recvtimets'])
@@ -190,7 +223,7 @@ class testOrion(unittest.TestCase):
         #     raise RuntimeError(f'Critical: partsPerOperation not found in the Part: {part_json}') from error
         # self.oee['performance'] = self.n_total_mouldings * self.operationTime / self.total_available_time
 
-    def test_calculateOEE(self, con):
+    def test_calculateOEE(self):
         pass
         # self.handleAvailability(con)
         # self.handleQuality(con)
@@ -220,4 +253,15 @@ class testOrion(unittest.TestCase):
         #                                   'jobs': [self.jobIds]})
         # oeeData.to_sql(name=table_name, con=con, schema=conf['postgresSchema'], index=False, dtype=self.col_dtypes, if_exists='append')
         # self.logger.debug('Successfully inserted OEE data into Postgres')
+
+if __name__ == '__main__':
+    ans = input('''The testing process needs MOMAMS up and running.
+Please start it if you have not already.
+Also, the tests delete and create objects in the Orion broker.
+Never use the tests on a production environment.
+Do you still want to proceed? [yN]''')
+    if ans == 'y':
+        unittest.main()
+    else:
+        print('exiting...')
 
