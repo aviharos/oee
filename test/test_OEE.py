@@ -162,7 +162,7 @@ class testOrion(unittest.TestCase):
 
         ws_df = self.ws_df.copy()
         # drop all rows
-        ws_df = ws_df[False]
+        ws_df.drop(ws_df.index, inplace=True)
         ws_df.to_sql(name=WS_TABLE, con=con, schema=conf['postgresSchema'], index=False, dtype=Text, if_exists='replace')
         with self.assertRaises(ValueError):
             oee.handleAvailability()
