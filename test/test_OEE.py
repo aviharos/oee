@@ -13,6 +13,13 @@ from sqlalchemy.types import DateTime, Float, BigInteger, Text
 # Custom imports
 sys.path.insert(0, os.path.join('..', 'app')
 
+# Constants
+WS_FILE = 'urn_ngsi_ld_job_202200045_job.csv'
+WS_TABLE = 'urn_ngsi_ld_job_202200045_job'
+JOB_FILE = 'urn_ngsi_ld_workstation_1_workstation.csv'
+JOB_TABLE = 'urn_ngsi_ld_workstation_1_workstation'
+PLACES = 4
+
 from conf import conf
 from OEE import OEE
 import upload_jsons_to_Orion
@@ -28,8 +35,7 @@ class testOrion(unittest.TestCase):
 
     @classmethod
     def tearDownClass(cls):
-        con.close()
-        engine.dispose()
+        pass
 
     def setUp(self):
         oee = self.oee.copy() 
@@ -121,43 +127,45 @@ class testOrion(unittest.TestCase):
         self.assertAlmostEqual(startOfToday.unix(), oee.today['start'].unix())
 
     def test_download_ws_df(self):
-        ws_df = pd.read_csv(os.path.join('csv', 'wd.csv'))
-        table_name = oee.ws['id'].replace(':', '_').lower() + '_workstation'
-        ws_df.to_sql(name=table_name, con=con, schema=conf['postgresSchema'], index=False, dtype=Text, if_exists='replace')
+        self.ws_df = pd.read_csv(os.path.join('csv', WS_FILE))
+        ws_df = self.ws_df
+        ws_df.to_sql(name=WS_TABLE, con=con, schema=conf['postgresSchema'], index=False, dtype=Text, if_exists='replace')
         oee.download_ws_df()
         self.assertTrue(oee.ws['df'].equals(ws_df))
 
     def test_calc_availability(self):
-        pass
-        '''
-        # Available is true and false in this periodical order, starting with true
-        # we can sum the timestamps of the true values and the false values disctinctly, getting 2 sums
-        # the total available time is their difference
-        df = self.ws['df']
-        df_av = df[df['attrname'] == 'Available']
-        available_true = df_av[df_av['attrvalue'] == 'true']
-        available_false = df_av[df_av['attrvalue'] == 'false']
-        total_available_time = available_false['recvtimets'].sum() - available_true['recvtimets'].sum()
-        # if the Workstation is available currently, we need to add
-        # the current timestamp to the true timestamps' sum
-        if (df_av.iloc[-1]['attrvalue'] == 'true'):
-            total_available_time += self.now_unix
-        # total_available_time_hours = time.strftime("%H:%M:%S", time.gmtime(total_available_time/1000))
-        # return total_available_time/(now.timestamp()*1000-self.today['OperatorScheduleStartsAt'].timestamp()*1000)
-        self.total_available_time = total_available_time
-        total_time_so_far_in_shift = self.datetimeToMilliseconds(self.now) - self.datetimeToMilliseconds(self.today['OperatorScheduleStartsAt'])
-        if total_time_so_far_in_shift == 0:
-            raise ZeroDivisionError('Total time so far in the shift is 0, no OEE data')
-        return total_available_time / total_time_so_far_in_shift
-        '''
+        # Human readable timestampts are in UTC+0200 CEST
+        # the machine starts up at 6:50 in the morning in the test data
+        # this why the availability is high
+        oee.ws['df'] = ws_df
+        oee.now_unix = 1649081400000
+        oee.now = datetime.datetime(2022, 4, 4, 16, 10, 0)
+        availability = oee.calc_availability()
+        self.assertAlmostEqual(availability, 1.119823, places=PLACES)
+        oee.now_unix = 1649059200000
+        oee.now = datetime.datetime(2022, 4, 4, 10, 0, 0)
+        availability = oee.calc_availability()
+        self.assertAlmostEqual(availability, 1.579306, places=PLACES)
 
     def test_handleAvailability(self):
-        pass
-        # self.download_ws_df(con)
-        # self.convertRecvtimetsToInt(self.ws['df']['recvtimets'])
-        # if self.ws['df'].size == 0:
-        #     raise ValueError(f'No workstation data found for {self.ws["id"]} up to time {self.now} on day {self.today["day"]}, no OEE data')
-        # self.oee['availability'] = self.calc_availability()
+        oee.now_unix = 1649059200000
+        oee.now = datetime.datetime(2022, 4, 4, 10, 0, 0)
+        oee.handleAvailability()
+        self.assertEqual(oee.ws['df']['recvtimets'].dtype, np.int64)
+        self.assertAlmostEqual(oee.oee['availability'], 1.119823, places=PLACES)
+
+        oee.now_unix = 1649081400000
+        oee.now = datetime.datetime(2022, 4, 4, 16, 10, 0)
+        oee.handleAvailability()
+        self.assertEqual(oee.ws['df']['recvtimets'].dtype, np.int64)
+        self.assertAlmostEqual(oee.oee['availability'], 1.579306, places=PLACES)
+
+        ws_df = self.ws_df.copy()
+        # drop all rows
+        ws_df = ws_df[False]
+        ws_df.to_sql(name=WS_TABLE, con=con, schema=conf['postgresSchema'], index=False, dtype=Text, if_exists='replace')
+        with self.assertRaises(ValueError):
+            oee.handleAvailability()
 
     def test_download_job_df(self):
         pass
@@ -263,9 +271,7 @@ Do you still want to proceed? [yN]''')
         unittest.main()
     except error:
         print(error)
-        try:
-            con.close()
-            engine.dispose()
-        except NameError:
-            pass
+    finally:
+        con.close()
+        engine.dispose()
 

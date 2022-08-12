@@ -1,0 +1,12 @@
+recvtimets,recvtime,fiwareservicepath,entityid,entitytype,attrname,attrtype,attrvalue,attrmd
+1649047829000.0,2022-04-04 06:50:29.000,/,urn:ngsi_ld:Workstation:1,Workstation,Available,Boolean,true,[]
+1649080079900.0,2022-04-04 15:47:59.900,/,urn:ngsi_ld:Workstation:1,Workstation,Available,Boolean,false,[]
+1649137678900.0,2022-04-05 07:47:58.900,/,urn:ngsi_ld:Workstation:1,Workstation,Available,Boolean,true,[]
+1649166511200.0,2022-04-05 15:48:31.200,/,urn:ngsi_ld:Workstation:1,Workstation,Available,Boolean,false,[]
+1649224083100.0,2022-04-06 07:48:03.100,/,urn:ngsi_ld:Workstation:1,Workstation,Available,Boolean,true,[]
+1649252893600.0,2022-04-06 15:48:13.600,/,urn:ngsi_ld:Workstation:1,Workstation,Available,Boolean,false,[]
+1649310486300.0,2022-04-07 07:48:06.300,/,urn:ngsi_ld:Workstation:1,Workstation,Available,Boolean,true,[]
+1649339309900.0,2022-04-07 15:48:29.900,/,urn:ngsi_ld:Workstation:1,Workstation,Available,Boolean,false,[]
+1649396877800.0,2022-04-08 07:47:57.800,/,urn:ngsi_ld:Workstation:1,Workstation,Available,Boolean,true,[]
+1649425680600.0,2022-04-08 15:48:00.600,/,urn:ngsi_ld:Workstation:1,Workstation,Available,Boolean,false,[]
+1649656085400.0,2022-04-11 07:48:05.400,/,urn:ngsi_ld:Workstation:1,Workstation,Available,Boolean,true,[]
