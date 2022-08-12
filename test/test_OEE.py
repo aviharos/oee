@@ -8,6 +8,7 @@ import unittest
 # PyPI imports
 import pandas as pd
 import numpy as np
+from sqlalchemy.types import DateTime, Float, BigInteger, Text
 
 # Custom imports
 sys.path.insert(0, os.path.join('..', 'app')
@@ -22,10 +23,13 @@ class testOrion(unittest.TestCase):
         upload_jsons_to_Orion.main()
         self.oee = OEE('urn:ngsi_ld:Workstation:1')
         self.oee.ws['df'] = pd.read_csv(os.path.join('csv', 'urn_ngsi_ld_workstation_1_workstation.csv'))
+        global engine = create_engine(f'postgresql://{conf["postgresUser"]}:{conf["postgresPassword"]}@{conf["postgresHost"]}:{conf["postgresPort"]}')
+        global con = engine.connect()
 
     @classmethod
     def tearDownClass(cls):
-        pass
+        con.close()
+        engine.dispose()
 
     def setUp(self):
         oee = self.oee.copy() 
@@ -108,29 +112,20 @@ class testOrion(unittest.TestCase):
         pass
 
     def test_prepare(self):
-        pass
-        # self.now = datetime.now()
-        # if _time_override is not None:
-        #     self.logger.warning(f'Warning: time override:  {_time_override}')
-        #     self.now = _time_override
-        # self.now_unix = self.now.timestamp() * 1000
-        # self.today = {'day': datetime.now().date(),
-        #               'start': self.stringToDateTime(str(self.now.date()) + ' 00:00:00.000')}
-        # try:
-        #     self.updateObjects()
-        # except (RuntimeError, KeyError, AttributeError) as error:
-        #     self.logger.error(f'Could not update objects from Orion. Traceback:\n{error}')
-        #     raise error
+        now = datetime.now()
+        today = now.date()
+        startOfToday = oee.test_stringToDateTime(str(today) + ' 00:00:00.000')
+        oee.prepare()
+        self.assertAlmostEqual(now.unix(), oee.now.unix())
+        self.assertAlmostEqual(today.unix(), oee.today['day'].unix())
+        self.assertAlmostEqual(startOfToday.unix(), oee.today['start'].unix())
 
     def test_download_ws_df(self):
-        pass
-        # try:
-        #     self.ws['df'] = pd.read_sql_query(f'''select * from {conf['postgresSchema']}.{self.ws['table_name']}
-        #                                        where {self.datetimeToMilliseconds(self.today['start'])} < cast (recvtimets as bigint) 
-        #                                        and cast (recvtimets as bigint) <= {self.now_unix};''', con=con)
-        # except (psycopg2.errors.UndefinedTable,
-        #         sqlalchemy.exc.ProgrammingError) as error:
-        #     raise RuntimeError(f'The SQL table: {self.ws["postgres_table"]} does not exist within the schema: {conf["postgresSchema"]}. Traceback:\n{error}') from error
+        ws_df = pd.read_csv(os.path.join('csv', 'wd.csv'))
+        table_name = oee.ws['id'].replace(':', '_').lower() + '_workstation'
+        ws_df.to_sql(name=table_name, con=con, schema=conf['postgresSchema'], index=False, dtype=Text, if_exists='replace')
+        oee.download_ws_df()
+        self.assertTrue(oee.ws['df'].equals(ws_df))
 
     def test_calc_availability(self):
         pass
@@ -258,10 +253,19 @@ if __name__ == '__main__':
     ans = input('''The testing process needs MOMAMS up and running.
 Please start it if you have not already.
 Also, the tests delete and create objects in the Orion broker.
+It also changes the PostgreSQL data.
 Never use the tests on a production environment.
 Do you still want to proceed? [yN]''')
-    if ans == 'y':
-        unittest.main()
-    else:
+    if ans != 'y':
         print('exiting...')
+        sys.exit(0)
+    try:
+        unittest.main()
+    except error:
+        print(error)
+        try:
+            con.close()
+            engine.dispose()
+        except NameError:
+            pass
 
