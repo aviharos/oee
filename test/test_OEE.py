@@ -1,9 +1,12 @@
 # Standard Library imports
 import datetime
 import json
+import glob
 import os
+from os.path import splitext
 import sys
 import unittest
+from unittest.mock import patch
 
 # PyPI imports
 import pandas as pd
@@ -32,6 +35,11 @@ class testOrion(unittest.TestCase):
         self.oee.ws['df'] = pd.read_csv(os.path.join('csv', 'urn_ngsi_ld_workstation_1_workstation.csv'))
         global engine = create_engine(f'postgresql://{conf["postgresUser"]}:{conf["postgresPassword"]}@{conf["postgresHost"]}:{conf["postgresPort"]}')
         global con = engine.connect()
+        self.jsons = {}
+        jsons = glob.glob(os.path.join('..', 'json', '*.json'))
+        for file in jsons:
+            json_name = os.path.splitext(os.path.basename(file))[0]
+            jsons[json_name] = json.load(file)
 
     @classmethod
     def tearDownClass(cls):
@@ -168,62 +176,118 @@ class testOrion(unittest.TestCase):
             oee.handleAvailability()
 
     def test_download_job_df(self):
-        pass
-        # try:
-        #     self.job['df'] = pd.read_sql_query(f'''select * from {conf['postgresSchema']}.{self.job["postgres_table"]}
-        #                                         where {self.datetimeToMilliseconds(self.today['start'])} < cast (recvtimets as bigint)
-        #                                         and cast (recvtimets as bigint) <= {self.now_unix};''', con=con)
-        # except (psycopg2.errors.UndefinedTable,
-        #         sqlalchemy.exc.ProgrammingError) as error:
-        #     raise RuntimeError(f'The SQL table: {self.job["postgres_table"]} does not exist within the schema: {conf["postgresSchema"]}. Traceback:\n{error}') from error
+        self.job_df = pd.read_csv(os.path.join('csv', JOB_FILE))
+        job_df = self.job_df
+        job_df.to_sql(name=JOB_TABLE, con=con, schema=conf['postgresSchema'], index=False, dtype=Text, if_exists='replace')
+        oee.download_job_df()
+        self.assertTrue(oee.job['df'].equals(job_df))
 
     def test_countMouldings(self):
-        pass
-        # df = self.job['df']
-        # self.n_successful_mouldings = len(df[df.attrname == 'GoodPartCounter']['attrvalue'].unique())
-        # self.n_failed_mouldings = len(df[df.attrname == 'RejectPartCounter']['attrvalue'].unique())
-        # self.n_total_mouldings = self.n_successful_mouldings + self.n_failed_mouldings
+        oee.job['df'] = self.job_df
+        oee.countMouldings()
+        n_successful_mouldings = 562
+        n_failed_mouldings = 3
+        n_total_mouldings = n_successful_mouldings + n_failed_mouldings
+        self.assertEqual(oee.n_successful_mouldings, n_successful_mouldings)
+        self.assertEqual(oee.n_failed_mouldings, n_failed_mouldings)
+        self.assertEqual(oee.n_, n_total_mouldings)
 
     def test_handleQuality(self):
+        job_df = self.job_df.copy()
+        job_df.to_sql(name=JOB_TABLE, con=con, schema=conf['postgresSchema'], index=False, dtype=Text, if_exists='replace')
+        oee.handleQuality()
+        n_successful_mouldings = 562
+        n_failed_mouldings = 3
+        n_total_mouldings = n_successful_mouldings + n_failed_mouldings
+        self.assertAlmostEqual(oee.oee['quality'], n_successful_mouldings / n_total_mouldings)
+
+        job_df = self.job_df.copy()
+        job_df.drop(job_df.index, inplace=True)
+        job_df.to_sql(name=JOB_TABLE, con=con, schema=conf['postgresSchema'], index=False, dtype=Text, if_exists='replace')
+        with self.assertRaises(ValueError):
+            oee.handleQuality()
+
+        job_df = self.job_df.copy()
+        job_df = job_df[job_df['attrname'] != 'GoodPartCounter']
+        job_df = job_df[job_df['attrname'] != 'RejectPartCounter']
+        job_df.to_sql(name=JOB_TABLE, con=con, schema=conf['postgresSchema'], index=False, dtype=Text, if_exists='replace')
+        with self.assertRaises(ValueError):
+            oee.handleQuality()
+
+    def test_download_job(self):
+        with patch('Orion.getObject') as mocked_getObject:
+            job_json = self.jsons['Job202200045']
+            mocked_getObject.return_value = 201, job_json 
+            with self.assertRaises(RuntimeError):
+                oee.download_job()
+
+        with patch('Orion.getObject') as mocked_getObject:
+            job_json = self.jsons['Job202200045']
+            mocked_getObject.return_value = 200, self.job_json 
+            oee.download_job()
+            self.assertEquals(oee.job_json, job_json)
+
+    def test_get_partId(self):
+        oee.job_json = self.jsons['Job202200045']
+        oee.get_partId()
+        self.assertEquals(oee.partId, 'urn:ngsi_ld:Part:Core001')
+        del(oee.job_json['RefPart']['value'])
+        with self.assertRaises(RuntimeError):
+            oee.get_partId()
+        del(oee.job_json['RefPart'])
+        with self.assertRaises(RuntimeError):
+            oee.get_partId()
+
+    def test_download_part(self):
+        with patch('Orion.getObject') as mocked_getObject:
+            part_json = self.jsons['Core001']
+            mocked_getObject.return_value = 201, part_json
+            with self.assertRaises(RuntimeError):
+                oee.download_part()
+
+        with patch('Orion.getObject') as mocked_getObject:
+            part_json = self.jsons['Core001']
+            mocked_getObject.return_value = 200, part_json
+            oee.download_part()
+            self.assertEquals(oee.part_json, part_json)
+
+    def test_get_current_operation_type(self):
         pass
-        # self.download_job_df(con)
-        # self.convertRecvtimetsToInt(self.job['df']['recvtimets'])
-        # # self.job['df']['recvtimets'] = self.job['df']['recvtimets'].map(float).map(int)
-        # if self.job['df'].size == 0:
-        #     raise ValueError(f'No job data found for {self.job["id"]} up to time {self.now} on day {self.today}.')
-        # self.countMouldings()
-        # if self.n_total_mouldings == 0:
-        #     raise ValueError('No operation was completed yet, no OEE data')
-        # self.oee['quality'] = self.n_successful_mouldings / self.n_total_mouldings
-        
-    def test_handlePerformance(self):
-        pass
-        # status_code, job_json = Orion.getObject(self.job['id'])
-        # if status_code != 200:
-        #     raise RuntimeError(f'Failed to get object from Orion broker:{self.job["id"]}, status_code:{status_code}; no OEE data')
         # try:
-        #     partId = job_json['RefPart']['value']
-        # except (KeyError, TypeError) as error:
-        #     raise RuntimeError('Critical: RefPart not found in the Job {self.job["id"]}: {job_json}') from error
-        # status_code, part_json = Orion.getObject(partId)
-        # if status_code != 200:
-        #     raise RuntimeError(f'Failed to get object from Orion broker:{partId}, status_code:{status_code}; no OEE data')
-        # try:
-        #     current_operation_type = job_json['CurrentOperationType']['value']
+        #     self.current_operation_type = job_json['CurrentOperationType']['value']
         # except (KeyError, TypeError) as error:
         #     raise RuntimeError(f'Critical: CurrentOperationType not found in the Job {self.job["id"]}: {job_json}') from error
+
+    def test_download_operation(self):
+        pass
         # try:
         #     operation = self.get_operation(part_json, current_operation_type)
         # except (KeyError, TypeError) as error:
         #     raise RuntimeError(f'Critical: Operation {current_operation_type} not found in the Part: {part_json}') from error
+        # self.operation = operation
+
+    def test_get_operation_time(self):
+        pass
         # try:
         #     self.operationTime = operation['OperationTime']['value']
         # except (KeyError, TypeError) as error:
         #     raise RuntimeError(f'Critical: OperationTime not found in the Part: {part_json}') from error
+
+    def test_get_partsPerOperation(self):
+        pass
         # try:
         #     self.partsPerOperation = operation['PartsPerOperation']['value']
         # except (KeyError, TypeError) as error:
         #     raise RuntimeError(f'Critical: partsPerOperation not found in the Part: {part_json}') from error
+
+    def test_handlePerformance(self):
+        pass
+        # self.download_job()
+        # self.get_partId()
+        # self.download_part()
+        # self.get_current_operation_type()
+        # self.download_operation()
+        # self.get_operation_time()
         # self.oee['performance'] = self.n_total_mouldings * self.operationTime / self.total_available_time
 
     def test_calculateOEE(self):
