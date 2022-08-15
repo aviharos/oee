@@ -173,33 +173,57 @@ class OEE():
             raise ValueError('No operation was completed yet, no OEE data')
         self.oee['quality'] = self.n_successful_mouldings / self.n_total_mouldings
         
-    def handlePerformance(self):
+    def download_job(self):
         status_code, job_json = Orion.getObject(self.job['id'])
         if status_code != 200:
             raise RuntimeError(f'Failed to get object from Orion broker:{self.job["id"]}, status_code:{status_code}; no OEE data')
+        self.job_json = job_json
+
+    def get_partId(self):
         try:
-            partId = job_json['RefPart']['value']
+            partId = self.job_json['RefPart']['value']
         except (KeyError, TypeError) as error:
             raise RuntimeError('Critical: RefPart not found in the Job {self.job["id"]}: {job_json}') from error
-        status_code, part_json = Orion.getObject(partId)
+        self.partId = partId
+
+    def download_part(self):
+        status_code, part_json = Orion.getObject(self.partId)
         if status_code != 200:
             raise RuntimeError(f'Failed to get object from Orion broker:{partId}, status_code:{status_code}; no OEE data')
+        self.part_json = part_json
+
+    def get_current_operation_type(self):
         try:
-            current_operation_type = job_json['CurrentOperationType']['value']
+            self.current_operation_type = self.job_json['CurrentOperationType']['value']
         except (KeyError, TypeError) as error:
-            raise RuntimeError(f'Critical: CurrentOperationType not found in the Job {self.job["id"]}: {job_json}') from error
+            raise RuntimeError(f'Critical: CurrentOperationType not found in the Job {self.job["id"]}: {self.job_json}') from error
+
+    def download_operation(self):
         try:
-            operation = self.get_operation(part_json, current_operation_type)
+            operation = self.get_operation(self.part_json, self.current_operation_type)
         except (KeyError, TypeError) as error:
-            raise RuntimeError(f'Critical: Operation {current_operation_type} not found in the Part: {part_json}') from error
+            raise RuntimeError(f'Critical: Operation {self.current_operation_type} not found in the Part: {self.part_json}') from error
+        self.operation = operation
+
+    def get_operation_time(self):
         try:
-            self.operationTime = operation['OperationTime']['value']
+            self.operationTime = self.operation['OperationTime']['value']
         except (KeyError, TypeError) as error:
-            raise RuntimeError(f'Critical: OperationTime not found in the Part: {part_json}') from error
+            raise RuntimeError(f'Critical: OperationTime not found in the Part: {self.part_json}') from error
+
+    def get_partsPerOperation(self):
         try:
-            self.partsPerOperation = operation['PartsPerOperation']['value']
+            self.partsPerOperation = self.operation['PartsPerOperation']['value']
         except (KeyError, TypeError) as error:
-            raise RuntimeError(f'Critical: partsPerOperation not found in the Part: {part_json}') from error
+            raise RuntimeError(f'Critical: partsPerOperation not found in the Part: {self.part_json}') from error
+
+    def handlePerformance(self):
+        self.download_job()
+        self.get_partId()
+        self.download_part()
+        self.get_current_operation_type()
+        self.download_operation()
+        self.get_operation_time()
         self.oee['performance'] = self.n_total_mouldings * self.operationTime / self.total_available_time
 
     def calculateOEE(self, con):
@@ -212,6 +236,7 @@ class OEE():
         return self.oee, self.job['id']
 
     def calculateThroughput(self):
+        self.get_partsPerOperation()
         shiftLengthInMilliseconds = self.datetimeToMilliseconds(self.today['OperatorScheduleStopsAt']) - self.datetimeToMilliseconds(self.today['OperatorScheduleStartsAt'])
         self.throughput = (shiftLengthInMilliseconds / self.operationTime) * self.partsPerOperation * self.oee['oee']
         self.logger.info(f'Throughput: {self.throughput}')
