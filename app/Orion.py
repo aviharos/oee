@@ -19,7 +19,7 @@ def getRequestToOrion(url):
 
     else:
         if response.status_code == 200:
-            return response.status_code
+            return response.json()
         else:
             raise RuntimeError(f'Get request failed to URL: {url}, status code:{response.status_code}')
 
@@ -58,9 +58,22 @@ def postObjectToOrion(url, obj):
 
     else:
         if response.status_code == 201:
-            return response.status_code
+            return response.json()
         else:
             raise RuntimeError(f'The object could not be created in Orion. URL: {url}, status code:{response.status_code}')
+
+def deleteObject(url):
+    try:
+        response = requests.delete(url)
+        response.close()
+    except:
+        raise RuntimeError(f'Delete request failed to URL: {url} for unknown reason')
+
+    else:
+        if response.status_code == 204:
+            return response.status_code
+        else:
+            raise RuntimeError(f'The object could not be deleted in Orion. URL: {url}, status code:{response.status_code}')
 
 def test_getObject():
     status_code, parsedJob = getObject('urn:ngsi_ld:Job:202200045')
