@@ -58,7 +58,7 @@ def postObjectToOrion(url, obj):
 
     else:
         if response.status_code == 201:
-            return response.json()
+            return response.status_code
         else:
             raise RuntimeError(f'The object could not be created in Orion. URL: {url}, status code:{response.status_code}')
 
