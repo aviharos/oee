@@ -244,8 +244,7 @@ class OEE():
         self.handleQuality(con)
         self.handlePerformance()
         self.oee['oee'] = self.oee['availability'] * self.oee['performance'] * self.oee['quality']
-        self.jobIds = self.job['id']
-        self.logger.info(f'oee: {self.oee}, jobIds: {self.job["id"]}')
+        self.logger.info(f'oee: {self.oee}, job id: {self.job["id"]}')
         return self.oee, self.job['id']
 
     def calculateThroughput(self):
@@ -264,7 +263,7 @@ class OEE():
                                           'quality': [self.oee['quality']],
                                           'oee': [self.oee['oee']],
                                           'throughput_shift': [self.throughput],
-                                          'jobs': [self.jobIds]})
+                                          'job': [self.job['id']]})
         oeeData.to_sql(name=table_name, con=con, schema=conf['postgresSchema'], index=False, dtype=self.col_dtypes, if_exists='append')
         self.logger.debug('Successfully inserted OEE data into Postgres')
 
