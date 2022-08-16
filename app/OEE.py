@@ -88,6 +88,7 @@ class OEE():
         if self.now > self.today['OperatorScheduleStopsAt']:
             self.logger.info(f'The current time: {self.now} is after the shift\'s end, no OEE data')
             return False
+        return True
 
     def areConditionsOK(self):
         if not self.checkTime():
