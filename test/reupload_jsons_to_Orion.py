@@ -21,6 +21,11 @@ def main():
         print(json_)
         with open(json_, 'r') as f:
             obj = json.load(f)
+        obj_url = f'http://{conf["orion_host"]}:{conf["orion_port"]}/v2/entities/{obj["id"]}'
+        try:
+            Orion.deleteObject(obj_url)
+        except RuntimeError:
+            pass
         Orion.postObjectToOrion(url, obj)
 
 if __name__ == '__main__':
