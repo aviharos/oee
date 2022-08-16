@@ -56,7 +56,7 @@ class OEE():
         return datetime.strptime(string, self.DATETIME_FORMAT)
     
     def timeToDatetime(self, string):
-        datetime.strptime(str(self.now.date()) + ' ' + string, '%Y-%m-%d %H:%M:%S')
+        return datetime.strptime(str(self.now.date()) + ' ' + string, '%Y-%m-%d %H:%M:%S')
 
     def datetimeToMilliseconds(self, datetime_):
         return datetime_.timestamp()*1000
