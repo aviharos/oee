@@ -11,6 +11,7 @@ from unittest.mock import patch
 # PyPI imports
 import pandas as pd
 import numpy as np
+from psycopg2 import create_engine
 from sqlalchemy.types import DateTime, Float, BigInteger, Text
 
 # Custom imports
@@ -42,26 +43,28 @@ class testOrion(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         upload_jsons_to_Orion.main()
-        self.oee = OEE(WS_ID)
-        self.oee.ws['df'] = pd.read_csv(os.path.join('csv', WS_FILE))
-        self.oee.job['df'] = pd.read_csv(os.path.join('csv', JOB_FILE))
+        global g_oee
+        g_oee = OEE(WS_ID)
+        g_oee.ws['df'] = pd.read_csv(os.path.join('csv', WS_FILE))
+        g_oee.job['df'] = pd.read_csv(os.path.join('csv', JOB_FILE))
         global engine
         engine = create_engine(f'postgresql://{conf["postgresUser"]}:{conf["postgresPassword"]}@{conf["postgresHost"]}:{conf["postgresPort"]}')
         global con
         con = engine.connect()
-        self.jsons = {}
+        global g_jsons
+        g_jsons = {}
         jsons = glob.glob(os.path.join('..', 'json', '*.json'))
         for file in jsons:
             json_name = os.path.splitext(os.path.basename(file))[0]
             with open(file, 'r') as f:
-                jsons[json_name] = json.load(f)
+                g_jsons[json_name] = json.load(f)
 
     @classmethod
     def tearDownClass(cls):
         pass
 
     def setUp(self):
-        oee = self.oee.copy() 
+        oee = g_oee.copy() 
 
     def tearDown(self):
         pass
@@ -251,20 +254,20 @@ class testOrion(unittest.TestCase):
     def test_download_job(self):
         with patch('Orion.getObject') as mocked_getObject:
             oee.job_json = None
-            job_json = self.jsons['Job202200045']
+            job_json = g_jsons['Job202200045']
             mocked_getObject.return_value = 201, job_json 
             with self.assertRaises(RuntimeError):
                 oee.download_job()
 
         with patch('Orion.getObject') as mocked_getObject:
             oee.job_json = None
-            job_json = self.jsons['Job202200045']
+            job_json = g_jsons['Job202200045']
             mocked_getObject.return_value = 200, self.job_json 
             oee.download_job()
             self.assertEquals(oee.job_json, job_json)
 
     def test_get_partId(self):
-        oee.job_json = self.jsons['Job202200045']
+        oee.job_json = g_jsons['Job202200045']
         oee.get_partId()
         self.assertEqual(oee.partId, 'urn:ngsi_ld:Part:Core001')
         del(oee.job_json['RefPart']['value'])
@@ -277,20 +280,20 @@ class testOrion(unittest.TestCase):
     def test_download_part(self):
         with patch('Orion.getObject') as mocked_getObject:
             oee.part_json = None
-            part_json = self.jsons['Core001']
+            part_json = g_jsons['Core001']
             mocked_getObject.return_value = 201, part_json
             with self.assertRaises(RuntimeError):
                 oee.download_part()
 
         with patch('Orion.getObject') as mocked_getObject:
             oee.part_json = None
-            part_json = self.jsons['Core001']
+            part_json = g_jsons['Core001']
             mocked_getObject.return_value = 200, part_json
             oee.download_part()
             self.assertEquals(oee.part_json, part_json)
 
     def test_get_current_operation_type(self):
-        oee.part_json = self.jsons['Core001']
+        oee.part_json = g_jsons['Core001']
         oee.get_current_operation_type()
         self.assertEqual(oee.current_operation_type, 'Core001_injection_moulding')
         del(oee.part_json['RefPart']['value'])
@@ -303,20 +306,20 @@ class testOrion(unittest.TestCase):
     def test_download_operation(self):
         with patch('Orion.getObject') as mocked_getObject:
             oee.operation_json = None
-            operation_json = self.jsons['Core001']['Operations']['value'][0]
+            operation_json = g_jsons['Core001']['Operations']['value'][0]
             mocked_getObject.return_value = 201, operation_json
             with self.assertRaises(RuntimeError):
                 oee.download_part()
 
         with patch('Orion.getObject') as mocked_getObject:
             oee.operation_json = None
-            operation_json = self.jsons['Core001']['Operations']['value'][0]
+            operation_json = g_jsons['Core001']['Operations']['value'][0]
             mocked_getObject.return_value = 200, operation_json
             oee.download_part()
             self.assertEquals(oee.operation_json, operation_json)
 
     def test_get_operation_time(self):
-        oee.operation_json = self.jsons['Core001']['Operations']['value'][0]
+        oee.operation_json = g_jsons['Core001']['Operations']['value'][0]
         oee.get_operation_time()
         self.assertEqual(oee.operationTime, 46)
         del(oee.operation_json['OperationTime']['value'])
@@ -327,7 +330,7 @@ class testOrion(unittest.TestCase):
             oee.get_operation_time()
 
     def test_get_partsPerOperation(self):
-        oee.operation_json = self.jsons['Core001']['Operations']['value'][0]
+        oee.operation_json = g_jsons['Core001']['Operations']['value'][0]
         oee.get_partsPerOperation()
         self.assertEqual(oee.partsPerOperation, 8)
         del(oee.operation_json['PartsPerOperation']['value'])
