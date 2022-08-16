@@ -45,13 +45,16 @@ class testOrion(unittest.TestCase):
         self.oee = OEE(WS_ID)
         self.oee.ws['df'] = pd.read_csv(os.path.join('csv', WS_FILE))
         self.oee.job['df'] = pd.read_csv(os.path.join('csv', JOB_FILE))
-        global engine = create_engine(f'postgresql://{conf["postgresUser"]}:{conf["postgresPassword"]}@{conf["postgresHost"]}:{conf["postgresPort"]}')
-        global con = engine.connect()
+        global engine
+        engine = create_engine(f'postgresql://{conf["postgresUser"]}:{conf["postgresPassword"]}@{conf["postgresHost"]}:{conf["postgresPort"]}')
+        global con
+        con = engine.connect()
         self.jsons = {}
         jsons = glob.glob(os.path.join('..', 'json', '*.json'))
         for file in jsons:
             json_name = os.path.splitext(os.path.basename(file))[0]
-            jsons[json_name] = json.load(file)
+            with open(file, 'r') as f:
+                jsons[json_name] = json.load(f)
 
     @classmethod
     def tearDownClass(cls):
@@ -67,13 +70,13 @@ class testOrion(unittest.TestCase):
         self.assertEqual('2022-04-05 13:46:40.000', oee.msToDateTimeString(1649159200))
 
     def test_stringToDateTime(self, string):
-        self.assertEqual(datetime.datetime(2022, 04, 05, 13, 46, 40), oee.stringToDateTime('2022-04-05 13:46:40.000'))
+        self.assertEqual(datetime.datetime(2022, 4, 5, 13, 46, 40), oee.stringToDateTime('2022-04-05 13:46:40.000'))
     
     def test_timeToDatetime(self):
-        self.assertEqual(datetime.datetime(2022, 04, 05, 13, 46, 40), oee.timeToDatetime('13:46:40.000'))
+        self.assertEqual(datetime.datetime(2022, 4, 5, 13, 46, 40), oee.timeToDatetime('13:46:40.000'))
 
     def test_datetimeToMilliseconds(self):
-        self.assertEqual(datetime.datetime(2022, 04, 05, 13, 46, 40), oee.datetimeToMilliseconds(1649159200))
+        self.assertEqual(datetime.datetime(2022, 4, 5, 13, 46, 40), oee.datetimeToMilliseconds(1649159200))
 
     def test_convertRecvtimetsToInt(self):
         oee.convertRecvtimetsToInt(oee.ws['df']['recvtimets'])
@@ -425,7 +428,7 @@ Do you still want to proceed? [yN]''')
         sys.exit(0)
     try:
         unittest.main()
-    except error:
+    except Exception as error:
         print(error)
     finally:
         con.close()
