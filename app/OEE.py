@@ -22,16 +22,17 @@ class OEE():
     A class that builds on Fiware Cygnus logs.
     It uses milliseconds for the time unit, just like Cygnus.
     '''
+    DATETIME_FORMAT = '%Y-%m-%d %H:%M:%S.%f'
+    col_dtypes = {'recvtimets': BigInteger(),
+                       'recvtime': DateTime(),
+                       'availability': Float(),
+                       'performance': Float(),
+                       'quality': Float(),
+                       'oee': Float(),
+                       'throughput_shift': Float(),
+                       'job': Text()}
+
     def __init__(self, wsId):
-        self.DATETIME_FORMAT = '%Y-%m-%d %H:%M:%S.%f'
-        self.col_dtypes = {'recvtimets': BigInteger(),
-                           'recvtime': DateTime(),
-                           'availability': Float(),
-                           'performance': Float(),
-                           'quality': Float(),
-                           'oee': Float(),
-                           'throughput_shift': Float(),
-                           'jobs': Text()}
         self.job = {'id': None,
                     'orion': None,
                     'postgres_table': None,
