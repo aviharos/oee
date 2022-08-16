@@ -213,20 +213,20 @@ class OEE():
 
     def download_operation(self):
         try:
-            operation = self.get_operation(self.part_json, self.current_operation_type)
+            operation_json = self.get_operation(self.part_json, self.current_operation_type)
         except (KeyError, TypeError) as error:
             raise RuntimeError(f'Critical: Operation {self.current_operation_type} not found in the Part: {self.part_json}') from error
-        self.operation = operation
+        self.operation_json = operation_json
 
     def get_operation_time(self):
         try:
-            self.operationTime = self.operation['OperationTime']['value']
+            self.operationTime = self.operation_json['OperationTime']['value']
         except (KeyError, TypeError) as error:
             raise RuntimeError(f'Critical: OperationTime not found in the Part: {self.part_json}') from error
 
     def get_partsPerOperation(self):
         try:
-            self.partsPerOperation = self.operation['PartsPerOperation']['value']
+            self.partsPerOperation = self.operation_json['PartsPerOperation']['value']
         except (KeyError, TypeError) as error:
             raise RuntimeError(f'Critical: partsPerOperation not found in the Part: {self.part_json}') from error
 
