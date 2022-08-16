@@ -157,10 +157,22 @@ class OEE():
                 sqlalchemy.exc.ProgrammingError) as error:
             raise RuntimeError(f'The SQL table: {self.job["postgres_table"]} does not exist within the schema: {conf["postgresSchema"]}. Traceback:\n{error}') from error
 
+    def countNumberOfMouldings(self, unique_values):
+        if '0' in unique_values:
+            # need to substract 1, because '0' does not represent a successful moulding
+            # for example: ['0', '8', '16', '24'] contains 4 unique values
+            # but these mean only 3 successful injection mouldings
+            return unique_values.shape[0] - 1
+        else:
+            return unique_values.shape[0]
+
     def countMouldings(self):
         df = self.job['df']
-        self.n_successful_mouldings = len(df[df.attrname == 'GoodPartCounter']['attrvalue'].unique())
-        self.n_failed_mouldings = len(df[df.attrname == 'RejectPartCounter']['attrvalue'].unique())
+        attr_name_val = df[['attrname', 'attrvalue']]
+        good_unique_values = attr_name_val[attr_name_val['attrname'] == 'GoodPartCounter']['attrvalue'].unique()
+        reject_unique_values = attr_name_val[attr_name_val['attrname'] == 'RejectPartCounter']['attrvalue'].unique()
+        self.n_successful_mouldings = self.countNumberOfMouldings(good_unique_values)
+        self.n_failed_mouldings = self.countNumberOfMouldings(reject_unique_values)
         self.n_total_mouldings = self.n_successful_mouldings + self.n_failed_mouldings
 
     def handleQuality(self, con):
