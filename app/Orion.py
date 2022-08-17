@@ -29,7 +29,10 @@ def getObject(object_id, host=conf['orion_host'], port=conf['orion_port']):
     Returns the object in JSON format idenfitied by object_id and the status code of the request
     '''
     url = f'http://{host}:{port}/v2/entities/{object_id}'
-    return getRequestToOrion(url)
+    status_code, json_ = getRequestToOrion(url)
+    if status_code != 200:
+        raise RuntimeError(f'Failed to get object from Orion broker:{object_id}, status_code:{status_code}; no OEE data')
+    return json_
 
 
 def getWorkstationIds():
