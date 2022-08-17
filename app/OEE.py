@@ -12,9 +12,13 @@ from sqlalchemy import create_engine
 from sqlalchemy.types import DateTime, Float, BigInteger, Text
 
 # custom imports
+global conf
 from conf import conf
 from Logger import getLogger
 import Orion
+
+# for testing
+from modules.log_it import log_it
 
 
 class OEE():
@@ -42,7 +46,10 @@ class OEE():
                     'quality': None,
                     'performance': None}
         self.operatorSchedule = None
-        self.part = None
+        self.part = {'id': None,
+                     'orion': None,
+                     'postgres_table': None,
+                     'df': None}
         self.throughput = None
         self.ws = {'id': wsId,
                    'orion': None,
@@ -61,8 +68,8 @@ class OEE():
     def datetimeToMilliseconds(self, datetime_):
         return datetime_.timestamp()*1000
 
-    def convertRecvtimetsToInt(self, col):
-        col = col.map(float).map(int)
+    def convertRecvtimetsToInt(self, df):
+        df ['recvtimets'] = df['recvtimets'].astype('float64').astype('int64')
 
     def get_operation(self, part, operationType):
         for operation in part['Operations']['value']:
@@ -70,23 +77,34 @@ class OEE():
                 return operation
         raise AttributeError(f'The part {part} has no operation with type {operationType}')
 
-    def updateObjects(self):
+    def download_extractObjects(self):
         self.operatorSchedule = Orion.getObject('urn:ngsi_ld:OperatorSchedule:1')
+        # self.logger.debug(f'OperatorSchedule: {self.operatorSchedule}')
         try:
-            for time_ in ('OperatorScheduleStartsAt', 'OperatorScheduleStopsAt'):
+            for time_ in ('OperatorWorkingScheduleStartsAt', 'OperatorWorkingScheduleStopsAt'):
                 self.today[time_] = self.timeToDatetime(self.operatorSchedule[time_]['value'])
         except (ValueError, KeyError) as error:
             raise ValueError(f'Critical: could not convert time in Operatorschedule. Traceback:\n{error}')
-        self.ws = Orion.getObject(self.ws['id'])
-        self.job['orion'] = Orion.getObject(self.ws['orion']['RefJob']['value'])
+        self.ws['orion'] = Orion.getObject(self.ws['id'])
+        self.job['id'] = self.ws['orion']['RefJob']['value']
+        self.job['orion'] = Orion.getObject(self.job['id'])
         self.job['postgres_table'] = self.job['id'].replace(':', '_').lower() + '_job'
-        self.part = Orion.getObject(self.job['orion']['RefPart']['value'])
+        self.download_workstation()
+        self.get_job_id()
+        self.download_job()
+        self.get_partId()
+        self.download_part()
+        self.get_current_operation_type()
+        self.download_operation()
+        self.get_operation_time()
+        # self.part['id'] = self.job['orion']['RefPart']['value']
+        # self.part['orion'] = Orion.getObject(self.part['id'])
 
     def checkTime(self):
-        if self.now < self.today['OperatorScheduleStartsAt']:
+        if self.now < self.today['OperatorWorkingScheduleStartsAt']:
             self.logger.info(f'The shift has not started yet before time: {self.now}, no OEE data')
             return False
-        if self.now > self.today['OperatorScheduleStopsAt']:
+        if self.now > self.today['OperatorWorkingScheduleStopsAt']:
             self.logger.info(f'The current time: {self.now} is after the shift\'s end, no OEE data')
             return False
         return True
@@ -106,9 +124,9 @@ class OEE():
         self.today = {'day': datetime.now().date(),
                       'start': self.stringToDateTime(str(self.now.date()) + ' 00:00:00.000')}
         try:
-            self.updateObjects()
+            self.download_extractObjects()
         except (RuntimeError, KeyError, AttributeError) as error:
-            self.logger.error(f'Could not update objects from Orion. Traceback:\n{error}')
+            self.logger.error(f'Could not download and extract objects from Orion. Traceback:\n{error}')
             raise error
 
     def download_ws_df(self, con):
@@ -134,16 +152,16 @@ class OEE():
         if (df_av.iloc[-1]['attrvalue'] == 'true'):
             total_available_time += self.now_unix
         # total_available_time_hours = time.strftime("%H:%M:%S", time.gmtime(total_available_time/1000))
-        # return total_available_time/(now.timestamp()*1000-self.today['OperatorScheduleStartsAt'].timestamp()*1000)
+        # return total_available_time/(now.timestamp()*1000-self.today['OperatorWorkingScheduleStartsAt'].timestamp()*1000)
         self.total_available_time = total_available_time
-        total_time_so_far_in_shift = self.datetimeToMilliseconds(self.now) - self.datetimeToMilliseconds(self.today['OperatorScheduleStartsAt'])
+        total_time_so_far_in_shift = self.datetimeToMilliseconds(self.now) - self.datetimeToMilliseconds(self.today['OperatorWorkingScheduleStartsAt'])
         if total_time_so_far_in_shift == 0:
             raise ZeroDivisionError('Total time so far in the shift is 0, no OEE data')
         return total_available_time / total_time_so_far_in_shift
 
     def handleAvailability(self, con):
         self.download_ws_df(con)
-        self.convertRecvtimetsToInt(self.ws['df']['recvtimets'])
+        self.convertRecvtimetsToInt(self.ws['df'])
         # self.ws['df']['recvtimets'] = self.ws['df']['recvtimets'].map(float).map(int)
         if self.ws['df'].size == 0:
             raise ValueError(f'No workstation data found for {self.ws["id"]} up to time {self.now} on day {self.today["day"]}, no OEE data')
@@ -178,7 +196,7 @@ class OEE():
 
     def handleQuality(self, con):
         self.download_job_df(con)
-        self.convertRecvtimetsToInt(self.job['df']['recvtimets'])
+        self.convertRecvtimetsToInt(self.job['df'])
         # self.job['df']['recvtimets'] = self.job['df']['recvtimets'].map(float).map(int)
         if self.job['df'].size == 0:
             raise ValueError(f'No job data found for {self.job["id"]} up to time {self.now} on day {self.today}.')
@@ -186,7 +204,7 @@ class OEE():
         if self.n_total_mouldings == 0:
             raise ValueError('No operation was completed yet, no OEE data')
         self.oee['quality'] = self.n_successful_mouldings / self.n_total_mouldings
-        
+
     def download_job(self):
         status_code, job_json = Orion.getObject(self.job['id'])
         if status_code != 200:
@@ -198,13 +216,13 @@ class OEE():
             partId = self.job_json['RefPart']['value']
         except (KeyError, TypeError) as error:
             raise RuntimeError('Critical: RefPart not found in the Job {self.job["id"]}: {job_json}') from error
-        self.partId = partId
+        self.part['id'] = partId
 
     def download_part(self):
-        status_code, part_json = Orion.getObject(self.partId)
+        status_code, part_json = Orion.getObject(self.part['id'])
         if status_code != 200:
-            raise RuntimeError(f'Failed to get object from Orion broker:{partId}, status_code:{status_code}; no OEE data')
-        self.part_json = part_json
+            raise RuntimeError(f'Failed to get object from Orion broker:{self.part["id"]}, status_code:{status_code}; no OEE data')
+        self.part['orion'] = part_json
 
     def get_current_operation_type(self):
         try:
@@ -214,30 +232,24 @@ class OEE():
 
     def download_operation(self):
         try:
-            operation_json = self.get_operation(self.part_json, self.current_operation_type)
+            operation_json = self.get_operation(self.part['orion'], self.current_operation_type)
         except (KeyError, TypeError) as error:
-            raise RuntimeError(f'Critical: Operation {self.current_operation_type} not found in the Part: {self.part_json}') from error
+            raise RuntimeError(f'Critical: Operation {self.current_operation_type} not found in the Part: {self.part["orion"]}') from error
         self.operation_json = operation_json
 
     def get_operation_time(self):
         try:
             self.operationTime = self.operation_json['OperationTime']['value']
         except (KeyError, TypeError) as error:
-            raise RuntimeError(f'Critical: OperationTime not found in the Part: {self.part_json}') from error
+            raise RuntimeError(f'Critical: OperationTime not found in the Part: {self.part["orion"]}') from error
 
     def get_partsPerOperation(self):
         try:
             self.partsPerOperation = self.operation_json['PartsPerOperation']['value']
         except (KeyError, TypeError) as error:
-            raise RuntimeError(f'Critical: partsPerOperation not found in the Part: {self.part_json}') from error
+            raise RuntimeError(f'Critical: partsPerOperation not found in the Part: {self.part["orion"]}') from error
 
     def handlePerformance(self):
-        self.download_job()
-        self.get_partId()
-        self.download_part()
-        self.get_current_operation_type()
-        self.download_operation()
-        self.get_operation_time()
         self.oee['performance'] = self.n_total_mouldings * self.operationTime / self.total_available_time
 
     def calculateOEE(self, con):
@@ -250,7 +262,7 @@ class OEE():
 
     def calculateThroughput(self):
         self.get_partsPerOperation()
-        shiftLengthInMilliseconds = self.datetimeToMilliseconds(self.today['OperatorScheduleStopsAt']) - self.datetimeToMilliseconds(self.today['OperatorScheduleStartsAt'])
+        shiftLengthInMilliseconds = self.datetimeToMilliseconds(self.today['OperatorWorkingScheduleStopsAt']) - self.datetimeToMilliseconds(self.today['OperatorWorkingScheduleStartsAt'])
         self.throughput = (shiftLengthInMilliseconds / self.operationTime) * self.partsPerOperation * self.oee['oee']
         self.logger.info(f'Throughput: {self.throughput}')
         return self.throughput

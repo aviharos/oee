@@ -12,6 +12,7 @@ from unittest.mock import patch
 # PyPI imports
 import pandas as pd
 import numpy as np
+import sqlalchemy
 from sqlalchemy import create_engine
 from sqlalchemy.types import DateTime, Float, BigInteger, Text
 
@@ -38,20 +39,60 @@ COL_DTYPES = {'recvtimets': BigInteger(),
 
 from conf import conf
 from OEE import OEE
-import reupload_jsons_to_Orion
+from modules import reupload_jsons_to_Orion
+
+def remove_metadata(json_):
+    if isinstance(json_, dict):
+        new_dict = {}
+        for key in json_.keys():
+            if key == 'metadata':
+                pass
+            else:
+                new_dict[key] = remove_metadata(json_[key])
+        return new_dict
+    elif isinstance(json_, list):
+        return [remove_metadata(x) for x in json_]
+    else:
+        return json_
+
+print(remove_metadata({'OperatorWorkingScheduleStartsAt': {'metadata': {},
+                                      'type': 'Time',
+                                      'value': '8:00:00'},
+  'OperatorWorkingScheduleStopsAt': {'metadata': {},
+                                     'type': 'Time',
+                                     'value': '16:00:00'},
+   'id': 'urn:ngsi_ld:OperatorSchedule:1',
+   'type': 'OperatorSchedule'}))
+
 
 class testOrion(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         reupload_jsons_to_Orion.main()
-        global g_oee
-        g_oee = OEE(WS_ID)
-        g_oee.ws['df'] = pd.read_csv(os.path.join('csv', WS_FILE))
-        g_oee.job['df'] = pd.read_csv(os.path.join('csv', JOB_FILE))
         global engine
         engine = create_engine(f'postgresql://{conf["postgresUser"]}:{conf["postgresPassword"]}@{conf["postgresHost"]}:{conf["postgresPort"]}')
         global con
         con = engine.connect()
+
+        if not engine.dialect.has_schema(engine, conf['postgresSchema']):
+            engine.execute(sqlalchemy.schema.CreateSchema(conf['postgresSchema']))
+
+        global g_oee
+        g_oee = OEE(WS_ID)
+
+        # read and upload both tables to PostgreSQL
+        # then download them to ensure that the data types
+        # match the data types in production
+        global g_ws_df
+        g_ws_df = pd.read_csv(os.path.join('csv', WS_FILE))
+        g_ws_df.to_sql(name=WS_TABLE, con=con, schema=conf['postgresSchema'], index=False, dtype=Text, if_exists='replace')
+        g_ws_df = pd.read_sql_query(f'select * from {conf["postgresSchema"]}.{WS_TABLE}', con=con)
+
+        global g_job_df
+        g_job_df = pd.read_csv(os.path.join('csv', JOB_FILE))
+        g_job_df.to_sql(name=JOB_TABLE, con=con, schema=conf['postgresSchema'], index=False, dtype=Text, if_exists='replace')
+        g_job_df = pd.read_sql_query(f'select * from {conf["postgresSchema"]}.{JOB_TABLE}', con=con)
+
         global g_jsons
         g_jsons = {}
         jsons = glob.glob(os.path.join('..', 'json', '*.json'))
@@ -83,50 +124,48 @@ class testOrion(unittest.TestCase):
     def test_datetimeToMilliseconds(self):
         self.assertEqual(self.oee.datetimeToMilliseconds(datetime.datetime(2022, 4, 5, 13, 46, 40)), 1649159200000)
 
-    # def test_convertRecvtimetsToInt(self):
-    #     self.oee.convertRecvtimetsToInt(self.oee.ws['df']['recvtimets'])
-    #     self.assertEqual(self.oee.ws['df']['recvtimets'].dtype == np.int64)
+    def test_convertRecvtimetsToInt(self):
+        self.oee.ws['df'] = g_ws_df.copy()
+        self.oee.convertRecvtimetsToInt(self.oee.ws['df'])
+        self.assertEqual(self.oee.ws['df']['recvtimets'].dtype, np.int64)
 
-    # def test_get_operation(self):
-    #     part = {
-    #             "type": "Part",
-    #             "id": "urn:ngsi_ld:Part:Core001",
-    #             "Operations": {
-    #                 "type": "List",
-    #                 "value": [
-    #                     {
-    #                         "type": "Operation",
-    #                         "OperationNumber": {"type": "Number", "value": 10},
-    #                         "OperationTime": {"type": "Number", "value": 46},
-    #                         "OperationType": {"type": "Text", "value": "Core001_injection_moulding"},
-    #                         "PartsPerOperation": {"type": "Number", "value": 8}
-    #                     },
-    #                     {
-    #                         "type": "Operation",
-    #                         "OperationNumber": {"type": "Number", "value": 20},
-    #                         "OperationTime": {"type": "Number", "value": 33},
-    #                         "OperationType": {"type": "Text", "value": "Core001_deburring"},
-    #                         "PartsPerOperation": {"type": "Number", "value": 16}
-    #                     },
-    #                 ]
-    #             }
-    #         }
-    #     op = part['Operations']['value'][0]
-    #     self.assertEqual(self.oee.get_operation(part, 'Core001_injection_moulding'), op)
-    #     with self.assertRaises(AttributeError):
-    #         self.oee.get_operation(part, 'Core001_painting')
+    def test_get_operation(self):
+        part = {
+                "type": "Part",
+                "id": "urn:ngsi_ld:Part:Core001",
+                "Operations": {
+                    "type": "List",
+                    "value": [
+                        {
+                            "type": "Operation",
+                            "OperationNumber": {"type": "Number", "value": 10},
+                            "OperationTime": {"type": "Number", "value": 46},
+                            "OperationType": {"type": "Text", "value": "Core001_injection_moulding"},
+                            "PartsPerOperation": {"type": "Number", "value": 8}
+                        },
+                        {
+                            "type": "Operation",
+                            "OperationNumber": {"type": "Number", "value": 20},
+                            "OperationTime": {"type": "Number", "value": 33},
+                            "OperationType": {"type": "Text", "value": "Core001_deburring"},
+                            "PartsPerOperation": {"type": "Number", "value": 16}
+                        },
+                    ]
+                }
+            }
+        op = part['Operations']['value'][0]
+        self.assertEqual(self.oee.get_operation(part, 'Core001_injection_moulding'), op)
+        with self.assertRaises(AttributeError):
+            self.oee.get_operation(part, 'Core001_painting')
 
-    # def test_updateObjects(self):
-    #     self.oee.updateObjects()
-    #     operator_schedule = json.load(os.path.join('..', 'json', 'Operatorschedule.json'))
-    #     ws = json.load(os.path.join('..', 'json', 'Workstation.json'))
-    #     job = json.load(os.path.join('..', 'json', 'Job202200045.json'))
-    #     part = json.load(os.path.join('..', 'json', 'Core001.json'))
-    #     self.assertEqual(self.oee.operator_schedule, operator_schedule)
-    #     self.assertEqual(self.oee.ws, ws)
-    #     self.assertEqual(self.oee.job, job)
-    #     self.assertEqual(self.oee.part, part)
-    #     self.assertEqual(self.oee.job['postgres_table'], 'urn_ngsi_ld_Job_202200045_job')
+    def test_updateObjects(self):
+        self.oee.prepare()
+        self.oee.updateObjects()
+        self.assertEqual(remove_metadata(self.oee.operatorSchedule), g_jsons['OperatorSchedule'])
+        self.assertEqual(remove_metadata(self.oee.ws['orion']), g_jsons['Workstation'])
+        self.assertEqual(remove_metadata(self.oee.job['orion']), g_jsons['Job202200045'])
+        self.assertEqual(remove_metadata(self.oee.part['orion']), g_jsons['Core001'])
+        self.assertEqual(self.oee.job['postgres_table'], 'urn_ngsi_ld_Job_202200045_job')
 
     # def test_checkTime(self):
     #     self.oee.now = datetime.today() + datetime.timedelta(hours = 3)
