@@ -46,7 +46,10 @@ class OEECalculator():
         __init__():
             oee = OEECalculator(workstation_id)
 
-        prepare():
+        prepare(con):
+            Inputs:
+                con:
+                    the sqlalchemy module's engine's connection object
             downloads data from the Orion broker
                 Cygnus logs
             configures itself for today's shift
@@ -61,15 +64,9 @@ class OEECalculator():
             output:
                 the Orion OEE object (see sample in JSONS)
 
-        upload_OEE():
-            uploads the Orion OEE object, must be called after calculate_OEE()
-
         calculate_throughput():
             output:
                 the Orion Throughput object (see sample in JSONS)
-
-        upload_throughput():
-            uploads the Orion Throughput object, must be called after calculate_throughput()
     '''
 
     DATETIME_FORMAT = '%Y-%m-%d %H:%M:%S.%f'
