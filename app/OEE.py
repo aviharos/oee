@@ -3,6 +3,7 @@
 from datetime import datetime
 
 # PyPI packages
+import numpy as np
 import pandas as pd
 import psycopg2
 import sqlalchemy
@@ -176,14 +177,6 @@ class OEECalculator():
                 self.today[time_] = self.timeToDatetime(self.operatorSchedule['orion'][time_]['value'])
         except (ValueError, KeyError) as error:
             raise ValueError(f'Critical: could not convert time in {self.operatorSchedule}. Traceback:\n{error}')
-        current_job_start_time = self.get_current_job_start_time()
-        if self.is_datetime_in_todays_shift(current_job_start_time):
-            # the Job started in this shift, update RefStartTime
-            self.today['RefStartTime'] = current_job_start_time
-            self.logger.info(f'The current job started in this shift, updated RefStartTime: {self.today["RefStartTime"]}')
-        else:
-            self.today['RefStartTime'] = self.today['OperatorWorkingScheduleStartsAt']
-            self.logger.info(f'The current job started before this shift, RefStartTime: {self.today["RefStartTime"]}')
         self.logger.debug(f'Today: {self.today}')
 
     def get_ws(self):
@@ -263,6 +256,22 @@ class OEECalculator():
         '''
         return df.applymap(str)
 
+    def sort_df_by_time(self, df_):
+        # default: ascending order
+        if df_['recvtimets'].dtype != np.int64:
+            raise ValueError(f'The recvtimets column should contain np.int64 dtype values, current dtype: {df_["recvtimets"]}')
+        return df_.sort_values(by=['recvtimets'])
+
+    def setRefStartTime(self):
+        current_job_start_time = self.get_current_job_start_time()
+        if self.is_datetime_in_todays_shift(current_job_start_time):
+            # the Job started in this shift, update RefStartTime
+            self.today['RefStartTime'] = current_job_start_time
+            self.logger.info(f'The current job started in this shift, updated RefStartTime: {self.today["RefStartTime"]}')
+        else:
+            self.today['RefStartTime'] = self.today['OperatorWorkingScheduleStartsAt']
+            self.logger.info(f'The current job started before this shift, RefStartTime: {self.today["RefStartTime"]}')
+
     def prepare(self, con):
         self.now = datetime.now()
         self.now_unix = self.now.timestamp() * 1000
@@ -280,9 +289,12 @@ class OEECalculator():
         self.download_ws_df(con)
         self.ws['df'] = self.convert_dataframe_to_str(self.ws['df'])
         self.convertRecvtimetsToInt(self.ws['df'])
+        self.ws['df'] = self.sort_df_by_time(self.ws['df'])
+
         self.download_job_df(con)
         self.job['df'] = self.convert_dataframe_to_str(self.job['df'])
         self.convertRecvtimetsToInt(self.job['df'])
+        self.job['df'] = self.sort_df_by_time(self.job['df'])
 
         self.oee['id'] = self.ws['orion']['RefOEE']['value']
         self.oee['RefWorkstation']['value'] = self.ws['id']
@@ -291,6 +303,8 @@ class OEECalculator():
         self.throughput['id'] = self.ws['orion']['RefThroughput']['value']
         self.throughput['RefWorkstation']['value'] = self.ws['id']
         self.throughput['RefJob']['value'] = self.job['id']
+
+        self.setRefStartTime()
 
     def calc_availability(self):
         # Available is true and false in this periodical order, starting with true
