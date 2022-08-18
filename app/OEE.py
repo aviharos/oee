@@ -1,8 +1,6 @@
 ﻿# -*- coding: utf-8 -*-
 # Standard Library imports
 from datetime import datetime
-import sys
-import time
 
 # PyPI packages
 import pandas as pd
@@ -17,15 +15,63 @@ from conf import conf
 from Logger import getLogger
 import Orion
 
-# for testing
-from modules.log_it import log_it
 
-
-class OEE():
+class OEECalculator():
     '''
-    A class that builds on Fiware Cygnus logs.
+    An OEE calculator class that builds on Fiware Cygnus logs.
     It uses milliseconds for the time unit, just like Cygnus.
+
+    Purpose:
+        Calculating OEE and throughput data
+
+    Disclaimer:
+        The OEECalculator class does not consider multiple jobs per shift.
+        If a shift contains multiple jobs, the calculations will
+        be done as if the shift started when the last job started.
+
+    Usage:
+        Configure your Orion JSONS files as in the json directory.
+        The Workstation refers to the Job,
+            the OEE object
+            the Throughput object
+        The Job refers to the Part
+            and the Operation inside the Part.
+        There is also an OperatorSchedule object.
+    
+    Inputs:
+        workstation_id: the Orion id of the Workstation object,
+        operatorSchedule_id: the Orion id of the OperatorSchedule object.
+
+    Methods:
+        __init__():
+            oee = OEECalculator(workstation_id)
+
+        prepare():
+            downloads data from the Orion broker
+                Cygnus logs
+            configures itself for today's shift
+            if the object cannot prepare, it clears
+            all attributes of the OEE object
+                Possible reasons:
+                    invalid Orion objects (see JSONS files)
+                    conectivity issues
+                    the current time does not fall within the shift
+
+        calculate_OEE():
+            output:
+                the Orion OEE object (see sample in JSONS)
+
+        upload_OEE():
+            uploads the Orion OEE object, must be called after calculate_OEE()
+
+        calculate_throughput():
+            output:
+                the Orion Throughput object (see sample in JSONS)
+
+        upload_throughput():
+            uploads the Orion Throughput object, must be called after calculate_throughput()
     '''
+
     DATETIME_FORMAT = '%Y-%m-%d %H:%M:%S.%f'
     col_dtypes = {'recvtimets': BigInteger(),
                        'recvtime': DateTime(),
@@ -35,29 +81,61 @@ class OEE():
                        'oee': Float(),
                        'throughput_shift': Float(),
                        'job': Text()}
+    object_ = {'id': None,
+               'orion': None,
+               'postgres_table': None,
+               'df': None}
+    OEE_template =        {
+                            "type": "OEE",
+                            "id": None,
+                            "RefWorkstation": {"type": "Relationship", "value": None},
+                            "RefJob": {"type": "Relationship", "value": None},
+                            "Availability": {"type": "Number", "value": None},
+                            "Performance": {"type": "Number", "value": None},
+                            "Quality": {"type": "Number", "value": None},
+                            "OEE": {"type": "Number", "value": None}
+                          }
+    Throughput_template = {
+                            "type": "Throughput",
+                            "id": None,
+                            "RefWorkstation": {"type": "Relationship", "value": None},
+                            "RefJob": {"type": "Relationship", "value": None},
+                            "ThroughputPerShift": {"type": "Number", "value": None}
+                          }
 
-    def __init__(self, wsId):
-        self.job = {'id': None,
-                    'orion': None,
-                    'postgres_table': None,
-                    'df': None}
+    def __init__(self, workstation_id, operatorSchedule_id):
         self.logger = getLogger(__name__)
-        self.oee = {'availability': None,
-                    'quality': None,
-                    'performance': None}
-        self.operatorSchedule = None
-        self.part = {'id': None,
-                     'orion': None,
-                     'postgres_table': None,
-                     'df': None}
-        self.throughput = None
-        self.ws = {'id': wsId,
-                   'orion': None,
-                   'postgres_table': wsId.replace(':', '_').lower() + '_workstation',
-                   'df': None}
+        self.oee = self.OEE_template
+        self.throughput = self.Throughput_template
+        self.today = {}
+
+        self.operatorSchedule = self.object_.copy()
+        self.operatorSchedule['id'] = operatorSchedule_id
+
+        self.ws = self.object_.copy()
+        self.ws['id'] = workstation_id
+        self.ws['postgres_table'] = self.get_cygnus_postgres_table(self.ws['orion'])
+
+        self.job = self.object_.copy()
+
+        self.part = self.object_.copy()
+
+        self.operation = self.object_.copy()
+
+    def __repr__(self):
+        return f'OEECalculator({self.ws["id"]})'
+
+    def __str__(self):
+        return f'OEECalculator object for workstation: {self.ws["id"]}'
+
+    def get_cygnus_postgres_table(self, orion_obj):
+        return orion_obj['id'].replace(':', '_').lower() + '_' + orion_obj['type'].lower()
 
     def msToDateTimeString(self, ms):
         return str(datetime.fromtimestamp(ms/1000.0).strftime(self.DATETIME_FORMAT))[:-3]
+
+    def msToDateTime(self, ms):
+        return self.stringToDateTime(self.msToDateTimeString(ms))
 
     def stringToDateTime(self, string):
         return datetime.strptime(string, self.DATETIME_FORMAT)
@@ -69,74 +147,153 @@ class OEE():
         return datetime_.timestamp()*1000
 
     def convertRecvtimetsToInt(self, df):
-        df ['recvtimets'] = df['recvtimets'].astype('float64').astype('int64')
+        df['recvtimets'] = df['recvtimets'].astype('float64').astype('int64')
 
-    def get_operation(self, part, operationType):
-        for operation in part['Operations']['value']:
-            if operation['OperationType']['value'] == operationType:
-                return operation
-        raise AttributeError(f'The part {part} has no operation with type {operationType}')
+    def get_operatorSchedule(self):
+        self.operatorSchedule['orion'] = Orion.getObject(self.operatorSchedule['id'])
+        self.logger.debug(f'OperatorSchedule: {self.operatorSchedule}')
 
-    def download_extractObjects(self):
-        self.operatorSchedule = Orion.getObject('urn:ngsi_ld:OperatorSchedule:1')
-        # self.logger.debug(f'OperatorSchedule: {self.operatorSchedule}')
-        try:
-            for time_ in ('OperatorWorkingScheduleStartsAt', 'OperatorWorkingScheduleStopsAt'):
-                self.today[time_] = self.timeToDatetime(self.operatorSchedule[time_]['value'])
-        except (ValueError, KeyError) as error:
-            raise ValueError(f'Critical: could not convert time in Operatorschedule. Traceback:\n{error}')
-        self.ws['orion'] = Orion.getObject(self.ws['id'])
-        self.job['id'] = self.ws['orion']['RefJob']['value']
-        self.job['orion'] = Orion.getObject(self.job['id'])
-        self.job['postgres_table'] = self.job['id'].replace(':', '_').lower() + '_job'
-        self.download_workstation()
-        self.get_job_id()
-        self.download_job()
-        self.get_partId()
-        self.download_part()
-        self.get_current_operation_type()
-        self.download_operation()
-        self.get_operation_time()
-        # self.part['id'] = self.job['orion']['RefPart']['value']
-        # self.part['orion'] = Orion.getObject(self.part['id'])
-
-    def checkTime(self):
-        if self.now < self.today['OperatorWorkingScheduleStartsAt']:
-            self.logger.info(f'The shift has not started yet before time: {self.now}, no OEE data')
+    def is_datetime_in_todays_shift(self, datetime_):
+        if datetime_ < self.today['OperatorWorkingScheduleStartsAt']:
             return False
-        if self.now > self.today['OperatorWorkingScheduleStopsAt']:
-            self.logger.info(f'The current time: {self.now} is after the shift\'s end, no OEE data')
+        if datetime_ > self.today['OperatorWorkingScheduleStopsAt']:
             return False
         return True
 
-    def areConditionsOK(self):
-        if not self.checkTime():
-            return False
-        else:
-            return True
+    def get_attr_name_val(self, df_):
+        return df_[['attrname', 'attrvalue']]
 
-    def prepare(self, _time_override=None):
-        self.now = datetime.now()
-        if _time_override is not None:
-            self.logger.warning(f'Warning: time override:  {_time_override}')
-            self.now = _time_override
-        self.now_unix = self.now.timestamp() * 1000
-        self.today = {'day': datetime.now().date(),
-                      'start': self.stringToDateTime(str(self.now.date()) + ' 00:00:00.000')}
+    def get_current_job_start_time(self):
+        df = self.ws['df']
+        # attr_name_val = self.get_attr_name_val(df)
+        job_changes = df[df['attrname'] == 'RefJob']
+        last_job = job_changes.iloc[-1]['attrvalue']
+        if last_job != self.job['id']:
+            raise ValueError(f'The last job in the Workstation object and the Workstation\'s PostgreSQL historic logs differ.\nWorkstation:\n{self.ws}\Last job in Workstation_logs:\n{last_job}')
+        last_job_change = job_changes.iloc[-1]['recvtimets']
+        return self.msToDateTime(last_job_change)
+
+    def get_todays_shift_limits(self):
         try:
-            self.download_extractObjects()
-        except (RuntimeError, KeyError, AttributeError) as error:
-            self.logger.error(f'Could not download and extract objects from Orion. Traceback:\n{error}')
-            raise error
+            for time_ in ('OperatorWorkingScheduleStartsAt', 'OperatorWorkingScheduleStopsAt'):
+                self.today[time_] = self.timeToDatetime(self.operatorSchedule['orion'][time_]['value'])
+        except (ValueError, KeyError) as error:
+            raise ValueError(f'Critical: could not convert time in {self.operatorSchedule}. Traceback:\n{error}')
+        current_job_start_time = self.get_current_job_start_time()
+        if self.is_datetime_in_todays_shift(current_job_start_time):
+            # the Job started in this shift, update RefStartTime
+            self.today['RefStartTime'] = current_job_start_time
+            self.logger.info(f'The current job started in this shift, updated RefStartTime: {self.today["RefStartTime"]}')
+        else:
+            self.today['RefStartTime'] = self.today['OperatorWorkingScheduleStartsAt']
+            self.logger.info(f'The current job started before this shift, RefStartTime: {self.today["RefStartTime"]}')
+        self.logger.debug(f'Today: {self.today}')
+
+    def get_ws(self):
+        self.ws['orion'] = Orion.getObject(self.ws['id'])
+        self.logger.debug(f'Workstation: {self.ws}')
+
+    def get_job_id(self):
+        try:
+            return self.ws['orion']['RefJob']['value']
+        except (KeyError, TypeError) as error:
+            raise AttributeError(f'The workstation object {self.ws["id"]} has no valid RefJob attribute:\nObject:\n{self.ws["orion"]}')
+
+    def get_job(self):
+        self.job['id'] = self.get_job_id()
+        self.job['orion'] = Orion.getObject(self.job['id'])
+        self.job['postgres_table'] = self.get_cygnus_postgres_table(self.job['orion'])
+        self.logger.debug(f'Job: {self.job}')
+
+    def get_part_id(self):
+        try:
+            part_id = self.job['orion']['RefPart']['value']
+        except (KeyError, TypeError) as error:
+            raise RuntimeError(f'Critical: RefPart not found in the Job {self.job["id"]}.\nObject:\n{self.job["orion"]}') from error
+        self.part['id'] = part_id
+
+    def get_part(self):
+        self.part['id'] = self.get_part_id()
+        self.part['orion'] = Orion.getObject(self.part['id'])
+        self.logger.debug(f'Part: {self.part}')
+
+    def get_operation(self):
+        found = False
+        try:
+            for operation in self.part['orion']['Operations']['value']:
+                if operation['OperationType']['value'] == self.job['CurrentOperationType']['value']:
+                    found = True
+                    self.operation['orion'] = operation
+                    break
+            if not found:
+                raise KeyError(f'The part {self.part["orion"]} has no operation with type {self.job["CurrentOperationType"]}')
+        except (AttributeError, KeyError) as error:
+            raise KeyError(f'Invalid part or job specification. The current operation could not be resolved. See the JSON files for reference.\nJob:\n{self.job["orion"]}\nPart:\n{self.part["orion"]}') from error
+        self.operation['id'] = self.operation['orion']['id']
+        self.logger.debug(f'Operation: {self.operation}')
+
+    def get_objects(self):
+        self.get_operatorSchedule()
+        self.get_todays_shift_limits()
+        self.get_ws()
+        self.get_job()
+        self.get_part()
+        self.get_operation()
 
     def download_ws_df(self, con):
         try:
-            self.ws['df'] = pd.read_sql_query(f'''select * from {conf['postgresSchema']}.{self.ws['table_name']}
+            self.ws['df'] = pd.read_sql_query(f'''select * from {conf['postgresSchema']}.{self.ws['postgres_table']}
                                                where {self.datetimeToMilliseconds(self.today['start'])} < cast (recvtimets as bigint) 
                                                and cast (recvtimets as bigint) <= {self.now_unix};''', con=con)
         except (psycopg2.errors.UndefinedTable,
                 sqlalchemy.exc.ProgrammingError) as error:
-            raise RuntimeError(f'The SQL table: {self.ws["postgres_table"]} does not exist within the schema: {conf["postgresSchema"]}. Traceback:\n{error}') from error
+            raise RuntimeError(f'The SQL table: {self.ws["postgres_table"]} cannot be downloaded from the table_schema: {conf["postgresSchema"]}. Traceback:\n{error}') from error
+
+    def download_job_df(self, con):
+        try:
+            self.job['df'] = pd.read_sql_query(f'''select * from {conf["postgresSchema"]}.{self.job["postgres_table"]}
+                                                where {self.datetimeToMilliseconds(self.today["start"])} < cast (recvtimets as bigint)
+                                                and cast (recvtimets as bigint) <= {self.now_unix};''', con=con)
+        except (psycopg2.errors.UndefinedTable,
+                sqlalchemy.exc.ProgrammingError) as error:
+            raise RuntimeError(f'The SQL table: {self.job["postgres_table"]} cannot be downloaded from the table_schema: {conf["postgresSchema"]}. Traceback:\n{error}') from error
+
+    def convert_dataframe_to_str(self, df):
+        '''
+        Cygnus 2.16.0 uploads all data as Text to Postgres
+        So with this version of Cygnus, this function is useless
+        We do this to ensure that we can always work with strings to increase stability
+        '''
+        return df.applymap(str)
+
+    def prepare(self, con):
+        self.now = datetime.now()
+        self.now_unix = self.now.timestamp() * 1000
+        self.today = {'day': self.now.date(),
+                      'start': self.stringToDateTime(str(self.now.date()) + ' 00:00:00.000')}
+        try:
+            self.get_objects()
+        except (RuntimeError, KeyError, AttributeError) as error:
+            self.logger.error(f'Could not download and extract objects from Orion. Traceback:\n{error}')
+            raise error
+
+        if not isDateTimeInTodaysShift(self.now):
+            raise ValueError(f'The current time: {self.now} is outside today\'s shift, no OEE data')
+
+        self.download_ws_df(con)
+        self.ws['df'] = self.convert_dataframe_to_str(self.ws['df'])
+        self.convertRecvtimetsToInt(self.ws['df'])
+        self.download_job_df(con)
+        self.job['df'] = self.convert_dataframe_to_str(self.job['df'])
+        self.convertRecvtimetsToInt(self.job['df'])
+
+        self.oee['id'] = self.ws['orion']['RefOEE']['value']
+        self.oee['RefWorkstation']['value'] = self.ws['id']
+        self.oee['RefJob']['value'] = self.job['id']
+
+        self.throughput['id'] = self.ws['orion']['RefThroughput']['value']
+        self.throughput['RefWorkstation']['value'] = self.ws['id']
+        self.throughput['RefJob']['value'] = self.job['id']
 
     def calc_availability(self):
         # Available is true and false in this periodical order, starting with true
@@ -151,32 +308,18 @@ class OEE():
         # the current timestamp to the true timestamps' sum
         if (df_av.iloc[-1]['attrvalue'] == 'true'):
             total_available_time += self.now_unix
-        # total_available_time_hours = time.strftime("%H:%M:%S", time.gmtime(total_available_time/1000))
-        # return total_available_time/(now.timestamp()*1000-self.today['OperatorWorkingScheduleStartsAt'].timestamp()*1000)
         self.total_available_time = total_available_time
-        total_time_so_far_in_shift = self.datetimeToMilliseconds(self.now) - self.datetimeToMilliseconds(self.today['OperatorWorkingScheduleStartsAt'])
+        total_time_so_far_in_shift = self.datetimeToMilliseconds(self.now) - self.datetimeToMilliseconds(self.today['RefStartTime'])
         if total_time_so_far_in_shift == 0:
             raise ZeroDivisionError('Total time so far in the shift is 0, no OEE data')
         return total_available_time / total_time_so_far_in_shift
 
-    def handleAvailability(self, con):
-        self.download_ws_df(con)
-        self.convertRecvtimetsToInt(self.ws['df'])
-        # self.ws['df']['recvtimets'] = self.ws['df']['recvtimets'].map(float).map(int)
+    def handle_availability(self):
         if self.ws['df'].size == 0:
             raise ValueError(f'No workstation data found for {self.ws["id"]} up to time {self.now} on day {self.today["day"]}, no OEE data')
-        self.oee['availability'] = self.calc_availability()
+        self.oee['Availability']['value'] = self.calc_availability()
 
-    def download_job_df(self, con):
-        try:
-            self.job['df'] = pd.read_sql_query(f'''select * from {conf['postgresSchema']}.{self.job["postgres_table"]}
-                                                where {self.datetimeToMilliseconds(self.today['start'])} < cast (recvtimets as bigint)
-                                                and cast (recvtimets as bigint) <= {self.now_unix};''', con=con)
-        except (psycopg2.errors.UndefinedTable,
-                sqlalchemy.exc.ProgrammingError) as error:
-            raise RuntimeError(f'The SQL table: {self.job["postgres_table"]} does not exist within the schema: {conf["postgresSchema"]}. Traceback:\n{error}') from error
-
-    def countNumberOfMouldings(self, unique_values):
+    def count_nonzero_unique(self, unique_values):
         if '0' in unique_values:
             # need to substract 1, because '0' does not represent a successful moulding
             # for example: ['0', '8', '16', '24'] contains 4 unique values
@@ -185,145 +328,37 @@ class OEE():
         else:
             return unique_values.shape[0]
 
-    def countMouldings(self):
+    def count_injection_mouldings(self):
         df = self.job['df']
-        attr_name_val = df[['attrname', 'attrvalue']]
+        attr_name_val = self.get_attr_name_val(df)
         good_unique_values = attr_name_val[attr_name_val['attrname'] == 'GoodPartCounter']['attrvalue'].unique()
         reject_unique_values = attr_name_val[attr_name_val['attrname'] == 'RejectPartCounter']['attrvalue'].unique()
-        self.n_successful_mouldings = self.countNumberOfMouldings(good_unique_values)
-        self.n_failed_mouldings = self.countNumberOfMouldings(reject_unique_values)
+        self.n_successful_mouldings = self.count_nonzero_unique(good_unique_values)
+        self.n_failed_mouldings = self.count_nonzero_unique(reject_unique_values)
         self.n_total_mouldings = self.n_successful_mouldings + self.n_failed_mouldings
 
-    def handleQuality(self, con):
-        self.download_job_df(con)
-        self.convertRecvtimetsToInt(self.job['df'])
-        # self.job['df']['recvtimets'] = self.job['df']['recvtimets'].map(float).map(int)
+    def handle_quality(self):
         if self.job['df'].size == 0:
-            raise ValueError(f'No job data found for {self.job["id"]} up to time {self.now} on day {self.today}.')
-        self.countMouldings()
+            raise ValueError(f'No job data found for {self.job["id"]} up to time {self.now} on day {self.today}, no OEE data')
+        self.count_injection_mouldings()
         if self.n_total_mouldings == 0:
             raise ValueError('No operation was completed yet, no OEE data')
-        self.oee['quality'] = self.n_successful_mouldings / self.n_total_mouldings
+        self.oee['Quality']['value'] = self.n_successful_mouldings / self.n_total_mouldings
 
-    def download_job(self):
-        status_code, job_json = Orion.getObject(self.job['id'])
-        if status_code != 200:
-            raise RuntimeError(f'Failed to get object from Orion broker:{self.job["id"]}, status_code:{status_code}; no OEE data')
-        self.job_json = job_json
+    def handle_performance(self):
+        self.oee['Performance']['value'] = self.n_total_mouldings * self.operation['orion']['OperationTime']['value'] / self.total_available_time
 
-    def get_partId(self):
-        try:
-            partId = self.job_json['RefPart']['value']
-        except (KeyError, TypeError) as error:
-            raise RuntimeError('Critical: RefPart not found in the Job {self.job["id"]}: {job_json}') from error
-        self.part['id'] = partId
+    def calculate_OEE(self):
+        self.handle_availability()
+        self.handle_quality()
+        self.handle_performance()
+        self.oee['OEE']['value'] = self.oee['Availability']['value'] * self.oee['Performance']['value'] * self.oee['Quality']['value']
+        self.logger.info(f'OEE data: {self.oee}')
+        return self.oee
 
-    def download_part(self):
-        status_code, part_json = Orion.getObject(self.part['id'])
-        if status_code != 200:
-            raise RuntimeError(f'Failed to get object from Orion broker:{self.part["id"]}, status_code:{status_code}; no OEE data')
-        self.part['orion'] = part_json
-
-    def get_current_operation_type(self):
-        try:
-            self.current_operation_type = self.job_json['CurrentOperationType']['value']
-        except (KeyError, TypeError) as error:
-            raise RuntimeError(f'Critical: CurrentOperationType not found in the Job {self.job["id"]}: {self.job_json}') from error
-
-    def download_operation(self):
-        try:
-            operation_json = self.get_operation(self.part['orion'], self.current_operation_type)
-        except (KeyError, TypeError) as error:
-            raise RuntimeError(f'Critical: Operation {self.current_operation_type} not found in the Part: {self.part["orion"]}') from error
-        self.operation_json = operation_json
-
-    def get_operation_time(self):
-        try:
-            self.operationTime = self.operation_json['OperationTime']['value']
-        except (KeyError, TypeError) as error:
-            raise RuntimeError(f'Critical: OperationTime not found in the Part: {self.part["orion"]}') from error
-
-    def get_partsPerOperation(self):
-        try:
-            self.partsPerOperation = self.operation_json['PartsPerOperation']['value']
-        except (KeyError, TypeError) as error:
-            raise RuntimeError(f'Critical: partsPerOperation not found in the Part: {self.part["orion"]}') from error
-
-    def handlePerformance(self):
-        self.oee['performance'] = self.n_total_mouldings * self.operationTime / self.total_available_time
-
-    def calculateOEE(self, con):
-        self.handleAvailability(con)
-        self.handleQuality(con)
-        self.handlePerformance()
-        self.oee['oee'] = self.oee['availability'] * self.oee['performance'] * self.oee['quality']
-        self.logger.info(f'oee: {self.oee}, job id: {self.job["id"]}')
-        return self.oee, self.job['id']
-
-    def calculateThroughput(self):
-        self.get_partsPerOperation()
-        shiftLengthInMilliseconds = self.datetimeToMilliseconds(self.today['OperatorWorkingScheduleStopsAt']) - self.datetimeToMilliseconds(self.today['OperatorWorkingScheduleStartsAt'])
-        self.throughput = (shiftLengthInMilliseconds / self.operationTime) * self.partsPerOperation * self.oee['oee']
+    def calculate_throughput(self):
+        self.shiftLengthInMilliseconds = self.datetimeToMilliseconds(self.today['OperatorWorkingScheduleStopsAt']) - self.datetimeToMilliseconds(self.today['RefStartTime'])
+        self.throughput['Throughput']['value'] = (self.shiftLengthInMilliseconds / self.operation['OperationTime']['value']) * self.operation['PartsPerOperation']['value'] * self.oee['OEE']['value']
         self.logger.info(f'Throughput: {self.throughput}')
         return self.throughput
 
-    def insert(self, con):
-        table_name = self.ws['id'].replace(':', '_').lower() + '_workstation_oee'
-        oeeData = pd.DataFrame.from_dict({'recvtimets': [self.now_unix],
-                                          'recvtime': [self.msToDateTimeString(self.now_unix)],
-                                          'availability': [self.oee['availability']],
-                                          'performance': [self.oee['performance']],
-                                          'quality': [self.oee['quality']],
-                                          'oee': [self.oee['oee']],
-                                          'throughput_shift': [self.throughput],
-                                          'job': [self.job['id']]})
-        oeeData.to_sql(name=table_name, con=con, schema=conf['postgresSchema'], index=False, dtype=self.col_dtypes, if_exists='append')
-        self.logger.debug('Successfully inserted OEE data into Postgres')
-
-
-def testinsertOEE(con):
-    availability = 0.98
-    performance = 0.99
-    quality = 0.95
-    oee = availability * performance * quality
-    throughput = 8
-    insertOEE('urn:ngsi_ld:Workstation:1', availability, performance, quality, oee, throughput, 'urn:ngsi_ld:Job:202200045', con)
-
-
-def testcalculateOEE1(con):
-    oeeData = calculateOEE('urn:ngsi_ld:Workstation:1', 'urn:ngsi_ld:Job:202200045', con, _time_override=stringToDateTime('2022-04-05 13:38:27.87'))
-    if oeeData is not None:
-        (availability, performance, quality, oee, throughput) = oeeData
-        insertOEE('urn:ngsi_ld:Workstation:1', availability, performance, quality, oee, throughput, 'urn:ngsi_ld:Job:202200045', con)
-
-
-def testcalculateOEEall(con):
-    firstTimeStamp = 1649047794800
-    lastTimeStamp = 1649343921547 + 2*3600*1e3
-    timestamp = firstTimeStamp
-    jobId = 'urn:ngsi_ld:Job:202200045'
-    try:
-        while timestamp <= lastTimeStamp:
-            logger_OEE.info(f'Calculating OEE data for timestamp: {timestamp}')
-            oeeData = calculateOEE('urn:ngsi_ld:Workstation:1', jobId, con, _time_override=stringToDateTime(msToDateTimeString(timestamp)))
-            if oeeData is not None:
-                logger_OEE.info(f'OEE data: {oeeData}')
-                (availability, performance, quality, oee, throughput) = oeeData
-                logger_OEE.debug(f'Availability: {availability}, Performance: {performance}, Quality: {quality}, OEE: {oee}, Throughput: {throughput}')
-                insertOEE('urn:ngsi_ld:Workstation:1', availability, performance, quality, oee, throughput, jobId, _time_override=stringToDateTime(msToDateTimeString(timestamp)))
-            timestamp += 60e3
-    except KeyboardInterrupt:
-        logger_OEE.info('KeyboardInterrupt. Exiting.')
-        con.close()
-        engine.dispose()
-        sys.exit(0)
-
-
-if __name__ == '__main__':
-    engine = create_engine(f'postgresql://{conf["postgresUser"]}:{conf["postgresPassword"]}@{conf["postgresHost"]}:5432')
-    con = engine.connect()
-    testcalculateOEE1(con=con)
-    testinsertOEE(con=con)
-    # testcalculateOEEall(con=con)
-    con.close()
-    engine.dispose()

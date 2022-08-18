@@ -57,6 +57,7 @@ def loop(scheduler_):
             KeyError,
             RuntimeError,
             ValueError,
+            ZeroDivisionError,
             psycopg2.OperationalError,
             sqlalchemy.exc.OperationalError) as error:
         logger_main.error(error)
