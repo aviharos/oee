@@ -158,19 +158,6 @@ class OEECalculator():
             return False
         return True
 
-    def get_attr_name_val(self, df_):
-        return df_[['attrname', 'attrvalue']]
-
-    def get_current_job_start_time(self):
-        df = self.ws['df']
-        # attr_name_val = self.get_attr_name_val(df)
-        job_changes = df[df['attrname'] == 'RefJob']
-        last_job = job_changes.iloc[-1]['attrvalue']
-        if last_job != self.job['id']:
-            raise ValueError(f'The last job in the Workstation object and the Workstation\'s PostgreSQL historic logs differ.\nWorkstation:\n{self.ws}\Last job in Workstation_logs:\n{last_job}')
-        last_job_change = job_changes.iloc[-1]['recvtimets']
-        return self.msToDateTime(last_job_change)
-
     def get_todays_shift_limits(self):
         try:
             for time_ in ('OperatorWorkingScheduleStartsAt', 'OperatorWorkingScheduleStopsAt'):
@@ -262,6 +249,24 @@ class OEECalculator():
             raise ValueError(f'The recvtimets column should contain np.int64 dtype values, current dtype: {df_["recvtimets"]}')
         return df_.sort_values(by=['recvtimets'])
 
+    def get_current_job_start_time_today(self):
+        '''
+        If the the current job started in today's shift,
+        return its start time,
+        else return the shift's start time
+        '''
+        df = self.ws['df']
+        job_changes = df[df['attrname'] == 'RefJob']
+
+        if len(job_changes) == 0:
+            # today's downloaded ws df does not contain a job change
+            return self.today['OperatorWorkingScheduleStartsAt']
+        last_job = job_changes.iloc[-1]['attrvalue']
+        if last_job != self.job['id']:
+            raise ValueError(f'The last job in the Workstation object and the Workstation\'s PostgreSQL historic logs differ.\nWorkstation:\n{self.ws}\Last job in Workstation_logs:\n{last_job}')
+        last_job_change = job_changes.iloc[-1]['recvtimets']
+        return self.msToDateTime(last_job_change)
+
     def setRefStartTime(self):
         current_job_start_time = self.get_current_job_start_time()
         if self.is_datetime_in_todays_shift(current_job_start_time):
@@ -341,7 +346,7 @@ class OEECalculator():
 
     def count_injection_mouldings(self):
         df = self.job['df']
-        attr_name_val = self.get_attr_name_val(df)
+        attr_name_val = df[['attrname', 'attrvalue']]
         good_unique_values = attr_name_val[attr_name_val['attrname'] == 'GoodPartCounter']['attrvalue'].unique()
         reject_unique_values = attr_name_val[attr_name_val['attrname'] == 'RejectPartCounter']['attrvalue'].unique()
         self.n_successful_mouldings = self.count_nonzero_unique(good_unique_values)
