@@ -4,7 +4,6 @@ import datetime
 import json
 import glob
 import os
-from os.path import splitext
 import sys
 import unittest
 from unittest.mock import patch

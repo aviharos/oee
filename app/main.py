@@ -5,6 +5,8 @@ conda install python=3.8 spyder sqlalchemy pandas psycopg2
 """
 
 # Standard Library imports
+import json
+import os
 import sched
 import time
 
@@ -16,43 +18,51 @@ import psycopg2
 # Custom imports, config
 from conf import conf
 from Logger import getLogger
-from OEE import OEE
+from object_to_template import object_to_template
+from OEE import OEECalculator
 import Orion
 
 logger_main = getLogger(__name__)
 
+def handle_ws(con, ws):
+    ws_id = ws['id']
+    ref_job_id = ws['RefJob']['value']
+    if not Orion.exists(ref_job_id):
+        raise ValueError('Critical: object does not exist in Orion: {id}')
+    ref_OEE_id = ws['RefOEE']['value']
+    ref_Throughput_id = ws['RefThroughput']['value']
+    oeeCalculator = OEECalculator(ws_id)
+    oeeCalculator.prepare(con)
+    oee = oeeCalculator.calculate_OEE()
+    throughput = oeeCalculator.calculate_throughput()
+    Orion.update((oee, throughput))
+    return ws_id, ref_job_id, ref_OEE_id, ref_Throughput_id
 
-# TODO remove before production
-if conf['test_mode']:
-    from datetime import datetime
-    conf['period_time'] = 1
-    DATETIME_FORMAT = '%Y-%m-%d %H:%M:%S.%f'
-    time_override = datetime.strptime('2022-04-05 13:38:27.87', DATETIME_FORMAT)
-else:
-    time_override = None
-
-
-def stringToDateTime(string):
-    return datetime.strptime(string, DATETIME_FORMAT)
-
+def clear_KPI_objects(ws_id, ref_job_id, ref_OEE_id, ref_Throughput_id):
+    try:
+        oee = object_to_template(os.path.join('..', 'json', 'OEE.json'))
+        throughput = object_to_template(os.path.join('..', 'json', 'Throughput.json'))
+    except FileNotFoundError as error:
+        logger_main.critical(f'OEE.json or Throughput.json not found.\n{error}')
+    except json.decoder.JSONDecodeError as error:
+        logger_main.critical(f'OEE.json or Throughput.json is invalid.\n{error}')
+    else:
+        oee['id'] = ref_OEE_id
+        throughput['id'] = ref_Throughput_id
+        for object_ in (oee, throughput):
+            object_['RefWorkstation']['value'] = ws_id
+            object_['RefJob']['value'] = ref_job_id
+        Orion.update((oee, throughput))
 
 def loop(scheduler_):
     try:
         engine = create_engine(f'postgresql://{conf["postgresUser"]}:{conf["postgresPassword"]}@{conf["postgresHost"]}:{conf["postgresPort"]}')
         con = engine.connect()
-        status_code_ws, workstationIds = Orion.getWorkstationIds()
-        if status_code_ws == 200:
-            if len(workstationIds) == 0:
-                logger_main.critical(f'No Workstation is found in the Orion broker, no OEE data')
-            for workstationId in workstationIds:
-                oee = OEE(workstationId)
-                oee.prepare()
-                if oee.checkConditions(workstationId):
-                    oee, jobIds = oee.calculateOEE(con)
-                    throughput = oee.calculateThroughput()
-                    oee.insert(workstationId, oee, throughput, jobIds, con)
-                else:
-                    logger.info('The necessary conditions not met for OEE calculation, no OEE data.')
+        workstations = Orion.getWorkstations()
+        if len(workstations) == 0:
+            logger_main.critical(f'No Workstation is found in the Orion broker, no OEE data')
+        for ws in workstations:
+            ws_id, ref_job_id, ref_OEE_id, ref_Throughput_id = handle_ws(con, ws)
     except (AttributeError,
             KeyError,
             RuntimeError,
@@ -61,6 +71,15 @@ def loop(scheduler_):
             psycopg2.OperationalError,
             sqlalchemy.exc.OperationalError) as error:
         logger_main.error(error)
+        # could not calculate OEE or Throughput
+        # try to delete the OEE and Throughput values, if we have enough data
+        if ('ws_id' in locals() and
+            'ref_job_id' in locals() and
+            'ref_OEE_id' in locals() and
+            'ref_Throughput_id' in locals()):
+            clear_KPI_objects(ws_id, ref_job_id, ref_OEE_id, ref_Throughput_id)
+        else:
+            logger_main.critical(f'A critical error occured, not even the references of the objects could be determined. No OEE data. An OEE and Throughput object should be cleared, but it cannot be determined, which ones.')
     finally:
         try:
             con.close()
