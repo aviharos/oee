@@ -10,8 +10,8 @@ def getRequest(url):
     try:
         response = requests.get(url)
         response.close()
-    except:
-        raise RuntimeError(f'Get request failed to URL: {url} for unknown reason')
+    except Exception as error:
+        raise RuntimeError(f'Get request failed to URL: {url}.\n{error}')
 
     else:
         try:
