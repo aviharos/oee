@@ -39,22 +39,10 @@ COL_DTYPES = {'recvtimets': BigInteger(),
 from conf import conf
 from OEE import OEE
 from modules import reupload_jsons_to_Orion
+from modules.remove_orion_metadata import remove_orion_metadata
 
-def remove_metadata(json_):
-    if isinstance(json_, dict):
-        new_dict = {}
-        for key in json_.keys():
-            if key == 'metadata':
-                pass
-            else:
-                new_dict[key] = remove_metadata(json_[key])
-        return new_dict
-    elif isinstance(json_, list):
-        return [remove_metadata(x) for x in json_]
-    else:
-        return json_
 
-print(remove_metadata({'OperatorWorkingScheduleStartsAt': {'metadata': {},
+print(remove_orion_metadata({'OperatorWorkingScheduleStartsAt': {'metadata': {},
                                       'type': 'Time',
                                       'value': '8:00:00'},
   'OperatorWorkingScheduleStopsAt': {'metadata': {},
@@ -160,10 +148,10 @@ class testOrion(unittest.TestCase):
     def test_updateObjects(self):
         self.oee.prepare()
         self.oee.updateObjects()
-        self.assertEqual(remove_metadata(self.oee.operatorSchedule), g_jsons['OperatorSchedule'])
-        self.assertEqual(remove_metadata(self.oee.ws['orion']), g_jsons['Workstation'])
-        self.assertEqual(remove_metadata(self.oee.job['orion']), g_jsons['Job202200045'])
-        self.assertEqual(remove_metadata(self.oee.part['orion']), g_jsons['Core001'])
+        self.assertEqual(remove_orion_metadata(self.oee.operatorSchedule), g_jsons['OperatorSchedule'])
+        self.assertEqual(remove_orion_metadata(self.oee.ws['orion']), g_jsons['Workstation'])
+        self.assertEqual(remove_orion_metadata(self.oee.job['orion']), g_jsons['Job202200045'])
+        self.assertEqual(remove_orion_metadata(self.oee.part['orion']), g_jsons['Core001'])
         self.assertEqual(self.oee.job['postgres_table'], 'urn_ngsi_ld_Job_202200045_job')
 
     # def test_checkTime(self):
