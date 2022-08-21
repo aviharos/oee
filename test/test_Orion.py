@@ -3,6 +3,7 @@
 import json
 import os
 import requests
+from requests.exceptions import JSONDecodeError
 import sys
 import unittest
 from unittest.mock import patch, Mock
@@ -41,14 +42,6 @@ class testOrion(unittest.TestCase):
             mocked_get.side_effect = ValueError
             with self.assertRaises(RuntimeError):
                 Orion.getRequest(f'{orion_entities}/{json_["id"]}')
-        # with patch('requests.get') as mocked_get:
-        #     mock = Mock()
-        #     mocked_json = Mock(side_effect=requests.exceptions.JSONDecodeError)
-        #     mock.json = mocked_json
-        #     mocked_get.return_value = mock
-        #     with self.assertRaises(ValueError):
-        #         Orion.getRequest(f'{orion_entities}/{json_["id"]}')
-        
 
 def main():
     ans = input('''The testing process needs MOMAMS up and running on localhost.
