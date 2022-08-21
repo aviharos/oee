@@ -61,14 +61,14 @@ class LoopHandler():
         Orion.update((oee, throughput))
 
     def handle(self):
+        self.engine = create_engine(f'postgresql://{conf["postgresUser"]}:{conf["postgresPassword"]}@{conf["postgresHost"]}:{conf["postgresPort"]}')
         try:
-            self.engine = create_engine(f'postgresql://{conf["postgresUser"]}:{conf["postgresPassword"]}@{conf["postgresHost"]}:{conf["postgresPort"]}')
-            self.con = self.engine.connect()
-            self.workstations = Orion.getWorkstations()
-            if len(self.workstations) == 0:
-                self.logger.critical(f'No Workstation is found in the Orion broker, no OEE data')
-            for ws in self.workstations:
-                self.handle_ws(ws)
+            with self.engine.connect() as self.con:
+                self.workstations = Orion.getWorkstations()
+                if len(self.workstations) == 0:
+                    self.logger.critical(f'No Workstation is found in the Orion broker, no OEE data')
+                for ws in self.workstations:
+                    self.handle_ws(ws)
 
         except (AttributeError,
                 KeyError,
@@ -88,9 +88,5 @@ class LoopHandler():
                 for object_ in ('OEE', 'Throughput'):
                     self.delete_attributes(object_)
         finally:
-            try:
-                self.con.close()
-                self.engine.dispose()
-            except NameError:
-                pass
+            self.engine.dispose()
 
