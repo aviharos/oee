@@ -9,9 +9,9 @@ from LoopHandler import LoopHandler
 logger_main = getLogger(__name__)
 
 # Load environment variables
-PERIOD_TIME = os.environ.get('PERIOD_TIME')
-if PERIOD_TIME is None:
-    PERIOD_TIME = 60 # seconds
+SLEEP_TIME = os.environ.get('SLEEP_TIME')
+if SLEEP_TIME is None:
+    SLEEP_TIME = 60 # seconds
 
 
 def loop(scheduler_):
@@ -23,7 +23,11 @@ def loop(scheduler_):
         # Catch any uncategorised error and log it 
         logger_main.error(error)
     finally:
-        scheduler_.enter(PERIOD_TIME, 1, loop, (scheduler_,))
+        # SLEEP_TIME means the number of seconds slept between 2 loops
+        # the OEE microservice does not follow a strict period time
+        # to ensure that the previous loop is always finished
+        # before starting a new one is due
+        scheduler_.enter(SLEEP_TIME, 1, loop, (scheduler_,))
 
 
 def main():
