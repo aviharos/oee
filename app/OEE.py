@@ -17,7 +17,6 @@ from object_to_template import object_to_template
 import Orion
 
 
-
 class OEECalculator():
     '''
     An OEE calculator class that builds on Fiware Cygnus logs.

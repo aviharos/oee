@@ -98,8 +98,16 @@ class testOrion(unittest.TestCase):
     def tearDown(self):
         pass
 
+    def get_cygnus_postgres_table(self, orion_obj):
+        TODO
+        return orion_obj['id'].replace(':', '_').lower() + '_' + orion_obj['type'].lower()
+
     def test_msToDateTimeString(self):
         self.assertEqual(self.oee.msToDateTimeString(1649159200000), '2022-04-05 13:46:40.000')
+
+    def test_msToDateTime(self, ms):
+        pass
+        # return self.stringToDateTime(self.msToDateTimeString(ms))
 
     def test_stringToDateTime(self):
         self.assertEqual(self.oee.stringToDateTime('2022-04-05 13:46:40.000'), datetime.datetime(2022, 4, 5, 13, 46, 40))
@@ -115,6 +123,66 @@ class testOrion(unittest.TestCase):
         self.oee.ws['df'] = g_ws_df.copy()
         self.oee.convertRecvtimetsToInt(self.oee.ws['df'])
         self.assertEqual(self.oee.ws['df']['recvtimets'].dtype, np.int64)
+
+    def test_get_ws(self):
+        pass
+        # self.ws['orion'] = Orion.getObject(self.ws['id'])
+        # self.ws['postgres_table'] = self.get_cygnus_postgres_table(self.ws['orion'])
+        # self.logger.debug(f'Workstation: {self.ws}')
+
+    def test_get_operatorSchedule(self):
+        pass
+        # try:
+        #     self.operatorSchedule['id'] = self.ws['orion']['RefOperatorSchedule']['value']
+        # except KeyError as error:
+        #     raise KeyError(f'Critical: RefOperatorSchedule not foundin Workstation object :\n{self.ws["orion"]}.') from error
+        # self.operatorSchedule['orion'] = Orion.getObject(self.operatorSchedule['id'])
+        # self.logger.debug(f'OperatorSchedule: {self.operatorSchedule}')
+
+    def test_is_datetime_in_todays_shift(self, datetime_):
+        pass
+        # if datetime_ < self.today['OperatorWorkingScheduleStartsAt']:
+        #     return False
+        # if datetime_ > self.today['OperatorWorkingScheduleStopsAt']:
+        #     return False
+        # return True
+
+    def test_get_todays_shift_limits(self):
+        pass
+        # try:
+        #     for time_ in ('OperatorWorkingScheduleStartsAt', 'OperatorWorkingScheduleStopsAt'):
+        #         self.today[time_] = self.timeToDatetime(self.operatorSchedule['orion'][time_]['value'])
+        # except (ValueError, KeyError) as error:
+        #     raise ValueError(f'Critical: could not convert time in {self.operatorSchedule}.') from error
+        # self.logger.debug(f'Today: {self.today}')
+
+    def test_get_job_id(self):
+        pass
+        # try:
+        #     return self.ws['orion']['RefJob']['value']
+        # except (KeyError, TypeError) as error:
+        #     raise AttributeError(f'The workstation object {self.ws["id"]} has no valid RefJob attribute:\nObject:\n{self.ws["orion"]}')
+
+    def test_get_job(self):
+        pass
+        # self.job['id'] = self.get_job_id()
+        # self.job['orion'] = Orion.getObject(self.job['id'])
+        # self.job['postgres_table'] = self.get_cygnus_postgres_table(self.job['orion'])
+        # self.logger.debug(f'Job: {self.job}')
+
+    def test_get_part_id(self):
+        pass
+        # try:
+        #     part_id = self.job['orion']['RefPart']['value']
+        # except (KeyError, TypeError) as error:
+        #     raise RuntimeError(f'Critical: RefPart not found in the Job {self.job["id"]}.\nObject:\n{self.job["orion"]}') from error
+        # self.part['id'] = part_id
+
+    def test_get_part(self):
+        pass
+        # self.part['id'] = self.get_part_id()
+        # self.part['orion'] = Orion.getObject(self.part['id'])
+        # self.logger.debug(f'Part: {self.part}')
 
     def test_get_operation(self):
         part = {
@@ -145,307 +213,176 @@ class testOrion(unittest.TestCase):
         with self.assertRaises(AttributeError):
             self.oee.get_operation(part, 'Core001_painting')
 
-    def test_updateObjects(self):
-        self.oee.prepare()
-        self.oee.updateObjects()
-        self.assertEqual(remove_orion_metadata(self.oee.operatorSchedule), g_jsons['OperatorSchedule'])
-        self.assertEqual(remove_orion_metadata(self.oee.ws['orion']), g_jsons['Workstation'])
-        self.assertEqual(remove_orion_metadata(self.oee.job['orion']), g_jsons['Job202200045'])
-        self.assertEqual(remove_orion_metadata(self.oee.part['orion']), g_jsons['Core001'])
-        self.assertEqual(self.oee.job['postgres_table'], 'urn_ngsi_ld_Job_202200045_job')
+    def test_get_objects(self):
+        pass
+        # self.get_ws()
+        # self.get_operatorSchedule()
+        # self.get_todays_shift_limits()
+        # self.get_job()
+        # self.get_part()
+        # self.get_operation()
 
-    # def test_checkTime(self):
-    #     self.oee.now = datetime.today() + datetime.timedelta(hours = 3)
-    #     self.assertEqual(self.oee.checkTime(), False)
-    #     self.oee.now = datetime.today() + datetime.timedelta(hours = 9)
-    #     self.assertEqual(self.oee.checkTime(), True)
-    #     self.oee.now = datetime.today() + datetime.timedelta(hours = 23)
-    #     self.assertEqual(self.oee.checkTime(), False)
+    def test_download_todays_data_df(self, con, table_name):
+        pass
+        # try:
+        #     df = pd.read_sql_query(f'''select * from {self.POSTGRES_SCHEMA}.{table_name}
+        #                                where {self.datetimeToMilliseconds(self.today['RefStartTime'])} < cast (recvtimets as bigint) 
+        #                                and cast (recvtimets as bigint) <= {self.now_unix};''', con=con)
+        # except (psycopg2.errors.UndefinedTable,
+        #         sqlalchemy.exc.ProgrammingError) as error:
+        #     raise RuntimeError(f'The SQL table: {table_name} cannot be downloaded from the table_schema: {self.POSTGRES_SCHEMA}.') from error
+        # return df
 
-    # def test_areConditionsOK(self):
-    #     pass
+    def test_convert_dataframe_to_str(self, df):
+        '''
+        Cygnus 2.16.0 uploads all data as Text to Postgres
+        So with this version of Cygnus, this function is useless
+        We do this to ensure that we can always work with strings to increase stability
+        '''
+        pass
+        # return df.applymap(str)
 
-    # def test_prepare(self):
-    #     now = datetime.now()
-    #     today = now.date()
-    #     startOfToday = self.oee.test_stringToDateTime(str(today) + ' 00:00:00.000')
-    #     self.oee.prepare()
-    #     self.assertAlmostEqual(now.unix(), self.oee.now.unix(), places=PLACES)
-    #     self.assertAlmostEqual(today.unix(), self.oee.today['day'].unix(), places=PLACES)
-    #     self.assertAlmostEqual(startOfToday.unix(), self.oee.today['start'].unix(), places=PLACES)
+    def test_sort_df_by_time(self, df_):
+        pass
+        # default: ascending order
+        # if df_['recvtimets'].dtype != np.int64:
+        #     raise ValueError(f'The recvtimets column should contain np.int64 dtype values, current dtype: {df_["recvtimets"]}')
+        # return df_.sort_values(by=['recvtimets'])
 
-    # def test_download_ws_df(self):
-    #     self.ws_df = pd.read_csv(os.path.join('csv', WS_FILE))
-    #     ws_df = self.ws_df
-    #     ws_df.to_sql(name=WS_TABLE, con=con, schema=conf['postgresSchema'], index=False, dtype=Text, if_exists='replace')
-    #     self.oee.ws['df'] = None
-    #     self.oee.download_ws_df()
-    #     self.assertTrue(self.oee.ws['df'].equals(ws_df))
+    def test_get_current_job_start_time_today(self):
+        '''
+        If the the current job started in today's shift,
+        return its start time,
+        else return the shift's start time
+        '''
+        pass
+        # df = self.ws['df']
+        # job_changes = df[df['attrname'] == 'RefJob']
+        #
+        # if len(job_changes) == 0:
+        #     # today's downloaded ws df does not contain a job change
+        #     return self.today['OperatorWorkingScheduleStartsAt']
+        # last_job = job_changes.iloc[-1]['attrvalue']
+        # if last_job != self.job['id']:
+        #     raise ValueError(f'The last job in the Workstation object and the Workstation\'s PostgreSQL historic logs differ.\nWorkstation:\n{self.ws}\Last job in Workstation_logs:\n{last_job}')
+        # last_job_change = job_changes.iloc[-1]['recvtimets']
+        # return self.msToDateTime(last_job_change)
 
-    # def test_calc_availability(self):
-    #     # Human readable timestampts are in UTC+0200 CEST
-    #     # the machine starts up at 6:50 in the morning in the test data
-    #     # this why the availability is high
-    #     self.oee.ws['df'] = ws_df
-    #     startTime = 1649047829000
-    #     shiftStart = 1649052000000
+    def test_setRefStartTime(self):
+        pass
+        # current_job_start_time = self.get_current_job_start_time()
+        # if self.is_datetime_in_todays_shift(current_job_start_time):
+        #     # the Job started in this shift, update RefStartTime
+        #     self.today['RefStartTime'] = current_job_start_time
+        #     self.logger.info(f'The current job started in this shift, updated RefStartTime: {self.today["RefStartTime"]}')
+        # else:
+        #     self.today['RefStartTime'] = self.today['OperatorWorkingScheduleStartsAt']
+        #     self.logger.info(f'The current job started before this shift, RefStartTime: {self.today["RefStartTime"]}')
 
-    #     self.oee.now = datetime.datetime(2022, 4, 4, 16, 0, 0)
-    #     self.oee.now_unix = 1649080800000
-    #     total_available_time = self.oee.now_unix - startTime
-    #     availability = total_available_time / (self.oee.now_unix - shiftStart)
-    #     self.assertAlmostEqual(self.oee.calc_availability(), availability, places=PLACES)
+    def test_prepare(self, con):
+        pass
+        # self.now = datetime.now()
+        # self.now_unix = self.now.timestamp() * 1000
+        # self.today = {'day': self.now.date(),
+        #               'start': self.stringToDateTime(str(self.now.date()) + ' 00:00:00.000')}
+        # try:
+        #     self.get_objects()
+        # except (RuntimeError, KeyError, AttributeError) as error:
+        #     message = f'Could not download and extract objects from Orion. Traceback:\n{error}'
+        #     self.logger.error(message)
+        #     raise RuntimeError(message) from error
+        #
+        # if not self.is_datetime_in_todays_shift(self.now):
+        #     raise ValueError(f'The current time: {self.now} is outside today\'s shift, no OEE data')
+        #
+        # self.ws['df'] = self.download_todays_data_df(con, self.ws['postgres_table'])
+        # self.ws['df'] = self.convert_dataframe_to_str(self.ws['df'])
+        # self.convertRecvtimetsToInt(self.ws['df'])
+        # self.ws['df'] = self.sort_df_by_time(self.ws['df'])
+        #
+        # self.job['df'] = self.download_todays_data_df(con, self.job['postgres_table'])
+        # self.job['df'] = self.convert_dataframe_to_str(self.job['df'])
+        # self.convertRecvtimetsToInt(self.job['df'])
+        # self.job['df'] = self.sort_df_by_time(self.job['df'])
+        #
+        # self.oee['id'] = self.ws['orion']['RefOEE']['value']
+        # self.oee['RefWorkstation']['value'] = self.ws['id']
+        # self.oee['RefJob']['value'] = self.job['id']
+        #
+        # self.throughput['id'] = self.ws['orion']['RefThroughput']['value']
+        # self.throughput['RefWorkstation']['value'] = self.ws['id']
+        # self.throughput['RefJob']['value'] = self.job['id']
+        #
+        # self.setRefStartTime()
 
-    #     self.oee.now = datetime.datetime(2022, 4, 4, 10, 0, 0)
-    #     self.oee.now_unix = 1649059200000
-    #     total_available_time = self.oee.now_unix - startTime
-    #     availability = total_available_time / (self.oee.now_unix - shiftStart)
-    #     self.assertAlmostEqual(self.oee.calc_availability(), availability, places=PLACES)
+    def test_calc_availability(self):
+        pass
+        # # Available is true and false in this periodical order, starting with true
+        # # we can sum the timestamps of the true values and the false values disctinctly, getting 2 sums
+        # # the total available time is their difference
+        # df = self.ws['df']
+        # df_av = df[df['attrname'] == 'Available']
+        # available_true = df_av[df_av['attrvalue'] == 'true']
+        # available_false = df_av[df_av['attrvalue'] == 'false']
+        # total_available_time = available_false['recvtimets'].sum() - available_true['recvtimets'].sum()
+        # # if the Workstation is available currently, we need to add
+        # # the current timestamp to the true timestamps' sum
+        # if (df_av.iloc[-1]['attrvalue'] == 'true'):
+        #     total_available_time += self.now_unix
+        # self.total_available_time = total_available_time
+        # total_time_so_far_in_shift = self.datetimeToMilliseconds(self.now) - self.datetimeToMilliseconds(self.today['RefStartTime'])
+        # if total_time_so_far_in_shift == 0:
+        #     raise ZeroDivisionError('Total time so far in the shift is 0, no OEE data')
+        # return total_available_time / total_time_so_far_in_shift
 
-    # def test_handleAvailability(self):
-    #     startTime = 1649047829000
-    #     shiftStart = 1649052000000
+    def test_handle_availability(self):
+        pass
+        # if self.ws['df'].size == 0:
+        #     raise ValueError(f'No workstation data found for {self.ws["id"]} up to time {self.now} on day {self.today["day"]}, no OEE data')
+        # self.oee['Availability']['value'] = self.calc_availability()
 
-    #     self.oee.now_unix = 1649059200000
-    #     self.oee.now = datetime.datetime(2022, 4, 4, 10, 0, 0)
-    #     total_available_time = self.oee.now_unix - startTime
-    #     availability = total_available_time / (self.oee.now_unix - shiftStart)
-    #     self.oee.handleAvailability()
-    #     self.assertEqual(self.oee.ws['df']['recvtimets'].dtype, np.int64)
-    #     self.assertAlmostEqual(self.oee.oee['availability'], availability, places=PLACES)
+    def test_count_nonzero_unique(self, unique_values):
+        pass
+        # if '0' in unique_values:
+        #     # need to substract 1, because '0' does not represent a successful moulding
+        #     # for example: ['0', '8', '16', '24'] contains 4 unique values
+        #     # but these mean only 3 successful injection mouldings
+        #     return unique_values.shape[0] - 1
+        # else:
+        #     return unique_values.shape[0]
 
-    #     self.oee.now_unix = 1649080800000
-    #     self.oee.now = datetime.datetime(2022, 4, 4, 16, 0, 0)
-    #     total_available_time = self.oee.now_unix - startTime
-    #     availability = total_available_time / (self.oee.now_unix - shiftStart)
-    #     self.oee.handleAvailability()
-    #     self.assertEqual(self.oee.ws['df']['recvtimets'].dtype, np.int64)
-    #     self.assertAlmostEqual(self.oee.oee['availability'], availability, places=PLACES)
+    def test_count_injection_mouldings(self):
+        pass
+        # df = self.job['df']
+        # attr_name_val = df[['attrname', 'attrvalue']]
+        # good_unique_values = attr_name_val[attr_name_val['attrname'] == 'GoodPartCounter']['attrvalue'].unique()
+        # reject_unique_values = attr_name_val[attr_name_val['attrname'] == 'RejectPartCounter']['attrvalue'].unique()
+        # self.n_successful_mouldings = self.count_nonzero_unique(good_unique_values)
+        # self.n_failed_mouldings = self.count_nonzero_unique(reject_unique_values)
+        # self.n_total_mouldings = self.n_successful_mouldings + self.n_failed_mouldings
 
-    #     ws_df = self.ws_df.copy()
-    #     # drop all rows
-    #     ws_df.drop(ws_df.index, inplace=True)
-    #     ws_df.to_sql(name=WS_TABLE, con=con, schema=conf['postgresSchema'], index=False, dtype=Text, if_exists='replace')
-    #     self.oee.ws['df'] = None
-    #     with self.assertRaises(ValueError):
-    #         self.oee.handleAvailability()
+    def test_handle_quality(self):
+        pass
+        # if self.job['df'].size == 0:
+        #     raise ValueError(f'No job data found for {self.job["id"]} up to time {self.now} on day {self.today}, no OEE data')
+        # self.count_injection_mouldings()
+        # if self.n_total_mouldings == 0:
+        #     raise ValueError('No operation was completed yet, no OEE data')
+        # self.oee['Quality']['value'] = self.n_successful_mouldings / self.n_total_mouldings
 
-    # def test_download_job_df(self):
-    #     self.job_df = pd.read_csv(os.path.join('csv', JOB_FILE))
-    #     job_df = self.job_df
-    #     job_df.to_sql(name=JOB_TABLE, con=con, schema=conf['postgresSchema'], index=False, dtype=Text, if_exists='replace')
-    #     self.oee.job['df'] = None
-    #     self.oee.download_job_df()
-    #     self.assertTrue(self.oee.job['df'].equals(job_df))
+    def test_handle_performance(self):
+        pass
+        # self.oee['Performance']['value'] = self.n_total_mouldings * self.operation['orion']['OperationTime']['value'] / self.total_available_time
 
-    # def test_countNumberOfMouldings(self):
-    #     unique_values = ['16', '24', '32']
-    #     self.assertEqual(self.oee.countNumberOfMouldings(unique_values), len(unique_values))
-    #     unique_values.append['0']
-    #     self.assertEqual(self.oee.countNumberOfMouldings(unique_values), len(unique_values) - 1)
+    def test_calculate_OEE(self):
+        pass
+        # self.handle_availability()
+        # self.handle_quality()
+        # self.handle_performance()
+        # self.oee['OEE']['value'] = self.oee['Availability']['value'] * self.oee['Performance']['value'] * self.oee['Quality']['value']
+        # self.logger.info(f'OEE data: {self.oee}')
+        # return self.oee
 
-    # def test_countMouldings(self):
-    #     self.oee.job['df'] = self.job_df
-    #     self.oee.countMouldings()
-    #     n_successful_mouldings = 562
-    #     n_failed_mouldings = 3
-    #     n_total_mouldings = n_successful_mouldings + n_failed_mouldings
-    #     self.assertEqual(self.oee.n_successful_mouldings, n_successful_mouldings)
-    #     self.assertEqual(self.oee.n_failed_mouldings, n_failed_mouldings)
-    #     self.assertEqual(self.oee.n_total_mouldings, n_total_mouldings)
-
-    # def test_handleQuality(self):
-    #     job_df = self.job_df.copy()
-    #     job_df.to_sql(name=JOB_TABLE, con=con, schema=conf['postgresSchema'], index=False, dtype=Text, if_exists='replace')
-    #     self.oee.job['df'] = None
-    #     self.oee.handleQuality()
-    #     n_successful_mouldings = 562
-    #     n_failed_mouldings = 3
-    #     n_total_mouldings = n_successful_mouldings + n_failed_mouldings
-    #     self.assertAlmostEqual(self.oee.oee['quality'], n_successful_mouldings / n_total_mouldings, places=PLACES)
-
-    #     job_df = self.job_df.copy()
-    #     job_df.drop(job_df.index, inplace=True)
-    #     job_df.to_sql(name=JOB_TABLE, con=con, schema=conf['postgresSchema'], index=False, dtype=Text, if_exists='replace')
-    #     self.oee.job['df'] = None
-    #     with self.assertRaises(ValueError):
-    #         self.oee.handleQuality()
-
-    #     job_df = self.job_df.copy()
-    #     job_df = job_df[job_df['attrname'] != 'GoodPartCounter']
-    #     job_df = job_df[job_df['attrname'] != 'RejectPartCounter']
-    #     job_df.to_sql(name=JOB_TABLE, con=con, schema=conf['postgresSchema'], index=False, dtype=Text, if_exists='replace')
-    #     self.oee.job['df'] = None
-    #     with self.assertRaises(ValueError):
-    #         self.oee.handleQuality()
-
-    # def test_download_job(self):
-    #     with patch('Orion.getObject') as mocked_getObject:
-    #         self.oee.job_json = None
-    #         job_json = g_jsons['Job202200045']
-    #         mocked_getObject.return_value = 201, job_json 
-    #         with self.assertRaises(RuntimeError):
-    #             self.oee.download_job()
-
-    #     with patch('Orion.getObject') as mocked_getObject:
-    #         self.oee.job_json = None
-    #         job_json = g_jsons['Job202200045']
-    #         mocked_getObject.return_value = 200, self.job_json 
-    #         self.oee.download_job()
-    #         self.assertEquals(self.oee.job_json, job_json)
-
-    # def test_get_partId(self):
-    #     self.oee.job_json = g_jsons['Job202200045']
-    #     self.oee.get_partId()
-    #     self.assertEqual(self.oee.partId, 'urn:ngsi_ld:Part:Core001')
-    #     del(self.oee.job_json['RefPart']['value'])
-    #     with self.assertRaises(RuntimeError):
-    #         self.oee.get_partId()
-    #     del(self.oee.job_json['RefPart'])
-    #     with self.assertRaises(RuntimeError):
-    #         self.oee.get_partId()
-
-    # def test_download_part(self):
-    #     with patch('Orion.getObject') as mocked_getObject:
-    #         self.oee.part_json = None
-    #         part_json = g_jsons['Core001']
-    #         mocked_getObject.return_value = 201, part_json
-    #         with self.assertRaises(RuntimeError):
-    #             self.oee.download_part()
-
-    #     with patch('Orion.getObject') as mocked_getObject:
-    #         self.oee.part_json = None
-    #         part_json = g_jsons['Core001']
-    #         mocked_getObject.return_value = 200, part_json
-    #         self.oee.download_part()
-    #         self.assertEquals(self.oee.part_json, part_json)
-
-    # def test_get_current_operation_type(self):
-    #     self.oee.part_json = g_jsons['Core001']
-    #     self.oee.get_current_operation_type()
-    #     self.assertEqual(self.oee.current_operation_type, 'Core001_injection_moulding')
-    #     del(self.oee.part_json['RefPart']['value'])
-    #     with self.assertRaises(RuntimeError):
-    #         self.oee.get_current_operation_type()
-    #     del(self.oee.part_json['RefPart'])
-    #     with self.assertRaises(RuntimeError):
-    #         self.oee.get_current_operation_type()
-
-    # def test_download_operation(self):
-    #     with patch('Orion.getObject') as mocked_getObject:
-    #         self.oee.operation_json = None
-    #         operation_json = g_jsons['Core001']['Operations']['value'][0]
-    #         mocked_getObject.return_value = 201, operation_json
-    #         with self.assertRaises(RuntimeError):
-    #             self.oee.download_part()
-
-    #     with patch('Orion.getObject') as mocked_getObject:
-    #         self.oee.operation_json = None
-    #         operation_json = g_jsons['Core001']['Operations']['value'][0]
-    #         mocked_getObject.return_value = 200, operation_json
-    #         self.oee.download_part()
-    #         self.assertEquals(self.oee.operation_json, operation_json)
-
-    # def test_get_operation_time(self):
-    #     self.oee.operation_json = g_jsons['Core001']['Operations']['value'][0]
-    #     self.oee.get_operation_time()
-    #     self.assertEqual(self.oee.operationTime, 46)
-    #     del(self.oee.operation_json['OperationTime']['value'])
-    #     with self.assertRaises(RuntimeError):
-    #         self.oee.get_operation_time()
-    #     del(self.oee.part_json['OperationTime'])
-    #     with self.assertRaises(RuntimeError):
-    #         self.oee.get_operation_time()
-
-    # def test_get_partsPerOperation(self):
-    #     self.oee.operation_json = g_jsons['Core001']['Operations']['value'][0]
-    #     self.oee.get_partsPerOperation()
-    #     self.assertEqual(self.oee.partsPerOperation, 8)
-    #     del(self.oee.operation_json['PartsPerOperation']['value'])
-    #     with self.assertRaises(RuntimeError):
-    #         self.oee.get_partsPerOperation()
-    #     del(self.oee.part_json['PartsPerOperation'])
-    #     with self.assertRaises(RuntimeError):
-    #         self.oee.get_partsPerOperation()
-
-    # def test_handlePerformance(self):
-    #     self.oee.now_unix = 1649080800000
-    #     self.oee.now = datetime.datetime(2022, 4, 4, 16, 0, 0)
-    #     n_successful_mouldings = 562
-    #     n_failed_mouldings = 3
-    #     n_total_mouldings = n_successful_mouldings + n_failed_mouldings
-    #     operationTime = 46
-    #     total_available_time = 32250900
-    #     performance = (n_total_mouldings * operationTime) / total_available_time
-    #     self.oee.handlePerformance()
-    #     self.assertAlmostEqual(self.oee.oee['performance'], performance)
-
-    # def test_calculateOEE(self):
-    #     startTime = 1649047829000
-    #     shiftStart = 1649052000000
-
-    #     self.oee.now_unix = 1649080800000
-    #     self.oee.now = datetime.datetime(2022, 4, 4, 16, 0, 0)
-    #     total_available_time = self.oee.now_unix - startTime
-    #     availability = total_available_time / (self.oee.now_unix - shiftStart)
-    #     n_successful_mouldings = 562
-    #     n_failed_mouldings = 3
-    #     n_total_mouldings = n_successful_mouldings + n_failed_mouldings
-    #     quality = n_successful_mouldings / n_total_mouldings
-    #     operationTime = 46
-    #     performance = (n_total_mouldings * operationTime) / total_available_time
-    #     oeeManual = {'availability': availability,
-    #             'performance': performance,
-    #             'quality': quality,
-    #             'oee': availability * performance * quality}
-    #     self.oee.calculateOEE()
-    #     self.assertEqual(self.oee.oee, oeeManual)
-    #     self.assertEqual(self.oee.job['id'], 'Job202200045')
-
-    # def test_calculateThroughput(self):
-    #     self.oee.now_unix = 1649080800000
-    #     self.oee.now = datetime.datetime(2022, 4, 4, 16, 0, 0)
-    #     total_available_time = self.oee.now_unix - startTime
-    #     availability = total_available_time / (self.oee.now_unix - shiftStart)
-    #     n_successful_mouldings = 562
-    #     n_failed_mouldings = 3
-    #     n_total_mouldings = n_successful_mouldings + n_failed_mouldings
-    #     quality = n_successful_mouldings / n_total_mouldings
-    #     operationTime = 46
-    #     performance = (n_total_mouldings * operationTime) / total_available_time
-    #     oee_value = availability * quality * performance
-    #     shiftLengthInMilliseconds = 8 * 3600e3
-    #     partsPerOperation = 8
-    #     throughput = (shiftLengthInMilliseconds / operationTime) * partsPerOperation * oee_value
-    #     self.assertAlmostEqual(self.oee.calculateThrouthput, throughput, places=PLACES)
-
-    # def test_insert(self, con):
-    #     availability = 0.83
-    #     quality = 0.95
-    #     performance = 0.88
-    #     oee_value = availability * quality * performance
-    #     now_unix = 1649080800000
-    #     throughput = 4611.7
-    #     self.oee.nox_unix = now_unix
-    #     self.oee.oee = {'availability': availability,
-    #                'quality': quality,
-    #                'performance': performance,
-    #                'oee': oee_value}
-    #     self.oee.throughput = throughput
-    #     self.oee.job['id'] = JOB_ID
-    #     df = pd.DataFrame.from_dict({'recvtimets': now_unix,
-    #                                  'recvtime': self.oee.msToDateTimeString(now_unix),
-    #                                  'availability': availability,
-    #                                  'performance': performance,
-    #                                  'quality': quality,
-    #                                  'oee': oee_value,
-    #                                  'throughput': throughput,
-    #                                  'job': self.oee.job['id']})
-    #     # delete all data by uploading empty table
-    #     df.drop(df.index).to_sql(name=OEE_TABLE, con=con, schema=conf['postgresSchema'], index=False, dtype=COL_DTYPES, if_exists='replace')
-    #     self.oee.insert(con)
-    #     inserted_df = pd.read_sql_query(f'''select * from {conf['postgresSchema']}.{OEE_TABLE}''')
-    #     self.assertTrue(inserted_df.equals(df))
 
 if __name__ == '__main__':
     ans = input('''The testing process needs MOMAMS up and running on localhost.
