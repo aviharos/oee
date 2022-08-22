@@ -1,13 +1,17 @@
 ﻿# -*- coding: utf-8 -*-
 # Standard Library imports
+import os
 import sched
 import time
 
-# Custom imports, config
-from conf import conf
 from Logger import getLogger
 from LoopHandler import LoopHandler
 logger_main = getLogger(__name__)
+
+# Load environment variables
+PERIOD_TIME = os.environ.get('PERIOD_TIME')
+if PERIOD_TIME is None:
+    PERIOD_TIME = 60 # seconds
 
 
 def loop(scheduler_):
@@ -19,12 +23,12 @@ def loop(scheduler_):
         # Catch any uncategorised error and log it 
         logger_main.error(error)
     finally:
-        scheduler_.enter(conf['period_time'], 1, loop, (scheduler_,))
+        scheduler_.enter(PERIOD_TIME, 1, loop, (scheduler_,))
 
 
 def main():
     scheduler = sched.scheduler(time.time, time.sleep)
-    scheduler.enter(conf['period_time'], 1, loop, (scheduler,))
+    scheduler.enter(PERIOD_TIME, 1, loop, (scheduler,))
     logger_main.info('Starting OEE app...')
     try:
         scheduler.run()

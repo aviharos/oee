@@ -8,12 +8,12 @@ import sqlalchemy
 from sqlalchemy import create_engine
 import psycopg2
 
-# Custom imports, config
-from conf import conf
+# Custom imports
 from Logger import getLogger
 from object_to_template import object_to_template
 from OEE import OEECalculator
 import Orion
+
 
 class LoopHandler():
     logger = getLogger(__name__)
@@ -21,8 +21,23 @@ class LoopHandler():
                  'job': None,
                  'oee': None,
                  'throughput': None}
+    # Load environment variables
+    POSTGRES_USER = os.environ.get('POSTGRES_USER')
+    if POSTGRES_USER is None:
+        raise RuntimeError('Critical: POSTGRES_USER environment variable is not set.')
 
-    # def __init__(self):
+    POSTGRES_PASSWORD = os.environ.get('POSTGRES_PASSWORD')
+    if POSTGRES_PASSWORD is None:
+        raise RuntimeError('Critical: POSTGRES_PASSWORD environment variable is not set.')
+
+    POSTGRES_HOST = os.environ.get('POSTGRES_HOST')
+    if POSTGRES_HOST is None:
+        raise RuntimeError('Critical: POSTGRES_HOST environment variable is not set.')
+
+    POSTGRES_PORT = os.environ.get('POSTGRES_PORT')
+    if POSTGRES_PORT is None:
+        POSTGRES_PORT = 5432
+        logger.warning(f'POSTGRES_PORT environment variable is not set, using default: {POSTGRES_PORT}')
 
     def delete_attributes(self, object_):
         file = f'{object_}.json'
@@ -61,7 +76,7 @@ class LoopHandler():
         Orion.update((oee, throughput))
 
     def handle(self):
-        self.engine = create_engine(f'postgresql://{conf["postgresUser"]}:{conf["postgresPassword"]}@{conf["postgresHost"]}:{conf["postgresPort"]}')
+        self.engine = create_engine(f'postgresql://{self.POSTGRES_USER}:{self.POSTGRES_PASSWORD}@{self.POSTGRES_HOST}:{self.POSTGRES_PORT}')
         try:
             with self.engine.connect() as self.con:
                 self.workstations = Orion.getWorkstations()

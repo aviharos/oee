@@ -1,26 +1,39 @@
 ﻿# -*- coding: utf-8 -*-
 # Standard Library imports
 # PyPI packages
+import os
 import requests
 
-# custom imports
-from conf import conf
+from Logger import getLogger
+
+logger_Orion = getLogger(__name__)
+
+# get environment variables
+ORION_HOST = os.environ.get('ORION_HOST')
+if ORION_HOST is None:
+    raise RuntimeError('Critical: ORION_HOST environment variable is not set')
+
+ORION_PORT = os.environ.get('ORION_PORT')
+if ORION_PORT is None:
+    logger_Orion.warning('ORION_PORT environment variable not set, using default value: 1026')
+    ORION_PORT = 1026
+
 
 def getRequest(url):
     try:
         response = requests.get(url)
         response.close()
     except Exception as error:
-        raise RuntimeError(f'Get request failed to URL: {url}.\n{error}')
+        raise RuntimeError(f'Get request failed to URL: {url}') from error
 
     else:
         try:
             response.json()
-        except requests.exceptions.JSONDecodeError:
-            raise ValueError(f'The JSON could not be decoded after GET request to {url}. Response:\n{response}')
+        except requests.exceptions.JSONDecodeError as error:
+            raise ValueError(f'The JSON could not be decoded after GET request to {url}. Response:\n{response}') from error
         return response.status_code, response.json()
 
-def get(object_id, host=conf['orion_host'], port=conf['orion_port']):
+def get(object_id, host=ORION_HOST, port=ORION_PORT):
     '''
     Returns the object in JSON format idenfitied by object_id and the status code of the request
     '''
@@ -38,7 +51,7 @@ def exists(object_id):
         return False
 
 def getWorkstations():
-    url = f'http://{conf["orion_host"]}:{conf["orion_port"]}/v2/entities?type=Workstation'
+    url = f'http://{ORION_HOST}:{ORION_PORT}/v2/entities?type=Workstation'
     status_code, workstations = getRequest(url)
     if status_code != 200:
         raise RuntimeError(f'Critical: could not get Workstations from Orion with GET request to URL: {url}')
@@ -51,12 +64,12 @@ def update(objects):
     If an object already exists, it will be overwritten. More information:
     https://github.com/FIWARE/tutorials.CRUD-Operations#six-request
     '''
-    url = f'http://conf["orion_host"]:conf["orion_port"]/v2/op/update'
+    url = f'http://{ORION_HOST}:{ORION_PORT}/v2/op/update'
     try:
         json_ = {'actionType': 'append',
                 'entities': list(objects)}
-    except TypeError:
-        raise TypeError(f'The objects {objects} are not iterable, cannot make a list. Please, provide an iterable object')
+    except TypeError as error:
+        raise TypeError(f'The objects {objects} are not iterable, cannot make a list. Please, provide an iterable object') from error
     response = requests.post(url, json=json_)
     if response.status_code != 204:
         raise RuntimeError(f'Failed to update objects in Orion.\nStatus_code: {response.status_code}\nObjects:\n{objects}')

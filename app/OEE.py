@@ -12,11 +12,10 @@ from sqlalchemy import create_engine, table
 from sqlalchemy.types import DateTime, Float, BigInteger, Text
 
 # custom imports
-global conf
-from conf import conf
 from Logger import getLogger
 from object_to_template import object_to_template
 import Orion
+
 
 
 class OEECalculator():
@@ -87,11 +86,16 @@ class OEECalculator():
                'orion': None,
                'postgres_table': None,
                'df': None}
+    logger = getLogger(__name__)
     OEE_template = object_to_template(os.path.join('..', 'json', 'OEE.json'))
     Throughput_template = object_to_template(os.path.join('..', 'json', 'Throughput.json'))
+    # get environment variables
+    POSTGRES_SCHEMA = os.environ.get('POSTGRES_SCHEMA')
+    if POSTGRES_SCHEMA is None:
+        POSTGRES_SCHEMA = 'default_service'
+        logger.warning('POSTGRES_SCHEMA environment varialbe not found, using default: "{POSTGRES_SCHEMA}"')
 
     def __init__(self, workstation_id):
-        self.logger = getLogger(__name__)
         self.oee = self.OEE_template
         self.throughput = self.Throughput_template
         self.today = {}
@@ -143,7 +147,7 @@ class OEECalculator():
         try:
             self.operatorSchedule['id'] = self.ws['orion']['RefOperatorSchedule']['value']
         except KeyError as error:
-            raise KeyError(f'Critical: RefOperatorSchedule not foundin Workstation object :\n{self.ws["orion"]}. Traceback:\n{error}')
+            raise KeyError(f'Critical: RefOperatorSchedule not foundin Workstation object :\n{self.ws["orion"]}.') from error
         self.operatorSchedule['orion'] = Orion.getObject(self.operatorSchedule['id'])
         self.logger.debug(f'OperatorSchedule: {self.operatorSchedule}')
 
@@ -159,7 +163,7 @@ class OEECalculator():
             for time_ in ('OperatorWorkingScheduleStartsAt', 'OperatorWorkingScheduleStopsAt'):
                 self.today[time_] = self.timeToDatetime(self.operatorSchedule['orion'][time_]['value'])
         except (ValueError, KeyError) as error:
-            raise ValueError(f'Critical: could not convert time in {self.operatorSchedule}. Traceback:\n{error}')
+            raise ValueError(f'Critical: could not convert time in {self.operatorSchedule}.') from error
         self.logger.debug(f'Today: {self.today}')
 
     def get_job_id(self):
@@ -211,12 +215,12 @@ class OEECalculator():
 
     def download_todays_data_df(self, con, table_name):
         try:
-            df = pd.read_sql_query(f'''select * from {conf['postgresSchema']}.{table_name}
+            df = pd.read_sql_query(f'''select * from {self.POSTGRES_SCHEMA}.{table_name}
                                        where {self.datetimeToMilliseconds(self.today['RefStartTime'])} < cast (recvtimets as bigint) 
                                        and cast (recvtimets as bigint) <= {self.now_unix};''', con=con)
         except (psycopg2.errors.UndefinedTable,
                 sqlalchemy.exc.ProgrammingError) as error:
-            raise RuntimeError(f'The SQL table: {table_name} cannot be downloaded from the table_schema: {conf["postgresSchema"]}. Traceback:\n{error}') from error
+            raise RuntimeError(f'The SQL table: {table_name} cannot be downloaded from the table_schema: {self.POSTGRES_SCHEMA}.') from error
         return df
 
     def convert_dataframe_to_str(self, df):
@@ -269,10 +273,11 @@ class OEECalculator():
         try:
             self.get_objects()
         except (RuntimeError, KeyError, AttributeError) as error:
-            self.logger.error(f'Could not download and extract objects from Orion. Traceback:\n{error}')
-            raise error
+            message = f'Could not download and extract objects from Orion. Traceback:\n{error}'
+            self.logger.error(message)
+            raise RuntimeError(message) from error
 
-        if not isDateTimeInTodaysShift(self.now):
+        if not self.is_datetime_in_todays_shift(self.now):
             raise ValueError(f'The current time: {self.now} is outside today\'s shift, no OEE data')
 
         self.ws['df'] = self.download_todays_data_df(con, self.ws['postgres_table'])
