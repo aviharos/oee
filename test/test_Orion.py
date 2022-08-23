@@ -97,15 +97,6 @@ class testOrion(unittest.TestCase):
 
 
 def main():
-    ans = input('''The testing process needs MOMAMS up and running on localhost.
-Please start it if you have not already.
-Also, the tests delete and create objects in the Orion broker.
-It also changes the PostgreSQL data.
-Never use the tests on a production environment.
-Do you still want to proceed? [yN]''')
-    if ans != 'y':
-        print('exiting...')
-        sys.exit(0)
     try:
         unittest.main()
     except Exception as error:

@@ -36,78 +36,66 @@ COL_DTYPES = {'recvtimets': BigInteger(),
               'throughput_shift': Float(),
               'job': Text()}
 
-from conf import conf
-from OEE import OEE
+from OEE import OEECalculator
 from modules import reupload_jsons_to_Orion
 from modules.remove_orion_metadata import remove_orion_metadata
 
-
-print(remove_orion_metadata({'OperatorWorkingScheduleStartsAt': {'metadata': {},
-                                      'type': 'Time',
-                                      'value': '8:00:00'},
-  'OperatorWorkingScheduleStopsAt': {'metadata': {},
-                                     'type': 'Time',
-                                     'value': '16:00:00'},
-   'id': 'urn:ngsi_ld:OperatorSchedule:1',
-   'type': 'OperatorSchedule'}))
+# Load environment variables
+POSTGRES_HOST = os.environ.get('POSTGRES_HOST')
+POSTGRES_PASSWORD = os.environ.get('POSTGRES_PASSWORD')
+POSTGRES_PORT = os.environ.get('POSTGRES_PORT')
+POSTGRES_USER = os.environ.get('POSTGRES_USER')
+POSTGRES_SCHEMA = os.environ.get('POSTGRES_SCHEMA')
 
 
 class testOrion(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         reupload_jsons_to_Orion.main()
-        global engine
-        engine = create_engine(f'postgresql://{conf["postgresUser"]}:{conf["postgresPassword"]}@{conf["postgresHost"]}:{conf["postgresPort"]}')
-        global con
-        con = engine.connect()
+        cls.engine = create_engine(f'postgresql://{POSTGRES_USER}:{POSTGRES_PASSWORD}@{POSTGRES_HOST}:{POSTGRES_PORT}')
+        cls.con = cls.engine.connect()
+        if not cls.engine.dialect.has_schema(cls.engine, POSTGRES_SCHEMA):
+            cls.engine.execute(sqlalchemy.schema.CreateSchema(POSTGRES_SCHEMA))
 
-        if not engine.dialect.has_schema(engine, conf['postgresSchema']):
-            engine.execute(sqlalchemy.schema.CreateSchema(conf['postgresSchema']))
-
-        global g_oee
-        g_oee = OEE(WS_ID)
+        cls.oee_template = OEECalculator(WS_ID)
 
         # read and upload both tables to PostgreSQL
         # then download them to ensure that the data types
         # match the data types in production
-        global g_ws_df
-        g_ws_df = pd.read_csv(os.path.join('csv', WS_FILE))
-        g_ws_df.to_sql(name=WS_TABLE, con=con, schema=conf['postgresSchema'], index=False, dtype=Text, if_exists='replace')
-        g_ws_df = pd.read_sql_query(f'select * from {conf["postgresSchema"]}.{WS_TABLE}', con=con)
+        cls.ws_df = pd.read_csv(os.path.join('csv', WS_FILE))
+        cls.ws_df.to_sql(name=WS_TABLE, con=cls.con, schema=POSTGRES_SCHEMA, index=False, dtype=Text, if_exists='replace')
+        cls.ws_df = pd.read_sql_query(f'select * from {POSTGRES_SCHEMA}.{WS_TABLE}', con=cls.con)
 
-        global g_job_df
-        g_job_df = pd.read_csv(os.path.join('csv', JOB_FILE))
-        g_job_df.to_sql(name=JOB_TABLE, con=con, schema=conf['postgresSchema'], index=False, dtype=Text, if_exists='replace')
-        g_job_df = pd.read_sql_query(f'select * from {conf["postgresSchema"]}.{JOB_TABLE}', con=con)
+        cls.job_df = pd.read_csv(os.path.join('csv', JOB_FILE))
+        cls.job_df.to_sql(name=JOB_TABLE, con=cls.con, schema=POSTGRES_SCHEMA, index=False, dtype=Text, if_exists='replace')
+        cls.job_df = pd.read_sql_query(f'select * from {POSTGRES_SCHEMA}.{JOB_TABLE}', con=cls.con)
 
-        global g_jsons
-        g_jsons = {}
+        cls.jsons = {}
         jsons = glob.glob(os.path.join('..', 'json', '*.json'))
         for file in jsons:
             json_name = os.path.splitext(os.path.basename(file))[0]
             with open(file, 'r') as f:
-                g_jsons[json_name] = json.load(f)
+                cls.jsons[json_name] = json.load(f)
 
     @classmethod
     def tearDownClass(cls):
         pass
 
     def setUp(self):
-        self.oee = copy.deepcopy(g_oee)
+        self.oee = copy.deepcopy(self.oee_template)
 
     def tearDown(self):
         pass
 
-    def get_cygnus_postgres_table(self, orion_obj):
-        TODO
-        return orion_obj['id'].replace(':', '_').lower() + '_' + orion_obj['type'].lower()
+    def test_get_cygnus_postgres_table(self):
+        job_table = self.oee.get_cygnus_postgres_table(self.jsons['Job202200045'])
+        self.assertEqual(job_table, "urn_ngsi_ld_job_202200045_job")
 
     def test_msToDateTimeString(self):
         self.assertEqual(self.oee.msToDateTimeString(1649159200000), '2022-04-05 13:46:40.000')
 
-    def test_msToDateTime(self, ms):
-        pass
-        # return self.stringToDateTime(self.msToDateTimeString(ms))
+    def test_msToDateTime(self):
+        self.assertEqual(self.oee.msToDateTime(1649159200000), datetime.datetime(2022, 4, 5, 13, 46, 40))
 
     def test_stringToDateTime(self):
         self.assertEqual(self.oee.stringToDateTime('2022-04-05 13:46:40.000'), datetime.datetime(2022, 4, 5, 13, 46, 40))
@@ -120,7 +108,7 @@ class testOrion(unittest.TestCase):
         self.assertEqual(self.oee.datetimeToMilliseconds(datetime.datetime(2022, 4, 5, 13, 46, 40)), 1649159200000)
 
     def test_convertRecvtimetsToInt(self):
-        self.oee.ws['df'] = g_ws_df.copy()
+        self.oee.ws['df'] = self.ws_df.copy()
         self.oee.convertRecvtimetsToInt(self.oee.ws['df'])
         self.assertEqual(self.oee.ws['df']['recvtimets'].dtype, np.int64)
 
@@ -385,22 +373,8 @@ class testOrion(unittest.TestCase):
 
 
 if __name__ == '__main__':
-    ans = input('''The testing process needs MOMAMS up and running on localhost.
-Please start it if you have not already.
-Also, the tests delete and create objects in the Orion broker.
-It also changes the PostgreSQL data.
-Never use the tests on a production environment.
-Do you still want to proceed? [yN]''')
-    if ans != 'y':
-        print('exiting...')
-        sys.exit(0)
     try:
         unittest.main()
     except Exception as error:
         print(error)
-    finally:
-        if 'con' in locals():
-            con.close()
-        if 'engine' in locals():
-            engine.dispose()
 
