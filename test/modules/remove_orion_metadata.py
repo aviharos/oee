@@ -1,14 +1,14 @@
-def remove_orion_metadata(json_):
-    if isinstance(json_, dict):
+def remove_orion_metadata(obj):
+    if isinstance(obj, dict):
         new_dict = {}
-        for key in json_.keys():
+        for key in obj.keys():
             if key == 'metadata':
                 pass
             else:
-                new_dict[key] = remove_orion_metadata(json_[key])
+                new_dict[key] = remove_orion_metadata(obj[key])
         return new_dict
-    elif isinstance(json_, list):
-        return [remove_orion_metadata(x) for x in json_]
+    elif isinstance(obj, list):
+        return [remove_orion_metadata(x) for x in obj]
     else:
-        return json_
+        return obj
 

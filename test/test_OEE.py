@@ -51,6 +51,7 @@ POSTGRES_SCHEMA = os.environ.get('POSTGRES_SCHEMA')
 class testOrion(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
+        cls.maxDiff = None
         reupload_jsons_to_Orion.main()
         cls.engine = create_engine(f'postgresql://{POSTGRES_USER}:{POSTGRES_PASSWORD}@{POSTGRES_HOST}:{POSTGRES_PORT}')
         cls.con = cls.engine.connect()
@@ -113,43 +114,44 @@ class testOrion(unittest.TestCase):
         self.assertEqual(self.oee.ws['df']['recvtimets'].dtype, np.int64)
 
     def test_get_ws(self):
-        pass
-        # self.ws['orion'] = Orion.getObject(self.ws['id'])
-        # self.ws['postgres_table'] = self.get_cygnus_postgres_table(self.ws['orion'])
-        # self.logger.debug(f'Workstation: {self.ws}')
+        self.oee.get_ws()
+        print(f'In JSONs: {self.jsons["Workstation"]}')
+        print(f'In oee: {remove_orion_metadata(self.oee.ws["orion"])}')
+        self.assertEqual(remove_orion_metadata(self.oee.ws['orion']), self.jsons['Workstation'])
+        self.assertEqual(self.oee.ws['postgres_table'], 'urn_ngsi_ld_workstation_1_workstation')
 
     def test_get_operatorSchedule(self):
-        pass
-        # try:
-        #     self.operatorSchedule['id'] = self.ws['orion']['RefOperatorSchedule']['value']
-        # except KeyError as error:
-        #     raise KeyError(f'Critical: RefOperatorSchedule not foundin Workstation object :\n{self.ws["orion"]}.') from error
-        # self.operatorSchedule['orion'] = Orion.getObject(self.operatorSchedule['id'])
-        # self.logger.debug(f'OperatorSchedule: {self.operatorSchedule}')
+        self.oee.ws['orion'] = copy.deepcopy(self.jsons['Workstation'])
+        self.oee.get_operatorSchedule()
+        self.assertEqual(remove_orion_metadata(self.oee.operatorSchedule['orion']), self.jsons['OperatorSchedule'])
+        self.oee.ws['orion'] = copy.deepcopy(self.jsons['Workstation'])
+        self.oee.ws['orion']['RefOperatorSchedule'] = 'invalid_operationSchedule:id'
+        with self.assertRaises(KeyError):
+            self.oee.get_operatorSchedule()
 
-    def test_is_datetime_in_todays_shift(self, datetime_):
-        pass
-        # if datetime_ < self.today['OperatorWorkingScheduleStartsAt']:
-        #     return False
-        # if datetime_ > self.today['OperatorWorkingScheduleStopsAt']:
-        #     return False
-        # return True
+    def test_is_datetime_in_todays_shift(self):
+        self.oee.today['OperatorWorkingScheduleStartsAt'] = datetime.datetime(2022, 4, 4, 8, 0, 0)
+        self.oee.today['OperatorWorkingScheduleStopsAt'] = datetime.datetime(2022, 4, 4, 16, 0, 0)
+        dt1 = datetime.datetime(2022, 4, 4, 9, 0, 0)
+        self.assertTrue(self.oee.is_datetime_in_todays_shift(dt1))
+        dt2 = datetime.datetime(2022, 4, 4, 7, 50, 0)
+        self.assertFalse(self.oee.is_datetime_in_todays_shift(dt2))
+        dt3 = datetime.datetime(2022, 4, 4, 16, 10, 0)
+        self.assertFalse(self.oee.is_datetime_in_todays_shift(dt3))
 
     def test_get_todays_shift_limits(self):
-        pass
-        # try:
-        #     for time_ in ('OperatorWorkingScheduleStartsAt', 'OperatorWorkingScheduleStopsAt'):
-        #         self.today[time_] = self.timeToDatetime(self.operatorSchedule['orion'][time_]['value'])
-        # except (ValueError, KeyError) as error:
-        #     raise ValueError(f'Critical: could not convert time in {self.operatorSchedule}.') from error
-        # self.logger.debug(f'Today: {self.today}')
+        self.oee.now = datetime.datetime(2022, 8, 23, 13, 0, 0)
+        self.oee.operatorSchedule['orion'] = copy.deepcopy(self.jsons['OperatorSchedule'])
+        self.oee.get_todays_shift_limits()
+        self.assertEqual(self.oee.today['OperatorWorkingScheduleStartsAt'], datetime.datetime(2022, 8, 23, 8, 0, 0))
+        self.assertEqual(self.oee.today['OperatorWorkingScheduleStopsAt'], datetime.datetime(2022, 8, 23, 16, 0, 0))
 
     def test_get_job_id(self):
-        pass
-        # try:
-        #     return self.ws['orion']['RefJob']['value']
-        # except (KeyError, TypeError) as error:
-        #     raise AttributeError(f'The workstation object {self.ws["id"]} has no valid RefJob attribute:\nObject:\n{self.ws["orion"]}')
+        self.oee.ws['orion'] = copy.deepcopy(self.jsons['Workstation'])
+        self.assertEqual(self.oee.get_job_id(), "urn:ngsi_ld:Job:202200045")
+        self.oee.ws['orion']['RefJob'] = None
+        with self.assertRaises(KeyError):
+            self.oee.get_job_id()
 
     def test_get_job(self):
         pass
@@ -192,14 +194,18 @@ class testOrion(unittest.TestCase):
                             "OperationTime": {"type": "Number", "value": 33},
                             "OperationType": {"type": "Text", "value": "Core001_deburring"},
                             "PartsPerOperation": {"type": "Number", "value": 16}
-                        },
+                        }
                     ]
                 }
             }
-        op = part['Operations']['value'][0]
-        self.assertEqual(self.oee.get_operation(part, 'Core001_injection_moulding'), op)
-        with self.assertRaises(AttributeError):
-            self.oee.get_operation(part, 'Core001_painting')
+        self.oee.job['orion'] = copy.deepcopy(self.jsons['Job202200045'])
+        self.oee.part['orion'] = part
+        self.oee.get_operation()
+        self.assertEqual(self.oee.operation['orion'], part['Operations']['value'][0])
+
+        self.oee.job['orion']['CurrentOperationType']['value'] = 'Core001_painting'
+        with self.assertRaises(KeyError):
+            self.oee.get_operation()
 
     def test_get_objects(self):
         pass
@@ -210,7 +216,7 @@ class testOrion(unittest.TestCase):
         # self.get_part()
         # self.get_operation()
 
-    def test_download_todays_data_df(self, con, table_name):
+    def test_download_todays_data_df(self):
         pass
         # try:
         #     df = pd.read_sql_query(f'''select * from {self.POSTGRES_SCHEMA}.{table_name}
@@ -221,7 +227,7 @@ class testOrion(unittest.TestCase):
         #     raise RuntimeError(f'The SQL table: {table_name} cannot be downloaded from the table_schema: {self.POSTGRES_SCHEMA}.') from error
         # return df
 
-    def test_convert_dataframe_to_str(self, df):
+    def test_convert_dataframe_to_str(self):
         '''
         Cygnus 2.16.0 uploads all data as Text to Postgres
         So with this version of Cygnus, this function is useless
@@ -230,7 +236,7 @@ class testOrion(unittest.TestCase):
         pass
         # return df.applymap(str)
 
-    def test_sort_df_by_time(self, df_):
+    def test_sort_df_by_time(self):
         pass
         # default: ascending order
         # if df_['recvtimets'].dtype != np.int64:
@@ -267,7 +273,7 @@ class testOrion(unittest.TestCase):
         #     self.today['RefStartTime'] = self.today['OperatorWorkingScheduleStartsAt']
         #     self.logger.info(f'The current job started before this shift, RefStartTime: {self.today["RefStartTime"]}')
 
-    def test_prepare(self, con):
+    def test_prepare(self):
         pass
         # self.now = datetime.now()
         # self.now_unix = self.now.timestamp() * 1000
@@ -329,7 +335,7 @@ class testOrion(unittest.TestCase):
         #     raise ValueError(f'No workstation data found for {self.ws["id"]} up to time {self.now} on day {self.today["day"]}, no OEE data')
         # self.oee['Availability']['value'] = self.calc_availability()
 
-    def test_count_nonzero_unique(self, unique_values):
+    def test_count_nonzero_unique(self):
         pass
         # if '0' in unique_values:
         #     # need to substract 1, because '0' does not represent a successful moulding

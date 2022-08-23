@@ -138,16 +138,16 @@ class OEECalculator():
         df['recvtimets'] = df['recvtimets'].astype('float64').astype('int64')
 
     def get_ws(self):
-        self.ws['orion'] = Orion.getObject(self.ws['id'])
+        self.ws['orion'] = Orion.get(self.ws['id'])
         self.ws['postgres_table'] = self.get_cygnus_postgres_table(self.ws['orion'])
         self.logger.debug(f'Workstation: {self.ws}')
 
     def get_operatorSchedule(self):
         try:
             self.operatorSchedule['id'] = self.ws['orion']['RefOperatorSchedule']['value']
-        except KeyError as error:
+        except (KeyError, TypeError) as error:
             raise KeyError(f'Critical: RefOperatorSchedule not foundin Workstation object :\n{self.ws["orion"]}.') from error
-        self.operatorSchedule['orion'] = Orion.getObject(self.operatorSchedule['id'])
+        self.operatorSchedule['orion'] = Orion.get(self.operatorSchedule['id'])
         self.logger.debug(f'OperatorSchedule: {self.operatorSchedule}')
 
     def is_datetime_in_todays_shift(self, datetime_):
@@ -161,7 +161,7 @@ class OEECalculator():
         try:
             for time_ in ('OperatorWorkingScheduleStartsAt', 'OperatorWorkingScheduleStopsAt'):
                 self.today[time_] = self.timeToDatetime(self.operatorSchedule['orion'][time_]['value'])
-        except (ValueError, KeyError) as error:
+        except (ValueError, KeyError, TypeError) as error:
             raise ValueError(f'Critical: could not convert time in {self.operatorSchedule}.') from error
         self.logger.debug(f'Today: {self.today}')
 
@@ -169,7 +169,7 @@ class OEECalculator():
         try:
             return self.ws['orion']['RefJob']['value']
         except (KeyError, TypeError) as error:
-            raise AttributeError(f'The workstation object {self.ws["id"]} has no valid RefJob attribute:\nObject:\n{self.ws["orion"]}')
+            raise KeyError(f'The workstation object {self.ws["id"]} has no valid RefJob attribute:\nObject:\n{self.ws["orion"]}')
 
     def get_job(self):
         self.job['id'] = self.get_job_id()
@@ -193,15 +193,15 @@ class OEECalculator():
         found = False
         try:
             for operation in self.part['orion']['Operations']['value']:
-                if operation['OperationType']['value'] == self.job['CurrentOperationType']['value']:
+                if operation['OperationType']['value'] == self.job['orion']['CurrentOperationType']['value']:
                     found = True
                     self.operation['orion'] = operation
                     break
             if not found:
-                raise KeyError(f'The part {self.part["orion"]} has no operation with type {self.job["CurrentOperationType"]}')
-        except (AttributeError, KeyError) as error:
+                raise KeyError(f'The part {self.part["orion"]} has no operation with type {self.job["orion"]["CurrentOperationType"]}')
+        except (AttributeError, KeyError, TypeError) as error:
             raise KeyError(f'Invalid part or job specification. The current operation could not be resolved. See the JSON objects for reference.\nJob:\n{self.job["orion"]}\nPart:\n{self.part["orion"]}') from error
-        self.operation['id'] = self.operation['orion']['id']
+        # self.operation['id'] = self.operation['orion']['id']
         self.logger.debug(f'Operation: {self.operation}')
 
     def get_objects(self):
@@ -271,7 +271,7 @@ class OEECalculator():
                       'start': self.stringToDateTime(str(self.now.date()) + ' 00:00:00.000')}
         try:
             self.get_objects()
-        except (RuntimeError, KeyError, AttributeError) as error:
+        except (RuntimeError, KeyError, AttributeError, TypeError) as error:
             message = f'Could not download and extract objects from Orion. Traceback:\n{error}'
             self.logger.error(message)
             raise RuntimeError(message) from error
