@@ -2,6 +2,7 @@
 # Standard Library imports
 from datetime import datetime
 import os
+import pytz
 
 # PyPI packages
 import numpy as np
@@ -86,6 +87,7 @@ class OEECalculator():
                'postgres_table': None,
                'df': None}
     logger = getLogger(__name__)
+    timezone = pytz.timezone('GMT')
     OEE_template = object_to_template(os.path.join('..', 'json', 'OEE.json'))
     Throughput_template = object_to_template(os.path.join('..', 'json', 'Throughput.json'))
     # get environment variables
@@ -115,6 +117,14 @@ class OEECalculator():
 
     def __str__(self):
         return f'OEECalculator object for workstation: {self.ws["id"]}'
+
+    def set_now_with_timezone(self):
+        # since Cygnus uses GMT regardless of timezone by default
+        # the OEE Calculator also does the same to minimize
+        # the chance of a conversion error
+        # fix time so that the time passing by during calculations 
+        # does not affect the results
+        self.now = self.timezone.localize(datetime.now())
 
     def now_unix(self):
         return self.now.timestamp() * 1000
@@ -269,7 +279,7 @@ class OEECalculator():
             self.logger.info(f'The current job started before this shift, RefStartTime: {self.today["RefStartTime"]}')
 
     def prepare(self, con):
-        self.now = datetime.now()
+        self.set_now_with_timezone()
         self.today = {'day': self.now.date(),
                       'start': self.stringToDateTime(str(self.now.date()) + ' 00:00:00.000')}
         try:

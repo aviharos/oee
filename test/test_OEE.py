@@ -4,6 +4,7 @@ from datetime import datetime
 import json
 import glob
 import os
+import pytz
 import sys
 import unittest
 from unittest.mock import patch
@@ -51,6 +52,8 @@ POSTGRES_SCHEMA = os.environ.get('POSTGRES_SCHEMA')
 
 
 class testOrion(unittest.TestCase):
+    timezone = pytz.timezone('GMT')
+
     @classmethod
     def setUpClass(cls):
         cls.logger = getLogger(__name__)
@@ -98,6 +101,17 @@ class testOrion(unittest.TestCase):
     def tearDown(self):
         pass
 
+    def test_set_now_with_timezone(self):
+        now = self.timezone.localize(datetime.now())
+        self.oee.set_now_with_timezone()
+        self.assertAlmostEqual(now.timestamp(), self.oee.now.timestamp(), places=PLACES)
+
+
+    def test_now_unix(self):
+        self.oee.now = self.timezone.localize(datetime(2022, 4, 5, 13, 46, 40))
+        # using GMT+2 time zone
+        self.assertEqual(self.oee.now_unix(), 1649159200000)
+
     def test_get_cygnus_postgres_table(self):
         job_table = self.oee.get_cygnus_postgres_table(self.jsons['Job202200045'])
         self.assertEqual(job_table, "urn_ngsi_ld_job_202200045_job")
@@ -112,7 +126,7 @@ class testOrion(unittest.TestCase):
         self.assertEqual(self.oee.stringToDateTime('2022-04-05 13:46:40.000'), datetime(2022, 4, 5, 13, 46, 40))
     
     def test_timeToDatetime(self):
-        self.oee.now = datetime(2022, 4, 5, 15, 26, 0)
+        self.oee.now = self.timezone.localize(datetime(2022, 4, 5, 15, 26, 0))
         self.assertEqual(self.oee.timeToDatetime('13:46:40'), datetime(2022, 4, 5, 13, 46, 40))
 
     def test_datetimeToMilliseconds(self):
@@ -148,7 +162,7 @@ class testOrion(unittest.TestCase):
         self.assertFalse(self.oee.is_datetime_in_todays_shift(dt3))
 
     def test_get_todays_shift_limits(self):
-        self.oee.now = datetime(2022, 8, 23, 13, 0, 0)
+        self.oee.now = self.timezone.localize(datetime(2022, 8, 23, 13, 0, 0))
         self.oee.operatorSchedule['orion'] = copy.deepcopy(self.jsons['OperatorSchedule'])
         self.oee.get_todays_shift_limits()
         self.assertEqual(self.oee.today['OperatorWorkingScheduleStartsAt'], datetime(2022, 8, 23, 8, 0, 0))
@@ -217,8 +231,8 @@ class testOrion(unittest.TestCase):
             self.oee.get_operation()
 
     def test_get_objects_shift_limits(self):
-        self.oee.now = datetime(2022, 8, 23, 13, 0, 0)
-        self.oee.now_unix = self.oee.now.timestamp() * 1000
+        self.oee.now = self.timezone.localize(datetime(2022, 8, 23, 13, 0, 0))
+        # self.oee.now_unix = self.oee.now.timestamp() * 1000
         self.oee.get_objects_shift_limits()
         self.assertEqual(remove_orion_metadata(self.oee.ws['orion']), self.jsons['Workstation'])
         self.assertEqual(remove_orion_metadata(self.oee.operatorSchedule['orion']), self.jsons['OperatorSchedule'])
@@ -229,22 +243,22 @@ class testOrion(unittest.TestCase):
         self.assertEqual(remove_orion_metadata(self.oee.operation['orion']), self.jsons['Core001']['Operations']['value'][0])
 
     def test_download_todays_data_df(self):
-        self.oee.now = datetime(2022, 4, 5, 13, 0, 0)
-        self.oee.now_unix = self.oee.now.timestamp() * 1000
+        self.oee.now = self.timezone.localize(datetime(2022, 4, 5, 13, 0, 0))
+        # self.oee.now_unix = self.oee.now.timestamp() * 1000
         self.oee.get_objects_shift_limits()
         self.oee.ws['df'] = self.oee.download_todays_data_df(self.con, self.oee.ws['postgres_table'])
         df = self.ws_df.copy()
         df['recvtimets'] = df['recvtimets'].map(str).map(int)
         op_sch_start_unix = self.oee.datetimeToMilliseconds(self.oee.today['OperatorWorkingScheduleStartsAt'])
         self.logger.debug(f'Op. sch. starting time: {op_sch_start_unix}, {self.oee.msToDateTime(op_sch_start_unix)}')
-        self.logger.debug(f'Now: {self.oee.now_unix}, {self.oee.now}')
-        df = df[df[(op_sch_start_unix < df['recvtimets']) & (df['recvtimets'] < self.oee.now_unix)]]
+        self.logger.debug(f'Now: {self.oee.now_unix()}, {self.oee.now}')
+        df = df[df[(op_sch_start_unix < df['recvtimets']) & (df['recvtimets'] < self.oee.now_unix())]]
         df['recvtimets'] = df['recvtimets'].map(str)
         df.dropna(how='any', inplace=True)
         # df.to_csv('calculated_ws.csv')
         # df.dtypes.to_csv('calculated_ws_dtypes.csv')
-        self.oee.ws['df'].to_csv('downloaded_ws.csv')
-        self.oee.ws['df'].dtypes.to_csv('downloaded_ws.dtypes.csv')
+        # self.oee.ws['df'].to_csv('downloaded_ws.csv')
+        # self.oee.ws['df'].dtypes.to_csv('downloaded_ws.dtypes.csv')
         # self.logger.debug(f'Downloaded ws: {self.oee.ws["df"].head()}')
         # self.logger.debug(f'In-test ws: {df.head()}')
         self.assertTrue(self.oee.ws['df'].equals(df))
@@ -260,24 +274,50 @@ class testOrion(unittest.TestCase):
         #         self.oee.ws['df'] = self.oee.download_todays_data_df(self.con, self.oee.ws['postgres_table'])
 
     def test_get_current_job_start_time_today(self):
-        pass
-        # TODO test if change in job
-        # self.oee.now = datetime(2022, 4, 5, 13, 0, 0)
-        # self.oee.now_unix = self.oee.now.timestamp() * 1000
-        # self.oee.get_todays_shift_limits()
-        # self.oee.ws['df'] = copy.deepcopy(self.ws_df)
-        # self.assertEqual(self.oee.get_current_job_start_time(), self.oee.today['OperatorWorkingScheduleStartsAt'])
-        # df = self.ws['df']
-        # job_changes = df[df['attrname'] == 'RefJob']
-        #
-        # if len(job_changes) == 0:
-        #     # today's downloaded ws df does not contain a job change
-        #     return self.today['OperatorWorkingScheduleStartsAt']
-        # last_job = job_changes.iloc[-1]['attrvalue']
-        # if last_job != self.job['id']:
-        #     raise ValueError(f'The last job in the Workstation object and the Workstation\'s PostgreSQL historic logs differ.\nWorkstation:\n{self.ws}\Last job in Workstation_logs:\n{last_job}')
-        # last_job_change = job_changes.iloc[-1]['recvtimets']
-        # return self.msToDateTime(last_job_change)
+        self.oee.now = self.timezone.localize(datetime(2022, 4, 4, 13, 0, 0))
+        self.oee.get_todays_shift_limits()
+        self.oee.job['id'] = 'urn:ngsi_ld:Job:202200045'
+        ws_df = self.oee.download_todays_data_df(self.oee.ws['postgres_table'])
+        self.oee.ws['df'] = ws_df.copy()
+        self.assertEqual(self.oee.get_current_job_start_time(), datetime(2022, 4, 4, 8, 0, 0))
+
+        dt_at_9h = datetime(2022, 4, 4, 9, 0, 0)
+        ts_at_9h = dt_at_9h.timestamp() * 1000
+        ws_df.loc[len(ws_df)] = [str(ts_at_9h) + '.0',
+                self.oee.msToDateTimeString(ts_at_9h),
+                '/',
+                'urn:ngsi_ld:Workstation:1',
+                'Workstation',
+                'RefJob',
+                'urn:ngsi_ld:Job:202200045',
+                '[]']
+        ws_df['recvtimets'] = ws_df['recvtimets'].map(str).map(int)
+        ws_df.sort_values(by=['recvtimets'], inplace=True)
+
+        self.oee.ws['df'] = ws_df.copy()
+        self.assertEqual(self.oee.get_current_job_start_time(), dt_at_9h)
+
+        dt_at_10h = datetime(2022, 4, 4, 10, 0, 0)
+        ts_at_10h = dt_at_10h.timestamp() * 1000
+        ws_df.loc[len(ws_df)] = [str(ts_at_10h) + '.0',
+                self.oee.msToDateTimeString(ts_at_10h),
+                '/',
+                'urn:ngsi_ld:Workstation:1',
+                'Workstation',
+                'RefJob',
+                'urn:ngsi_ld:Job:202200046',
+                '[]']
+        self.oee.ws['df'] = ws_df.copy()
+        with self.assertRaises(ValueError):
+            self.oee.get_current_job_start_time()
+        # row_to_be_inserted = pd.DataFrame.from_dict({'recvtimets': [str(ts_at_9h) + '.0'],
+        #                                              'recvtime': [self.oee.msToDateTimeString(ts_at_9h)],
+        #                                              'fiwareservicepath': ['/'],
+        #                                              'entityid': ['urn:ngsi_ld:Workstation:1'],
+        #                                              'entitytype': ['Workstation'],
+        #                                              'attrname': ['RefJob'],
+        #                                              'attrvalue': ['urn:ngsi_ld:Job:202200045'],
+        #                                              'attrmd': ['[]']})
 
     def test_setRefStartTime(self):
         pass
@@ -309,7 +349,7 @@ class testOrion(unittest.TestCase):
     def test_prepare(self):
         pass
         # self.now = datetime.now()
-        # self.now_unix = self.now.timestamp() * 1000
+        # self.now_unix() = self.now.timestamp() * 1000
         # self.today = {'day': self.now.date(),
         #               'start': self.stringToDateTime(str(self.now.date()) + ' 00:00:00.000')}
         # try:
@@ -355,7 +395,7 @@ class testOrion(unittest.TestCase):
         # # if the Workstation is available currently, we need to add
         # # the current timestamp to the true timestamps' sum
         # if (df_av.iloc[-1]['attrvalue'] == 'true'):
-        #     total_available_time += self.now_unix
+        #     total_available_time += self.now_unix()
         # self.total_available_time = total_available_time
         # total_time_so_far_in_shift = self.datetimeToMilliseconds(self.now) - self.datetimeToMilliseconds(self.today['RefStartTime'])
         # if total_time_so_far_in_shift == 0:
