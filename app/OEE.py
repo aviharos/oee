@@ -173,7 +173,7 @@ class OEECalculator():
 
     def get_job(self):
         self.job['id'] = self.get_job_id()
-        self.job['orion'] = Orion.getObject(self.job['id'])
+        self.job['orion'] = Orion.get(self.job['id'])
         self.job['postgres_table'] = self.get_cygnus_postgres_table(self.job['orion'])
         self.logger.debug(f'Job: {self.job}')
 
@@ -181,13 +181,14 @@ class OEECalculator():
         try:
             part_id = self.job['orion']['RefPart']['value']
         except (KeyError, TypeError) as error:
-            raise RuntimeError(f'Critical: RefPart not found in the Job {self.job["id"]}.\nObject:\n{self.job["orion"]}') from error
+            raise KeyError(f'Critical: RefPart not found in the Job {self.job["id"]}.\nObject:\n{self.job["orion"]}') from error
         self.part['id'] = part_id
 
     def get_part(self):
-        self.part['id'] = self.get_part_id()
-        self.part['orion'] = Orion.getObject(self.part['id'])
-        self.logger.debug(f'Part: {self.part}')
+        self.get_part_id()
+        self.logger.debug(f'Part id: {self.part["id"]}')
+        self.part['orion'] = Orion.get(self.part['id'])
+        # self.logger.debug(f'Part: {self.part}')
 
     def get_operation(self):
         found = False
@@ -204,7 +205,7 @@ class OEECalculator():
         # self.operation['id'] = self.operation['orion']['id']
         self.logger.debug(f'Operation: {self.operation}')
 
-    def get_objects(self):
+    def get_objects_shift_limits(self):
         self.get_ws()
         self.get_operatorSchedule()
         self.get_todays_shift_limits()
@@ -215,7 +216,7 @@ class OEECalculator():
     def download_todays_data_df(self, con, table_name):
         try:
             df = pd.read_sql_query(f'''select * from {self.POSTGRES_SCHEMA}.{table_name}
-                                       where {self.datetimeToMilliseconds(self.today['RefStartTime'])} < cast (recvtimets as bigint) 
+                                       where {self.datetimeToMilliseconds(self.today['OperatorWorkingScheduleStartsAt'])} < cast (recvtimets as bigint) 
                                        and cast (recvtimets as bigint) <= {self.now_unix};''', con=con)
         except (psycopg2.errors.UndefinedTable,
                 sqlalchemy.exc.ProgrammingError) as error:
@@ -254,7 +255,7 @@ class OEECalculator():
         last_job_change = job_changes.iloc[-1]['recvtimets']
         return self.msToDateTime(last_job_change)
 
-    def setRefStartTime(self):
+    def set_RefStartTime(self):
         current_job_start_time = self.get_current_job_start_time()
         if self.is_datetime_in_todays_shift(current_job_start_time):
             # the Job started in this shift, update RefStartTime
@@ -270,7 +271,8 @@ class OEECalculator():
         self.today = {'day': self.now.date(),
                       'start': self.stringToDateTime(str(self.now.date()) + ' 00:00:00.000')}
         try:
-            self.get_objects()
+            # also includes getting the shift's limits
+            self.get_objects_shift_limits()
         except (RuntimeError, KeyError, AttributeError, TypeError) as error:
             message = f'Could not download and extract objects from Orion. Traceback:\n{error}'
             self.logger.error(message)
@@ -297,7 +299,7 @@ class OEECalculator():
         self.throughput['RefWorkstation']['value'] = self.ws['id']
         self.throughput['RefJob']['value'] = self.job['id']
 
-        self.setRefStartTime()
+        self.set_RefStartTime()
 
     def calc_availability(self):
         # Available is true and false in this periodical order, starting with true
@@ -311,7 +313,13 @@ class OEECalculator():
         # if the Workstation is available currently, we need to add
         # the current timestamp to the true timestamps' sum
         if (df_av.iloc[-1]['attrvalue'] == 'true'):
+            # the current state is Available, add current time
             total_available_time += self.now_unix
+        if (df_av.iloc[1]['attrvalue'] == 'false'):
+            # the Workstation's first entry is being turned off
+            # so it is must have been on before
+            # substract the RefStartTime
+            total_available_time -= self.today['RefStartTime']
         self.total_available_time = total_available_time
         total_time_so_far_in_shift = self.datetimeToMilliseconds(self.now) - self.datetimeToMilliseconds(self.today['RefStartTime'])
         if total_time_so_far_in_shift == 0:
