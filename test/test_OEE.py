@@ -1,6 +1,6 @@
 # Standard Library imports
 import copy
-import datetime
+from datetime import datetime
 import json
 import glob
 import os
@@ -11,8 +11,9 @@ from unittest.mock import patch
 # PyPI imports
 import pandas as pd
 import numpy as np
+import psycopg2
 import sqlalchemy
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, sql
 from sqlalchemy.types import DateTime, Float, BigInteger, Text
 
 # Custom imports
@@ -37,6 +38,7 @@ COL_DTYPES = {'recvtimets': BigInteger(),
               'job': Text()}
 
 from OEE import OEECalculator
+from Logger import getLogger
 from modules import reupload_jsons_to_Orion
 from modules.remove_orion_metadata import remove_orion_metadata
 
@@ -51,6 +53,7 @@ POSTGRES_SCHEMA = os.environ.get('POSTGRES_SCHEMA')
 class testOrion(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
+        cls.logger = getLogger(__name__)
         cls.maxDiff = None
         reupload_jsons_to_Orion.main()
         cls.engine = create_engine(f'postgresql://{POSTGRES_USER}:{POSTGRES_PASSWORD}@{POSTGRES_HOST}:{POSTGRES_PORT}')
@@ -60,14 +63,21 @@ class testOrion(unittest.TestCase):
 
         cls.oee_template = OEECalculator(WS_ID)
 
+        # def remove_trailing_dot_0(str_):
+        #     # remove trailing '.0'-s from str representation on integers
+        #     # e.g. '110.0' -> '110'
+        #     return str_.split('.')[0]
+
         # read and upload both tables to PostgreSQL
         # then download them to ensure that the data types
         # match the data types in production
         cls.ws_df = pd.read_csv(os.path.join('csv', WS_FILE))
+        cls.ws_df['recvtimets'] = cls.ws_df['recvtimets'].map(int)
         cls.ws_df.to_sql(name=WS_TABLE, con=cls.con, schema=POSTGRES_SCHEMA, index=False, dtype=Text, if_exists='replace')
         cls.ws_df = pd.read_sql_query(f'select * from {POSTGRES_SCHEMA}.{WS_TABLE}', con=cls.con)
 
         cls.job_df = pd.read_csv(os.path.join('csv', JOB_FILE))
+        cls.job_df['recvtimets'] = cls.job_df['recvtimets'].map(int)
         cls.job_df.to_sql(name=JOB_TABLE, con=cls.con, schema=POSTGRES_SCHEMA, index=False, dtype=Text, if_exists='replace')
         cls.job_df = pd.read_sql_query(f'select * from {POSTGRES_SCHEMA}.{JOB_TABLE}', con=cls.con)
 
@@ -96,17 +106,17 @@ class testOrion(unittest.TestCase):
         self.assertEqual(self.oee.msToDateTimeString(1649159200000), '2022-04-05 13:46:40.000')
 
     def test_msToDateTime(self):
-        self.assertEqual(self.oee.msToDateTime(1649159200000), datetime.datetime(2022, 4, 5, 13, 46, 40))
+        self.assertEqual(self.oee.msToDateTime(1649159200000), datetime(2022, 4, 5, 13, 46, 40))
 
     def test_stringToDateTime(self):
-        self.assertEqual(self.oee.stringToDateTime('2022-04-05 13:46:40.000'), datetime.datetime(2022, 4, 5, 13, 46, 40))
+        self.assertEqual(self.oee.stringToDateTime('2022-04-05 13:46:40.000'), datetime(2022, 4, 5, 13, 46, 40))
     
     def test_timeToDatetime(self):
-        self.oee.now = datetime.datetime(2022, 4, 5, 15, 26, 0)
-        self.assertEqual(self.oee.timeToDatetime('13:46:40'), datetime.datetime(2022, 4, 5, 13, 46, 40))
+        self.oee.now = datetime(2022, 4, 5, 15, 26, 0)
+        self.assertEqual(self.oee.timeToDatetime('13:46:40'), datetime(2022, 4, 5, 13, 46, 40))
 
     def test_datetimeToMilliseconds(self):
-        self.assertEqual(self.oee.datetimeToMilliseconds(datetime.datetime(2022, 4, 5, 13, 46, 40)), 1649159200000)
+        self.assertEqual(self.oee.datetimeToMilliseconds(datetime(2022, 4, 5, 13, 46, 40)), 1649159200000)
 
     def test_convertRecvtimetsToInt(self):
         self.oee.ws['df'] = self.ws_df.copy()
@@ -115,8 +125,6 @@ class testOrion(unittest.TestCase):
 
     def test_get_ws(self):
         self.oee.get_ws()
-        print(f'In JSONs: {self.jsons["Workstation"]}')
-        print(f'In oee: {remove_orion_metadata(self.oee.ws["orion"])}')
         self.assertEqual(remove_orion_metadata(self.oee.ws['orion']), self.jsons['Workstation'])
         self.assertEqual(self.oee.ws['postgres_table'], 'urn_ngsi_ld_workstation_1_workstation')
 
@@ -130,21 +138,21 @@ class testOrion(unittest.TestCase):
             self.oee.get_operatorSchedule()
 
     def test_is_datetime_in_todays_shift(self):
-        self.oee.today['OperatorWorkingScheduleStartsAt'] = datetime.datetime(2022, 4, 4, 8, 0, 0)
-        self.oee.today['OperatorWorkingScheduleStopsAt'] = datetime.datetime(2022, 4, 4, 16, 0, 0)
-        dt1 = datetime.datetime(2022, 4, 4, 9, 0, 0)
+        self.oee.today['OperatorWorkingScheduleStartsAt'] = datetime(2022, 4, 4, 8, 0, 0)
+        self.oee.today['OperatorWorkingScheduleStopsAt'] = datetime(2022, 4, 4, 16, 0, 0)
+        dt1 = datetime(2022, 4, 4, 9, 0, 0)
         self.assertTrue(self.oee.is_datetime_in_todays_shift(dt1))
-        dt2 = datetime.datetime(2022, 4, 4, 7, 50, 0)
+        dt2 = datetime(2022, 4, 4, 7, 50, 0)
         self.assertFalse(self.oee.is_datetime_in_todays_shift(dt2))
-        dt3 = datetime.datetime(2022, 4, 4, 16, 10, 0)
+        dt3 = datetime(2022, 4, 4, 16, 10, 0)
         self.assertFalse(self.oee.is_datetime_in_todays_shift(dt3))
 
     def test_get_todays_shift_limits(self):
-        self.oee.now = datetime.datetime(2022, 8, 23, 13, 0, 0)
+        self.oee.now = datetime(2022, 8, 23, 13, 0, 0)
         self.oee.operatorSchedule['orion'] = copy.deepcopy(self.jsons['OperatorSchedule'])
         self.oee.get_todays_shift_limits()
-        self.assertEqual(self.oee.today['OperatorWorkingScheduleStartsAt'], datetime.datetime(2022, 8, 23, 8, 0, 0))
-        self.assertEqual(self.oee.today['OperatorWorkingScheduleStopsAt'], datetime.datetime(2022, 8, 23, 16, 0, 0))
+        self.assertEqual(self.oee.today['OperatorWorkingScheduleStartsAt'], datetime(2022, 8, 23, 8, 0, 0))
+        self.assertEqual(self.oee.today['OperatorWorkingScheduleStopsAt'], datetime(2022, 8, 23, 16, 0, 0))
 
     def test_get_job_id(self):
         self.oee.ws['orion'] = copy.deepcopy(self.jsons['Workstation'])
@@ -154,25 +162,26 @@ class testOrion(unittest.TestCase):
             self.oee.get_job_id()
 
     def test_get_job(self):
-        pass
-        # self.job['id'] = self.get_job_id()
-        # self.job['orion'] = Orion.getObject(self.job['id'])
-        # self.job['postgres_table'] = self.get_cygnus_postgres_table(self.job['orion'])
-        # self.logger.debug(f'Job: {self.job}')
+        self.oee.ws['orion'] = copy.deepcopy(self.jsons['Workstation'])
+        # self.oee.job['id'] = 'urn:ngsi_ld:Job:202200045'
+        self.oee.get_job()
+        self.assertEqual(remove_orion_metadata(self.oee.job['orion']), self.jsons['Job202200045'])
+        self.assertEqual(self.oee.job['postgres_table'], 'urn_ngsi_ld_job_202200045_job')
 
     def test_get_part_id(self):
-        pass
-        # try:
-        #     part_id = self.job['orion']['RefPart']['value']
-        # except (KeyError, TypeError) as error:
-        #     raise RuntimeError(f'Critical: RefPart not found in the Job {self.job["id"]}.\nObject:\n{self.job["orion"]}') from error
-        # self.part['id'] = part_id
+        self.oee.job['orion'] = copy.deepcopy(self.jsons['Job202200045'])
+        self.oee.get_part_id()
+        self.assertEqual(self.oee.part['id'], 'urn:ngsi_ld:Part:Core001')
+        self.oee.job['orion']['RefPart'] = 'invalid'
+        with self.assertRaises(KeyError):
+            self.oee.get_part_id()
 
     def test_get_part(self):
-        pass
-        # self.part['id'] = self.get_part_id()
-        # self.part['orion'] = Orion.getObject(self.part['id'])
-        # self.logger.debug(f'Part: {self.part}')
+        self.oee.job['orion'] = copy.deepcopy(self.jsons['Job202200045'])
+        self.logger.debug(f'oee.job["orion"]: {self.oee.job["orion"]}')
+        # print(f'oee.job["orion"]: {self.oee.job["orion"]}')
+        self.oee.get_part()
+        self.assertEqual(remove_orion_metadata(self.oee.part['orion']), self.jsons['Core001'])
 
     def test_get_operation(self):
         part = {
@@ -207,49 +216,57 @@ class testOrion(unittest.TestCase):
         with self.assertRaises(KeyError):
             self.oee.get_operation()
 
-    def test_get_objects(self):
-        pass
-        # self.get_ws()
-        # self.get_operatorSchedule()
-        # self.get_todays_shift_limits()
-        # self.get_job()
-        # self.get_part()
-        # self.get_operation()
+    def test_get_objects_shift_limits(self):
+        self.oee.now = datetime(2022, 8, 23, 13, 0, 0)
+        self.oee.now_unix = self.oee.now.timestamp() * 1000
+        self.oee.get_objects_shift_limits()
+        self.assertEqual(remove_orion_metadata(self.oee.ws['orion']), self.jsons['Workstation'])
+        self.assertEqual(remove_orion_metadata(self.oee.operatorSchedule['orion']), self.jsons['OperatorSchedule'])
+        self.assertEqual(self.oee.today['OperatorWorkingScheduleStartsAt'], datetime(2022, 8, 23, 8, 0, 0))
+        self.assertEqual(self.oee.today['OperatorWorkingScheduleStopsAt'], datetime(2022, 8, 23, 16, 0, 0))
+        self.assertEqual(remove_orion_metadata(self.oee.job['orion']), self.jsons['Job202200045'])
+        self.assertEqual(remove_orion_metadata(self.oee.part['orion']), self.jsons['Core001'])
+        self.assertEqual(remove_orion_metadata(self.oee.operation['orion']), self.jsons['Core001']['Operations']['value'][0])
 
     def test_download_todays_data_df(self):
-        pass
-        # try:
-        #     df = pd.read_sql_query(f'''select * from {self.POSTGRES_SCHEMA}.{table_name}
-        #                                where {self.datetimeToMilliseconds(self.today['RefStartTime'])} < cast (recvtimets as bigint) 
-        #                                and cast (recvtimets as bigint) <= {self.now_unix};''', con=con)
-        # except (psycopg2.errors.UndefinedTable,
-        #         sqlalchemy.exc.ProgrammingError) as error:
-        #     raise RuntimeError(f'The SQL table: {table_name} cannot be downloaded from the table_schema: {self.POSTGRES_SCHEMA}.') from error
-        # return df
+        self.oee.now = datetime(2022, 4, 5, 13, 0, 0)
+        self.oee.now_unix = self.oee.now.timestamp() * 1000
+        self.oee.get_objects_shift_limits()
+        self.oee.ws['df'] = self.oee.download_todays_data_df(self.con, self.oee.ws['postgres_table'])
+        df = self.ws_df.copy()
+        df['recvtimets'] = df['recvtimets'].map(str).map(int)
+        op_sch_start_unix = self.oee.datetimeToMilliseconds(self.oee.today['OperatorWorkingScheduleStartsAt'])
+        self.logger.debug(f'Op. sch. starting time: {op_sch_start_unix}, {self.oee.msToDateTime(op_sch_start_unix)}')
+        self.logger.debug(f'Now: {self.oee.now_unix}, {self.oee.now}')
+        df = df[df[(op_sch_start_unix < df['recvtimets']) & (df['recvtimets'] < self.oee.now_unix)]]
+        df['recvtimets'] = df['recvtimets'].map(str)
+        df.dropna(how='any', inplace=True)
+        # df.to_csv('calculated_ws.csv')
+        # df.dtypes.to_csv('calculated_ws_dtypes.csv')
+        self.oee.ws['df'].to_csv('downloaded_ws.csv')
+        self.oee.ws['df'].dtypes.to_csv('downloaded_ws.dtypes.csv')
+        # self.logger.debug(f'Downloaded ws: {self.oee.ws["df"].head()}')
+        # self.logger.debug(f'In-test ws: {df.head()}')
+        self.assertTrue(self.oee.ws['df'].equals(df))
 
-    def test_convert_dataframe_to_str(self):
-        '''
-        Cygnus 2.16.0 uploads all data as Text to Postgres
-        So with this version of Cygnus, this function is useless
-        We do this to ensure that we can always work with strings to increase stability
-        '''
-        pass
-        # return df.applymap(str)
+        with patch('pandas.read_sql_query') as mocked_read_sql_query:
+            mocked_read_sql_query.side_effect = psycopg2.errors.UndefinedTable
+            with self.assertRaises(RuntimeError):
+                self.oee.ws['df'] = self.oee.download_todays_data_df(self.con, self.oee.ws['postgres_table'])
 
-    def test_sort_df_by_time(self):
-        pass
-        # default: ascending order
-        # if df_['recvtimets'].dtype != np.int64:
-        #     raise ValueError(f'The recvtimets column should contain np.int64 dtype values, current dtype: {df_["recvtimets"]}')
-        # return df_.sort_values(by=['recvtimets'])
+        # with patch('pandas.read_sql_query') as mocked_read_sql_query:
+        #     mocked_read_sql_query.side_effect = sqlalchemy.exc.ProgrammingError
+        #     with self.assertRaises(RuntimeError):
+        #         self.oee.ws['df'] = self.oee.download_todays_data_df(self.con, self.oee.ws['postgres_table'])
 
     def test_get_current_job_start_time_today(self):
-        '''
-        If the the current job started in today's shift,
-        return its start time,
-        else return the shift's start time
-        '''
         pass
+        # TODO test if change in job
+        # self.oee.now = datetime(2022, 4, 5, 13, 0, 0)
+        # self.oee.now_unix = self.oee.now.timestamp() * 1000
+        # self.oee.get_todays_shift_limits()
+        # self.oee.ws['df'] = copy.deepcopy(self.ws_df)
+        # self.assertEqual(self.oee.get_current_job_start_time(), self.oee.today['OperatorWorkingScheduleStartsAt'])
         # df = self.ws['df']
         # job_changes = df[df['attrname'] == 'RefJob']
         #
@@ -273,6 +290,22 @@ class testOrion(unittest.TestCase):
         #     self.today['RefStartTime'] = self.today['OperatorWorkingScheduleStartsAt']
         #     self.logger.info(f'The current job started before this shift, RefStartTime: {self.today["RefStartTime"]}')
 
+    def test_convert_dataframe_to_str(self):
+        '''
+        Cygnus 2.16.0 uploads all data as Text to Postgres
+        So with this version of Cygnus, this function is useless
+        We do this to ensure that we can always work with strings to increase stability
+        '''
+        pass
+        # return df.applymap(str)
+
+    def test_sort_df_by_time(self):
+        pass
+        # default: ascending order
+        # if df_['recvtimets'].dtype != np.int64:
+        #     raise ValueError(f'The recvtimets column should contain np.int64 dtype values, current dtype: {df_["recvtimets"]}')
+        # return df_.sort_values(by=['recvtimets'])
+
     def test_prepare(self):
         pass
         # self.now = datetime.now()
@@ -280,7 +313,7 @@ class testOrion(unittest.TestCase):
         # self.today = {'day': self.now.date(),
         #               'start': self.stringToDateTime(str(self.now.date()) + ' 00:00:00.000')}
         # try:
-        #     self.get_objects()
+        #     self.get_objects_shift_limits()
         # except (RuntimeError, KeyError, AttributeError) as error:
         #     message = f'Could not download and extract objects from Orion. Traceback:\n{error}'
         #     self.logger.error(message)

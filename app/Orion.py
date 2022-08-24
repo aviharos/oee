@@ -4,6 +4,7 @@
 import os
 import requests
 
+from modules.log_it import log_it
 from Logger import getLogger
 
 logger_Orion = getLogger(__name__)
@@ -33,11 +34,13 @@ def getRequest(url):
             raise ValueError(f'The JSON could not be decoded after GET request to {url}. Response:\n{response}') from error
         return response.status_code, response.json()
 
+
 def get(object_id, host=ORION_HOST, port=ORION_PORT):
     '''
     Returns the object in JSON format idenfitied by object_id and the status code of the request
     '''
     url = f'http://{host}:{port}/v2/entities/{object_id}'
+    logger_Orion.debug(url)
     status_code, json_ = getRequest(url)
     if status_code != 200:
         raise RuntimeError(f'Failed to get object from Orion broker:{object_id}, status_code:{status_code}; no OEE data')

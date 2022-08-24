@@ -1,4 +1,3 @@
-#!/bin/bash
 echo "Testing can only be performed on GNU/Linux machines.
 The testing process needs MOMAMS up and running on localhost. Please start it if you have not already.
 Also, the tests delete and create objects in the Orion broker.
@@ -10,6 +9,7 @@ Do you still want to proceed? [yN]"
 read ans
 if [ $ans = 'y' ]; then
     source env
+    python modules/reupload_jsons_to_Orion.py
     python test_object_to_template.py
     python test_Orion.py
     python test_OEE.py
