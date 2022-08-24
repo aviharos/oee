@@ -116,6 +116,9 @@ class OEECalculator():
     def __str__(self):
         return f'OEECalculator object for workstation: {self.ws["id"]}'
 
+    def now_unix(self):
+        return self.now.timestamp() * 1000
+
     def get_cygnus_postgres_table(self, orion_obj):
         return orion_obj['id'].replace(':', '_').lower() + '_' + orion_obj['type'].lower()
 
@@ -217,7 +220,7 @@ class OEECalculator():
         try:
             df = pd.read_sql_query(f'''select * from {self.POSTGRES_SCHEMA}.{table_name}
                                        where {self.datetimeToMilliseconds(self.today['OperatorWorkingScheduleStartsAt'])} < cast (recvtimets as bigint) 
-                                       and cast (recvtimets as bigint) <= {self.now_unix};''', con=con)
+                                       and cast (recvtimets as bigint) <= {self.now_unix()};''', con=con)
         except (psycopg2.errors.UndefinedTable,
                 sqlalchemy.exc.ProgrammingError) as error:
             raise RuntimeError(f'The SQL table: {table_name} cannot be downloaded from the table_schema: {self.POSTGRES_SCHEMA}.') from error
@@ -267,7 +270,6 @@ class OEECalculator():
 
     def prepare(self, con):
         self.now = datetime.now()
-        self.now_unix = self.now.timestamp() * 1000
         self.today = {'day': self.now.date(),
                       'start': self.stringToDateTime(str(self.now.date()) + ' 00:00:00.000')}
         try:
@@ -314,7 +316,7 @@ class OEECalculator():
         # the current timestamp to the true timestamps' sum
         if (df_av.iloc[-1]['attrvalue'] == 'true'):
             # the current state is Available, add current time
-            total_available_time += self.now_unix
+            total_available_time += self.now_unix()
         if (df_av.iloc[1]['attrvalue'] == 'false'):
             # the Workstation's first entry is being turned off
             # so it is must have been on before
