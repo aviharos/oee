@@ -1,10 +1,9 @@
 # Standard Library imports
 import copy
-from datetime import datetime
+from datetime import datetime, time, timezone
 import json
 import glob
 import os
-import pytz
 import sys
 import unittest
 from unittest.mock import patch
@@ -52,8 +51,6 @@ POSTGRES_SCHEMA = os.environ.get('POSTGRES_SCHEMA')
 
 
 class testOrion(unittest.TestCase):
-    timezone = pytz.timezone('GMT')
-
     @classmethod
     def setUpClass(cls):
         cls.logger = getLogger(__name__)
@@ -102,13 +99,12 @@ class testOrion(unittest.TestCase):
         pass
 
     def test_set_now_with_timezone(self):
-        now = self.timezone.localize(datetime.now())
+        now = datetime.now(timezone.utc)
         self.oee.set_now_with_timezone()
         self.assertAlmostEqual(now.timestamp(), self.oee.now.timestamp(), places=PLACES)
 
-
     def test_now_unix(self):
-        self.oee.now = self.timezone.localize(datetime(2022, 4, 5, 13, 46, 40))
+        self.oee.now = datetime(2022, 4, 5, 13, 46, 40, tzinfo=timezone.utc)
         # using GMT+2 time zone
         self.assertEqual(self.oee.now_unix(), 1649159200000)
 
@@ -126,7 +122,7 @@ class testOrion(unittest.TestCase):
         self.assertEqual(self.oee.stringToDateTime('2022-04-05 13:46:40.000'), datetime(2022, 4, 5, 13, 46, 40))
     
     def test_timeToDatetime(self):
-        self.oee.now = self.timezone.localize(datetime(2022, 4, 5, 15, 26, 0))
+        self.oee.now = datetime(2022, 4, 5, 15, 26, 0, tzinfo=timezone.utc)
         self.assertEqual(self.oee.timeToDatetime('13:46:40'), datetime(2022, 4, 5, 13, 46, 40))
 
     def test_datetimeToMilliseconds(self):
@@ -162,7 +158,7 @@ class testOrion(unittest.TestCase):
         self.assertFalse(self.oee.is_datetime_in_todays_shift(dt3))
 
     def test_get_todays_shift_limits(self):
-        self.oee.now = self.timezone.localize(datetime(2022, 8, 23, 13, 0, 0))
+        self.oee.now = datetime(2022, 8, 23, 13, 0, 0, tzinfo=timezone.utc)
         self.oee.operatorSchedule['orion'] = copy.deepcopy(self.jsons['OperatorSchedule'])
         self.oee.get_todays_shift_limits()
         self.assertEqual(self.oee.today['OperatorWorkingScheduleStartsAt'], datetime(2022, 8, 23, 8, 0, 0))
@@ -231,7 +227,7 @@ class testOrion(unittest.TestCase):
             self.oee.get_operation()
 
     def test_get_objects_shift_limits(self):
-        self.oee.now = self.timezone.localize(datetime(2022, 8, 23, 13, 0, 0))
+        self.oee.now = datetime(2022, 8, 23, 13, 0, 0, tzinfo=timezone.utc)
         # self.oee.now_unix = self.oee.now.timestamp() * 1000
         self.oee.get_objects_shift_limits()
         self.assertEqual(remove_orion_metadata(self.oee.ws['orion']), self.jsons['Workstation'])
@@ -243,7 +239,7 @@ class testOrion(unittest.TestCase):
         self.assertEqual(remove_orion_metadata(self.oee.operation['orion']), self.jsons['Core001']['Operations']['value'][0])
 
     def test_download_todays_data_df(self):
-        self.oee.now = self.timezone.localize(datetime(2022, 4, 5, 13, 0, 0))
+        self.oee.now = datetime(2022, 4, 5, 13, 0, 0, tzinfo=timezone.utc)
         # self.oee.now_unix = self.oee.now.timestamp() * 1000
         self.oee.get_objects_shift_limits()
         self.oee.ws['df'] = self.oee.download_todays_data_df(self.con, self.oee.ws['postgres_table'])
@@ -274,7 +270,7 @@ class testOrion(unittest.TestCase):
         #         self.oee.ws['df'] = self.oee.download_todays_data_df(self.con, self.oee.ws['postgres_table'])
 
     def test_get_current_job_start_time_today(self):
-        self.oee.now = self.timezone.localize(datetime(2022, 4, 4, 13, 0, 0))
+        self.oee.now = datetime(2022, 4, 4, 13, 0, 0, tzinfo=timezone.utc)
         self.oee.get_todays_shift_limits()
         self.oee.job['id'] = 'urn:ngsi_ld:Job:202200045'
         ws_df = self.oee.download_todays_data_df(self.oee.ws['postgres_table'])
