@@ -6,7 +6,7 @@ import glob
 import os
 import sys
 import unittest
-from unittest.mock import patch
+from unittest.mock import mock_open, patch
 
 # PyPI imports
 import pandas as pd
@@ -364,10 +364,10 @@ class test_OEECalculator(unittest.TestCase):
         df.reset_index(inplace=True, drop=True)
         # self.oee.ws["df"].dropna(how="any", inplace=True)
         # df.dropna(how="any", inplace=True)
-        self.oee.ws["df"].dtypes.to_csv("oee_ws_df_dtype.csv")
-        df.dtypes.to_csv("calculated_df_dtype.csv")
-        self.oee.ws["df"].to_csv("oee_ws_df.csv")
-        df.to_csv("calculated_df.csv")
+        # self.oee.ws["df"].dtypes.to_csv("oee_ws_df_dtype.csv")
+        # df.dtypes.to_csv("calculated_df_dtype.csv")
+        # self.oee.ws["df"].to_csv("oee_ws_df.csv")
+        # df.to_csv("calculated_df.csv")
         self.assertTrue(self.oee.ws["df"].equals(df))
 
         with patch("pandas.read_sql_query") as mocked_read_sql_query:
@@ -389,9 +389,12 @@ class test_OEECalculator(unittest.TestCase):
         self.oee.ws["df"] = ws_df.copy()
         # self.oee.convertRecvtimetsToInt(self.oee.ws["df"])
         self.assertEqual(
+            # the Job was not started today, return shift start time
             self.oee.get_current_job_start_time_today(), datetime(2022, 4, 4, 8, 0, 0)
         )
 
+        # the current Job start time should be 9h if we insert
+        # the following
         dt_at_9h = datetime(2022, 4, 4, 9, 0, 0)
         ts_at_9h = dt_at_9h.timestamp() * 1000
         ws_df.loc[len(ws_df)] = [
@@ -410,6 +413,8 @@ class test_OEECalculator(unittest.TestCase):
         self.oee.ws["df"] = ws_df.copy()
         self.assertEqual(self.oee.get_current_job_start_time_today(), dt_at_9h)
 
+        # the following should cause
+        # an error because of a Job id mismatch
         dt_at_10h = datetime(2022, 4, 4, 10, 0, 0)
         ts_at_10h = dt_at_10h.timestamp() * 1000
         ws_df.loc[len(ws_df)] = [
@@ -426,77 +431,106 @@ class test_OEECalculator(unittest.TestCase):
         self.oee.ws["df"] = ws_df.copy()
         with self.assertRaises(ValueError):
             self.oee.get_current_job_start_time_today()
-        # row_to_be_inserted = pd.DataFrame.from_dict({'recvtimets': [str(ts_at_9h) + '.0'],
-        #                                              'recvtime': [self.oee.msToDateTimeString(ts_at_9h)],
-        #                                              'fiwareservicepath': ['/'],
-        #                                              'entityid': ['urn:ngsi_ld:Workstation:1'],
-        #                                              'entitytype': ['Workstation'],
-        #                                              'attrname': ['RefJob'],
-        #                                              'attrvalue': ['urn:ngsi_ld:Job:202200045'],
-        #                                              'attrmd': ['[]']})
 
-    def test_setRefStartTime(self):
-        pass
-        # current_job_start_time = self.get_current_job_start_time_today()
-        # if self.is_datetime_in_todays_shift(current_job_start_time):
-        #     # the Job started in this shift, update RefStartTime
-        #     self.today['RefStartTime'] = current_job_start_time
-        #     self.logger.info(f'The current job started in this shift, updated RefStartTime: {self.today["RefStartTime"]}')
-        # else:
-        #     self.today['RefStartTime'] = self.today['OperatorWorkingScheduleStartsAt']
-        #     self.logger.info(f'The current job started before this shift, RefStartTime: {self.today["RefStartTime"]}')
+    def test_set_RefStartTime(self):
+        self.oee.now = datetime(2022, 4, 5, 13, 46, 40)
+        self.oee.operatorSchedule["orion"] = copy.deepcopy(self.jsons["OperatorSchedule"])
+        self.oee.get_todays_shift_limits()
+
+        with patch("OEE.OEECalculator.get_current_job_start_time_today") as mocked_get_start_time:
+            dt_9_40 = datetime(2022, 4, 5, 9, 40, 0)
+            mocked_get_start_time.return_value = dt_9_40
+            self.oee.set_RefStartTime()
+            self.assertEqual(self.oee.today["RefStartTime"], dt_9_40)
+
+            dt_7_40 = datetime(2022, 4, 5, 7, 40, 0)
+            mocked_get_start_time.return_value = dt_7_40
+            self.oee.set_RefStartTime()
+            self.assertEqual(self.oee.today["RefStartTime"], self.oee.today["OperatorWorkingScheduleStartsAt"])
 
     def test_convert_dataframe_to_str(self):
-        """
-        Cygnus 2.16.0 uploads all data as Text to Postgres
-        So with this version of Cygnus, this function is useless
-        We do this to ensure that we can always work with strings to increase stability
-        """
-        pass
-        # return df.applymap(str)
+        ws_df = self.ws_df.copy()
+        ws_df["recvtimets"] = ws_df["recvtimets"].map(str)
+        str_ws_df = ws_df.copy()
+        ws_df["recvtimets"] = ws_df["recvtimets"].map(float).map(int)
+        self.assertTrue(self.oee.convert_dataframe_to_str(ws_df).equals(str_ws_df))
 
     def test_sort_df_by_time(self):
-        pass
-        # default: ascending order
-        # if df_['recvtimets'].dtype != np.int64:
-        #     raise ValueError(f'The recvtimets column should contain np.int64 dtype values, current dtype: {df_["recvtimets"]}')
-        # return df_.sort_values(by=['recvtimets'])
+        ws_df = self.ws_df.copy()
+        ws_df["recvtimets"] = ws_df["recvtimets"].map(str).map(float).map(int)
+        dt_at_9h = datetime(2022, 4, 4, 9, 0, 0)
+        ts_at_9h = dt_at_9h.timestamp() * 1000
+        # append an entry, thus intentionally spoiling the timewise order
+        ws_df.loc[len(ws_df)] = [
+            int(ts_at_9h),
+            self.oee.msToDateTimeString(ts_at_9h),
+            "/",
+            "urn:ngsi_ld:Workstation:1",
+            "Workstation",
+            "RefJob",
+            "Text",
+            "urn:ngsi_ld:Job:202200045",
+            "[]"
+        ]
+        self.oee.ws["df"] = ws_df.copy()
+        ws_df.sort_values(by=["recvtimets"], inplace=True)
+        self.oee.ws["df"] = self.oee.sort_df_by_time(self.oee.ws["df"])
+        self.assertTrue(self.oee.ws["df"].equals(ws_df))
+        self.oee.ws["df"]["recvtimets"] = self.oee.ws["df"]["recvtimets"].map(str)
+        with self.assertRaises(ValueError):
+            self.oee.sort_df_by_time(self.oee.ws["df"])
 
     def test_prepare(self):
+        now = datetime(2022, 4, 5, 9, 40, 0)
+        with patch('OEE.OEECalculator.set_now') as mocked_set_now:
+            mocked_set_now.return_value = 
+        self.oee.prepare()
+        self.assertAlmostEqual(self.oee.now_unix(), now.timestamp() * 1000, places=PLACES)
+        
         pass
-        # self.now = datetime.now()
-        # self.now_unix() = self.now.timestamp() * 1000
-        # self.today = {'day': self.now.date(),
-        #               'start': self.stringToDateTime(str(self.now.date()) + ' 00:00:00.000')}
+        # self.set_now()
+        # self.today = {
+        #     "day": self.now.date(),
+        #     "start": self.stringToDateTime(str(self.now.date()) + " 00:00:00.000"),
+        # }
         # try:
+        #     # also includes getting the shift's limits
         #     self.get_objects_shift_limits()
-        # except (RuntimeError, KeyError, AttributeError) as error:
-        #     message = f'Could not download and extract objects from Orion. Traceback:\n{error}'
+        # except (RuntimeError, KeyError, AttributeError, TypeError) as error:
+        #     message = (
+        #         f"Could not get and extract objects from Orion. Traceback:\n{error}"
+        #     )
         #     self.logger.error(message)
         #     raise RuntimeError(message) from error
         #
         # if not self.is_datetime_in_todays_shift(self.now):
-        #     raise ValueError(f'The current time: {self.now} is outside today\'s shift, no OEE data')
+        #     raise ValueError(
+        #         f"The current time: {self.now} is outside today's shift, no OEE data"
+        #     )
         #
-        # self.ws['df'] = self.download_todays_data_df(con, self.ws['postgres_table'])
-        # self.ws['df'] = self.convert_dataframe_to_str(self.ws['df'])
-        # self.convertRecvtimetsToInt(self.ws['df'])
-        # self.ws['df'] = self.sort_df_by_time(self.ws['df'])
+        # self.ws["df"] = self.query_todays_data(
+        #     con=con, table_name=self.ws["postgres_table"], how="from_midnight"
+        # )
+        # self.ws["df"] = self.convert_dataframe_to_str(self.ws["df"])
+        # self.convertRecvtimetsToInt(self.ws["df"])
+        # self.ws["df"] = self.sort_df_by_time(self.ws["df"])
         #
-        # self.job['df'] = self.download_todays_data_df(con, self.job['postgres_table'])
-        # self.job['df'] = self.convert_dataframe_to_str(self.job['df'])
-        # self.convertRecvtimetsToInt(self.job['df'])
-        # self.job['df'] = self.sort_df_by_time(self.job['df'])
+        # self.job["df"] = self.query_todays_data(
+        #     con=con, table_name=self.job["postgres_table"], how="from_schedule_start"
+        # )
+        # self.job["df"] = self.convert_dataframe_to_str(self.job["df"])
+        # self.convertRecvtimetsToInt(self.job["df"])
+        # self.job["df"] = self.sort_df_by_time(self.job["df"])
         #
-        # self.oee['id'] = self.ws['orion']['RefOEE']['value']
-        # self.oee['RefWorkstation']['value'] = self.ws['id']
-        # self.oee['RefJob']['value'] = self.job['id']
+        # self.oee["id"] = self.ws["orion"]["RefOEE"]["value"]
+        # self.oee["RefWorkstation"]["value"] = self.ws["id"]
+        # self.oee["RefJob"]["value"] = self.job["id"]
         #
-        # self.throughput['id'] = self.ws['orion']['RefThroughput']['value']
-        # self.throughput['RefWorkstation']['value'] = self.ws['id']
-        # self.throughput['RefJob']['value'] = self.job['id']
+        # self.throughput["id"] = self.ws["orion"]["RefThroughput"]["value"]
+        # self.throughput["RefWorkstation"]["value"] = self.ws["id"]
+        # self.throughput["RefJob"]["value"] = self.job["id"]
         #
-        # self.setRefStartTime()
+        # self.set_RefStartTime()
 
     def test_calc_availability(self):
         pass

@@ -229,8 +229,7 @@ class OEECalculator:
     def get_operation(self):
         found = False
         try:
-            for operation in self.part["orion"]["Operations"]["value"]:
-                if (
+            for operation in self.part["orion"]["Operations"]["value"]: if (
                     operation["OperationType"]["value"]
                     == self.job["orion"]["CurrentOperationType"]["value"]
                 ):
@@ -259,10 +258,7 @@ class OEECalculator:
     def get_query_start_timestamp(self, how):
 
         if how == "from_midnight":
-            return self.datetimeToMilliseconds(
-                # midnight as datetime combined from date and 0:00:00
-                datetime.combine(self.today["OperatorWorkingScheduleStartsAt"].date(), datetime.min.time())
-            )
+            return self.today["start"]
         elif how == "from_schedule_start":
             return self.datetimeToMilliseconds(
                 self.today["OperatorWorkingScheduleStartsAt"]
@@ -327,7 +323,7 @@ class OEECalculator:
         return self.msToDateTime(last_job_change)
 
     def set_RefStartTime(self):
-        current_job_start_time = self.get_current_job_start_time()
+        current_job_start_time = self.get_current_job_start_time_today()
         if self.is_datetime_in_todays_shift(current_job_start_time):
             # the Job started in this shift, update RefStartTime
             self.today["RefStartTime"] = current_job_start_time
@@ -341,7 +337,7 @@ class OEECalculator:
             )
 
     def prepare(self, con):
-        self.set_now_utc()
+        self.set_now()
         self.today = {
             "day": self.now.date(),
             "start": self.stringToDateTime(str(self.now.date()) + " 00:00:00.000"),
