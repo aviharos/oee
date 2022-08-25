@@ -1,15 +1,13 @@
 ﻿# -*- coding: utf-8 -*-
 # Standard Library imports
-from datetime import datetime, timezone
+from datetime import datetime
 import os
 
 # PyPI packages
 import numpy as np
 import pandas as pd
 import psycopg2
-import pytz
 import sqlalchemy
-from sqlalchemy import create_engine, table
 from sqlalchemy.types import DateTime, Float, BigInteger, Text
 
 # custom imports
@@ -86,7 +84,6 @@ class OEECalculator:
     }
     object_ = {"id": None, "orion": None, "postgres_table": None, "df": None}
     logger = getLogger(__name__)
-    timezone = timezone.utc
     OEE_template = object_to_template(os.path.join("..", "json", "OEE.json"))
     Throughput_template = object_to_template(
         os.path.join("..", "json", "Throughput.json")
@@ -121,33 +118,33 @@ class OEECalculator:
     def __str__(self):
         return f'OEECalculator object for workstation: {self.ws["id"]}'
 
-    def set_now_with_timezone(self):
-        # since Cygnus uses UTC regardless of timezone by default
-        # the OEE Calculator also does the same to minimize
-        # the chance of a conversion error
-        # fix time so that the time passing by during calculations
-        # does not affect the results
-        self.now = datetime.now(self.timezone)
+    def set_now(self):
+        """ "
+        Cygnus uses UTC regardless of timezone by default
+        the OEE Calculator uses local timezone
+        but since the timestamps are not affected,
+        and the OEECalculator uses only the timestamps for
+        calculations, there is no need to use timezone information
+        """
+        self.now = datetime.now()
 
     def now_unix(self):
         return self.now.timestamp() * 1000
 
     def msToDateTimeString(self, ms):
-        return str(
-            pytz.utc.localize(datetime.fromtimestamp(ms / 1000.0)).strftime(
-                self.DATETIME_FORMAT
-            )
-        )[:-3]
+        return str(datetime.fromtimestamp(ms / 1000.0).strftime(self.DATETIME_FORMAT))[
+            :-3
+        ]
 
     def msToDateTime(self, ms):
         return self.stringToDateTime(self.msToDateTimeString(ms))
 
     def stringToDateTime(self, string):
-        return pytz.utc.localize(datetime.strptime(string, self.DATETIME_FORMAT))
+        return datetime.strptime(string, self.DATETIME_FORMAT)
 
     def timeToDatetime(self, string):
-        return pytz.utc.localize(
-            datetime.strptime(str(self.now.date()) + " " + string, "%Y-%m-%d %H:%M:%S")
+        return datetime.strptime(
+            str(self.now.date()) + " " + string, "%Y-%m-%d %H:%M:%S"
         )
 
     def datetimeToMilliseconds(self, datetime_):
@@ -263,7 +260,8 @@ class OEECalculator:
 
         if how == "from_midnight":
             return self.datetimeToMilliseconds(
-                self.today["OperatorWorkingScheduleStartsAt"].date()
+                # midnight as datetime combined from date and 0:00:00
+                datetime.combine(self.today["OperatorWorkingScheduleStartsAt"].date(), datetime.min.time())
             )
         elif how == "from_schedule_start":
             return self.datetimeToMilliseconds(
@@ -279,7 +277,7 @@ class OEECalculator:
         try:
             df = pd.read_sql_query(
                 f"""select * from {self.POSTGRES_SCHEMA}.{table_name}
-                                       where {start_timestamp} < cast (recvtimets as bigint)
+                                       where {start_timestamp} <= cast (recvtimets as bigint)
                                        and cast (recvtimets as bigint) <= {self.now_unix()};""",
                 con=con,
             )
@@ -363,12 +361,16 @@ class OEECalculator:
                 f"The current time: {self.now} is outside today's shift, no OEE data"
             )
 
-        self.ws["df"] = self.query_todays_data(con=con, table_name=self.ws["postgres_table"], how="from_midnight")
+        self.ws["df"] = self.query_todays_data(
+            con=con, table_name=self.ws["postgres_table"], how="from_midnight"
+        )
         self.ws["df"] = self.convert_dataframe_to_str(self.ws["df"])
         self.convertRecvtimetsToInt(self.ws["df"])
         self.ws["df"] = self.sort_df_by_time(self.ws["df"])
 
-        self.job["df"] = self.query_todays_data(con=con, table_name=self.job["postgres_table"], how="from_schedule_start")
+        self.job["df"] = self.query_todays_data(
+            con=con, table_name=self.job["postgres_table"], how="from_schedule_start"
+        )
         self.job["df"] = self.convert_dataframe_to_str(self.job["df"])
         self.convertRecvtimetsToInt(self.job["df"])
         self.job["df"] = self.sort_df_by_time(self.job["df"])
@@ -393,7 +395,12 @@ class OEECalculator:
         """
         df = self.ws["df"]
         # filter for values starting from OperatorWorkingScheduleStartsAt
-        df_av = df[df["recvtimets"] >= self.datetimeToMilliseconds(self.today["OperatorWorkingScheduleStartsAt"])]
+        df_av = df[
+            df["recvtimets"]
+            >= self.datetimeToMilliseconds(
+                self.today["OperatorWorkingScheduleStartsAt"]
+            )
+        ]
         df_av = df_av[df_av["attrname"] == "Available"]
         available_true = df_av[df_av["attrvalue"] == "true"]
         available_false = df_av[df_av["attrvalue"] == "false"]
