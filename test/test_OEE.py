@@ -17,25 +17,27 @@ from sqlalchemy import create_engine, sql
 from sqlalchemy.types import DateTime, Float, BigInteger, Text
 
 # Custom imports
-sys.path.insert(0, os.path.join('..', 'app'))
+sys.path.insert(0, os.path.join("..", "app"))
 
 # Constants
-WS_ID = 'urn:ngsi_ld:Workstation:1'
-WS_FILE = 'urn_ngsi_ld_workstation_1_workstation.csv'
-WS_TABLE = 'urn_ngsi_ld_workstation_1_workstation'
-OEE_TABLE = WS_TABLE + '_oee'
-JOB_ID = 'urn:ngsi_ld:Job:202200045'
-JOB_FILE = 'urn_ngsi_ld_job_202200045_job.csv'
-JOB_TABLE = 'urn_ngsi_ld_job_202200045_job'
+WS_ID = "urn:ngsi_ld:Workstation:1"
+WS_FILE = "urn_ngsi_ld_workstation_1_workstation.csv"
+WS_TABLE = "urn_ngsi_ld_workstation_1_workstation"
+OEE_TABLE = WS_TABLE + "_oee"
+JOB_ID = "urn:ngsi_ld:Job:202200045"
+JOB_FILE = "urn_ngsi_ld_job_202200045_job.csv"
+JOB_TABLE = "urn_ngsi_ld_job_202200045_job"
 PLACES = 4
-COL_DTYPES = {'recvtimets': BigInteger(),
-              'recvtime': DateTime(),
-              'availability': Float(),
-              'performance': Float(),
-              'quality': Float(),
-              'oee': Float(),
-              'throughput_shift': Float(),
-              'job': Text()}
+COL_DTYPES = {
+    "recvtimets": BigInteger(),
+    "recvtime": DateTime(),
+    "availability": Float(),
+    "performance": Float(),
+    "quality": Float(),
+    "oee": Float(),
+    "throughput_shift": Float(),
+    "job": Text(),
+}
 
 from OEE import OEECalculator
 from Logger import getLogger
@@ -43,11 +45,11 @@ from modules import reupload_jsons_to_Orion
 from modules.remove_orion_metadata import remove_orion_metadata
 
 # Load environment variables
-POSTGRES_HOST = os.environ.get('POSTGRES_HOST')
-POSTGRES_PASSWORD = os.environ.get('POSTGRES_PASSWORD')
-POSTGRES_PORT = os.environ.get('POSTGRES_PORT')
-POSTGRES_USER = os.environ.get('POSTGRES_USER')
-POSTGRES_SCHEMA = os.environ.get('POSTGRES_SCHEMA')
+POSTGRES_HOST = os.environ.get("POSTGRES_HOST")
+POSTGRES_PASSWORD = os.environ.get("POSTGRES_PASSWORD")
+POSTGRES_PORT = os.environ.get("POSTGRES_PORT")
+POSTGRES_USER = os.environ.get("POSTGRES_USER")
+POSTGRES_SCHEMA = os.environ.get("POSTGRES_SCHEMA")
 
 
 class testOrion(unittest.TestCase):
@@ -56,7 +58,9 @@ class testOrion(unittest.TestCase):
         cls.logger = getLogger(__name__)
         cls.maxDiff = None
         reupload_jsons_to_Orion.main()
-        cls.engine = create_engine(f'postgresql://{POSTGRES_USER}:{POSTGRES_PASSWORD}@{POSTGRES_HOST}:{POSTGRES_PORT}')
+        cls.engine = create_engine(
+            f"postgresql://{POSTGRES_USER}:{POSTGRES_PASSWORD}@{POSTGRES_HOST}:{POSTGRES_PORT}"
+        )
         cls.con = cls.engine.connect()
         if not cls.engine.dialect.has_schema(cls.engine, POSTGRES_SCHEMA):
             cls.engine.execute(sqlalchemy.schema.CreateSchema(POSTGRES_SCHEMA))
@@ -71,21 +75,39 @@ class testOrion(unittest.TestCase):
         # read and upload both tables to PostgreSQL
         # then download them to ensure that the data types
         # match the data types in production
-        cls.ws_df = pd.read_csv(os.path.join('csv', WS_FILE))
-        cls.ws_df['recvtimets'] = cls.ws_df['recvtimets'].map(int)
-        cls.ws_df.to_sql(name=WS_TABLE, con=cls.con, schema=POSTGRES_SCHEMA, index=False, dtype=Text, if_exists='replace')
-        cls.ws_df = pd.read_sql_query(f'select * from {POSTGRES_SCHEMA}.{WS_TABLE}', con=cls.con)
+        cls.ws_df = pd.read_csv(os.path.join("csv", WS_FILE))
+        cls.ws_df["recvtimets"] = cls.ws_df["recvtimets"].map(int)
+        cls.ws_df.to_sql(
+            name=WS_TABLE,
+            con=cls.con,
+            schema=POSTGRES_SCHEMA,
+            index=False,
+            dtype=Text,
+            if_exists="replace",
+        )
+        cls.ws_df = pd.read_sql_query(
+            f"select * from {POSTGRES_SCHEMA}.{WS_TABLE}", con=cls.con
+        )
 
-        cls.job_df = pd.read_csv(os.path.join('csv', JOB_FILE))
-        cls.job_df['recvtimets'] = cls.job_df['recvtimets'].map(int)
-        cls.job_df.to_sql(name=JOB_TABLE, con=cls.con, schema=POSTGRES_SCHEMA, index=False, dtype=Text, if_exists='replace')
-        cls.job_df = pd.read_sql_query(f'select * from {POSTGRES_SCHEMA}.{JOB_TABLE}', con=cls.con)
+        cls.job_df = pd.read_csv(os.path.join("csv", JOB_FILE))
+        cls.job_df["recvtimets"] = cls.job_df["recvtimets"].map(int)
+        cls.job_df.to_sql(
+            name=JOB_TABLE,
+            con=cls.con,
+            schema=POSTGRES_SCHEMA,
+            index=False,
+            dtype=Text,
+            if_exists="replace",
+        )
+        cls.job_df = pd.read_sql_query(
+            f"select * from {POSTGRES_SCHEMA}.{JOB_TABLE}", con=cls.con
+        )
 
         cls.jsons = {}
-        jsons = glob.glob(os.path.join('..', 'json', '*.json'))
+        jsons = glob.glob(os.path.join("..", "json", "*.json"))
         for file in jsons:
             json_name = os.path.splitext(os.path.basename(file))[0]
-            with open(file, 'r') as f:
+            with open(file, "r") as f:
                 cls.jsons[json_name] = json.load(f)
 
     @classmethod
@@ -109,47 +131,70 @@ class testOrion(unittest.TestCase):
         self.assertEqual(self.oee.now_unix(), 1649159200000)
 
     def test_get_cygnus_postgres_table(self):
-        job_table = self.oee.get_cygnus_postgres_table(self.jsons['Job202200045'])
+        job_table = self.oee.get_cygnus_postgres_table(self.jsons["Job202200045"])
         self.assertEqual(job_table, "urn_ngsi_ld_job_202200045_job")
 
     def test_msToDateTimeString(self):
-        self.assertEqual(self.oee.msToDateTimeString(1649159200000), '2022-04-05 13:46:40.000')
+        self.assertEqual(
+            self.oee.msToDateTimeString(1649159200000), "2022-04-05 13:46:40.000"
+        )
 
     def test_msToDateTime(self):
-        self.assertEqual(self.oee.msToDateTime(1649159200000), datetime(2022, 4, 5, 13, 46, 40))
+        self.assertEqual(
+            self.oee.msToDateTime(1649159200000), datetime(2022, 4, 5, 13, 46, 40)
+        )
 
     def test_stringToDateTime(self):
-        self.assertEqual(self.oee.stringToDateTime('2022-04-05 13:46:40.000'), datetime(2022, 4, 5, 13, 46, 40))
-    
+        self.assertEqual(
+            self.oee.stringToDateTime("2022-04-05 13:46:40.000"),
+            datetime(2022, 4, 5, 13, 46, 40),
+        )
+
     def test_timeToDatetime(self):
         self.oee.now = datetime(2022, 4, 5, 15, 26, 0, tzinfo=timezone.utc)
-        self.assertEqual(self.oee.timeToDatetime('13:46:40'), datetime(2022, 4, 5, 13, 46, 40))
+        self.assertEqual(
+            self.oee.timeToDatetime("13:46:40"), datetime(2022, 4, 5, 13, 46, 40)
+        )
 
     def test_datetimeToMilliseconds(self):
-        self.assertEqual(self.oee.datetimeToMilliseconds(datetime(2022, 4, 5, 13, 46, 40)), 1649159200000)
+        self.assertEqual(
+            self.oee.datetimeToMilliseconds(datetime(2022, 4, 5, 13, 46, 40)),
+            1649159200000,
+        )
 
     def test_convertRecvtimetsToInt(self):
-        self.oee.ws['df'] = self.ws_df.copy()
-        self.oee.convertRecvtimetsToInt(self.oee.ws['df'])
-        self.assertEqual(self.oee.ws['df']['recvtimets'].dtype, np.int64)
+        self.oee.ws["df"] = self.ws_df.copy()
+        self.oee.convertRecvtimetsToInt(self.oee.ws["df"])
+        self.assertEqual(self.oee.ws["df"]["recvtimets"].dtype, np.int64)
 
     def test_get_ws(self):
         self.oee.get_ws()
-        self.assertEqual(remove_orion_metadata(self.oee.ws['orion']), self.jsons['Workstation'])
-        self.assertEqual(self.oee.ws['postgres_table'], 'urn_ngsi_ld_workstation_1_workstation')
+        self.assertEqual(
+            remove_orion_metadata(self.oee.ws["orion"]), self.jsons["Workstation"]
+        )
+        self.assertEqual(
+            self.oee.ws["postgres_table"], "urn_ngsi_ld_workstation_1_workstation"
+        )
 
     def test_get_operatorSchedule(self):
-        self.oee.ws['orion'] = copy.deepcopy(self.jsons['Workstation'])
+        self.oee.ws["orion"] = copy.deepcopy(self.jsons["Workstation"])
         self.oee.get_operatorSchedule()
-        self.assertEqual(remove_orion_metadata(self.oee.operatorSchedule['orion']), self.jsons['OperatorSchedule'])
-        self.oee.ws['orion'] = copy.deepcopy(self.jsons['Workstation'])
-        self.oee.ws['orion']['RefOperatorSchedule'] = 'invalid_operationSchedule:id'
+        self.assertEqual(
+            remove_orion_metadata(self.oee.operatorSchedule["orion"]),
+            self.jsons["OperatorSchedule"],
+        )
+        self.oee.ws["orion"] = copy.deepcopy(self.jsons["Workstation"])
+        self.oee.ws["orion"]["RefOperatorSchedule"] = "invalid_operationSchedule:id"
         with self.assertRaises(KeyError):
             self.oee.get_operatorSchedule()
 
     def test_is_datetime_in_todays_shift(self):
-        self.oee.today['OperatorWorkingScheduleStartsAt'] = datetime(2022, 4, 4, 8, 0, 0)
-        self.oee.today['OperatorWorkingScheduleStopsAt'] = datetime(2022, 4, 4, 16, 0, 0)
+        self.oee.today["OperatorWorkingScheduleStartsAt"] = datetime(
+            2022, 4, 4, 8, 0, 0
+        )
+        self.oee.today["OperatorWorkingScheduleStopsAt"] = datetime(
+            2022, 4, 4, 16, 0, 0
+        )
         dt1 = datetime(2022, 4, 4, 9, 0, 0)
         self.assertTrue(self.oee.is_datetime_in_todays_shift(dt1))
         dt2 = datetime(2022, 4, 4, 7, 50, 0)
@@ -159,70 +204,87 @@ class testOrion(unittest.TestCase):
 
     def test_get_todays_shift_limits(self):
         self.oee.now = datetime(2022, 8, 23, 13, 0, 0, tzinfo=timezone.utc)
-        self.oee.operatorSchedule['orion'] = copy.deepcopy(self.jsons['OperatorSchedule'])
+        self.oee.operatorSchedule["orion"] = copy.deepcopy(
+            self.jsons["OperatorSchedule"]
+        )
         self.oee.get_todays_shift_limits()
-        self.assertEqual(self.oee.today['OperatorWorkingScheduleStartsAt'], datetime(2022, 8, 23, 8, 0, 0))
-        self.assertEqual(self.oee.today['OperatorWorkingScheduleStopsAt'], datetime(2022, 8, 23, 16, 0, 0))
+        self.assertEqual(
+            self.oee.today["OperatorWorkingScheduleStartsAt"],
+            datetime(2022, 8, 23, 8, 0, 0),
+        )
+        self.assertEqual(
+            self.oee.today["OperatorWorkingScheduleStopsAt"],
+            datetime(2022, 8, 23, 16, 0, 0),
+        )
 
     def test_get_job_id(self):
-        self.oee.ws['orion'] = copy.deepcopy(self.jsons['Workstation'])
+        self.oee.ws["orion"] = copy.deepcopy(self.jsons["Workstation"])
         self.assertEqual(self.oee.get_job_id(), "urn:ngsi_ld:Job:202200045")
-        self.oee.ws['orion']['RefJob'] = None
+        self.oee.ws["orion"]["RefJob"] = None
         with self.assertRaises(KeyError):
             self.oee.get_job_id()
 
     def test_get_job(self):
-        self.oee.ws['orion'] = copy.deepcopy(self.jsons['Workstation'])
+        self.oee.ws["orion"] = copy.deepcopy(self.jsons["Workstation"])
         # self.oee.job['id'] = 'urn:ngsi_ld:Job:202200045'
         self.oee.get_job()
-        self.assertEqual(remove_orion_metadata(self.oee.job['orion']), self.jsons['Job202200045'])
-        self.assertEqual(self.oee.job['postgres_table'], 'urn_ngsi_ld_job_202200045_job')
+        self.assertEqual(
+            remove_orion_metadata(self.oee.job["orion"]), self.jsons["Job202200045"]
+        )
+        self.assertEqual(
+            self.oee.job["postgres_table"], "urn_ngsi_ld_job_202200045_job"
+        )
 
     def test_get_part_id(self):
-        self.oee.job['orion'] = copy.deepcopy(self.jsons['Job202200045'])
+        self.oee.job["orion"] = copy.deepcopy(self.jsons["Job202200045"])
         self.oee.get_part_id()
-        self.assertEqual(self.oee.part['id'], 'urn:ngsi_ld:Part:Core001')
-        self.oee.job['orion']['RefPart'] = 'invalid'
+        self.assertEqual(self.oee.part["id"], "urn:ngsi_ld:Part:Core001")
+        self.oee.job["orion"]["RefPart"] = "invalid"
         with self.assertRaises(KeyError):
             self.oee.get_part_id()
 
     def test_get_part(self):
-        self.oee.job['orion'] = copy.deepcopy(self.jsons['Job202200045'])
+        self.oee.job["orion"] = copy.deepcopy(self.jsons["Job202200045"])
         self.logger.debug(f'oee.job["orion"]: {self.oee.job["orion"]}')
         # print(f'oee.job["orion"]: {self.oee.job["orion"]}')
         self.oee.get_part()
-        self.assertEqual(remove_orion_metadata(self.oee.part['orion']), self.jsons['Core001'])
+        self.assertEqual(
+            remove_orion_metadata(self.oee.part["orion"]), self.jsons["Core001"]
+        )
 
     def test_get_operation(self):
         part = {
-                "type": "Part",
-                "id": "urn:ngsi_ld:Part:Core001",
-                "Operations": {
-                    "type": "List",
-                    "value": [
-                        {
-                            "type": "Operation",
-                            "OperationNumber": {"type": "Number", "value": 10},
-                            "OperationTime": {"type": "Number", "value": 46},
-                            "OperationType": {"type": "Text", "value": "Core001_injection_moulding"},
-                            "PartsPerOperation": {"type": "Number", "value": 8}
+            "type": "Part",
+            "id": "urn:ngsi_ld:Part:Core001",
+            "Operations": {
+                "type": "List",
+                "value": [
+                    {
+                        "type": "Operation",
+                        "OperationNumber": {"type": "Number", "value": 10},
+                        "OperationTime": {"type": "Number", "value": 46},
+                        "OperationType": {
+                            "type": "Text",
+                            "value": "Core001_injection_moulding",
                         },
-                        {
-                            "type": "Operation",
-                            "OperationNumber": {"type": "Number", "value": 20},
-                            "OperationTime": {"type": "Number", "value": 33},
-                            "OperationType": {"type": "Text", "value": "Core001_deburring"},
-                            "PartsPerOperation": {"type": "Number", "value": 16}
-                        }
-                    ]
-                }
-            }
-        self.oee.job['orion'] = copy.deepcopy(self.jsons['Job202200045'])
-        self.oee.part['orion'] = part
+                        "PartsPerOperation": {"type": "Number", "value": 8},
+                    },
+                    {
+                        "type": "Operation",
+                        "OperationNumber": {"type": "Number", "value": 20},
+                        "OperationTime": {"type": "Number", "value": 33},
+                        "OperationType": {"type": "Text", "value": "Core001_deburring"},
+                        "PartsPerOperation": {"type": "Number", "value": 16},
+                    },
+                ],
+            },
+        }
+        self.oee.job["orion"] = copy.deepcopy(self.jsons["Job202200045"])
+        self.oee.part["orion"] = part
         self.oee.get_operation()
-        self.assertEqual(self.oee.operation['orion'], part['Operations']['value'][0])
+        self.assertEqual(self.oee.operation["orion"], part["Operations"]["value"][0])
 
-        self.oee.job['orion']['CurrentOperationType']['value'] = 'Core001_painting'
+        self.oee.job["orion"]["CurrentOperationType"]["value"] = "Core001_painting"
         with self.assertRaises(KeyError):
             self.oee.get_operation()
 
@@ -230,39 +292,70 @@ class testOrion(unittest.TestCase):
         self.oee.now = datetime(2022, 8, 23, 13, 0, 0, tzinfo=timezone.utc)
         # self.oee.now_unix = self.oee.now.timestamp() * 1000
         self.oee.get_objects_shift_limits()
-        self.assertEqual(remove_orion_metadata(self.oee.ws['orion']), self.jsons['Workstation'])
-        self.assertEqual(remove_orion_metadata(self.oee.operatorSchedule['orion']), self.jsons['OperatorSchedule'])
-        self.assertEqual(self.oee.today['OperatorWorkingScheduleStartsAt'], datetime(2022, 8, 23, 8, 0, 0))
-        self.assertEqual(self.oee.today['OperatorWorkingScheduleStopsAt'], datetime(2022, 8, 23, 16, 0, 0))
-        self.assertEqual(remove_orion_metadata(self.oee.job['orion']), self.jsons['Job202200045'])
-        self.assertEqual(remove_orion_metadata(self.oee.part['orion']), self.jsons['Core001'])
-        self.assertEqual(remove_orion_metadata(self.oee.operation['orion']), self.jsons['Core001']['Operations']['value'][0])
+        self.assertEqual(
+            remove_orion_metadata(self.oee.ws["orion"]), self.jsons["Workstation"]
+        )
+        self.assertEqual(
+            remove_orion_metadata(self.oee.operatorSchedule["orion"]),
+            self.jsons["OperatorSchedule"],
+        )
+        self.assertEqual(
+            self.oee.today["OperatorWorkingScheduleStartsAt"],
+            datetime(2022, 8, 23, 8, 0, 0),
+        )
+        self.assertEqual(
+            self.oee.today["OperatorWorkingScheduleStopsAt"],
+            datetime(2022, 8, 23, 16, 0, 0),
+        )
+        self.assertEqual(
+            remove_orion_metadata(self.oee.job["orion"]), self.jsons["Job202200045"]
+        )
+        self.assertEqual(
+            remove_orion_metadata(self.oee.part["orion"]), self.jsons["Core001"]
+        )
+        self.assertEqual(
+            remove_orion_metadata(self.oee.operation["orion"]),
+            self.jsons["Core001"]["Operations"]["value"][0],
+        )
 
     def test_download_todays_data_df(self):
         self.oee.now = datetime(2022, 4, 5, 13, 0, 0, tzinfo=timezone.utc)
         # self.oee.now_unix = self.oee.now.timestamp() * 1000
         self.oee.get_objects_shift_limits()
-        self.oee.ws['df'] = self.oee.download_todays_data_df(self.con, self.oee.ws['postgres_table'])
+        self.oee.ws["df"] = self.oee.download_todays_data_df(
+            self.con, self.oee.ws["postgres_table"]
+        )
         df = self.ws_df.copy()
-        df['recvtimets'] = df['recvtimets'].map(str).map(int)
-        op_sch_start_unix = self.oee.datetimeToMilliseconds(self.oee.today['OperatorWorkingScheduleStartsAt'])
-        self.logger.debug(f'Op. sch. starting time: {op_sch_start_unix}, {self.oee.msToDateTime(op_sch_start_unix)}')
-        self.logger.debug(f'Now: {self.oee.now_unix()}, {self.oee.now}')
-        df = df[df[(op_sch_start_unix < df['recvtimets']) & (df['recvtimets'] < self.oee.now_unix())]]
-        df['recvtimets'] = df['recvtimets'].map(str)
-        df.dropna(how='any', inplace=True)
+        df["recvtimets"] = df["recvtimets"].map(str).map(int)
+        op_sch_start_unix = self.oee.datetimeToMilliseconds(
+            self.oee.today["OperatorWorkingScheduleStartsAt"]
+        )
+        self.logger.debug(
+            f"Op. sch. starting time: {op_sch_start_unix}, {self.oee.msToDateTime(op_sch_start_unix)}"
+        )
+        self.logger.debug(f"Now: {self.oee.now_unix()}, {self.oee.now}")
+        df = df[
+            df[
+                (op_sch_start_unix < df["recvtimets"])
+                & (df["recvtimets"] < self.oee.now_unix())
+            ]
+        ]
+        df["recvtimets"] = df["recvtimets"].map(str)
+        df.dropna(how="any", inplace=True)
         # df.to_csv('calculated_ws.csv')
         # df.dtypes.to_csv('calculated_ws_dtypes.csv')
         # self.oee.ws['df'].to_csv('downloaded_ws.csv')
         # self.oee.ws['df'].dtypes.to_csv('downloaded_ws.dtypes.csv')
         # self.logger.debug(f'Downloaded ws: {self.oee.ws["df"].head()}')
         # self.logger.debug(f'In-test ws: {df.head()}')
-        self.assertTrue(self.oee.ws['df'].equals(df))
+        self.assertTrue(self.oee.ws["df"].equals(df))
 
-        with patch('pandas.read_sql_query') as mocked_read_sql_query:
+        with patch("pandas.read_sql_query") as mocked_read_sql_query:
             mocked_read_sql_query.side_effect = psycopg2.errors.UndefinedTable
             with self.assertRaises(RuntimeError):
-                self.oee.ws['df'] = self.oee.download_todays_data_df(self.con, self.oee.ws['postgres_table'])
+                self.oee.ws["df"] = self.oee.download_todays_data_df(
+                    self.con, self.oee.ws["postgres_table"]
+                )
 
         # with patch('pandas.read_sql_query') as mocked_read_sql_query:
         #     mocked_read_sql_query.side_effect = sqlalchemy.exc.ProgrammingError
@@ -272,38 +365,44 @@ class testOrion(unittest.TestCase):
     def test_get_current_job_start_time_today(self):
         self.oee.now = datetime(2022, 4, 4, 13, 0, 0, tzinfo=timezone.utc)
         self.oee.get_todays_shift_limits()
-        self.oee.job['id'] = 'urn:ngsi_ld:Job:202200045'
-        ws_df = self.oee.download_todays_data_df(self.oee.ws['postgres_table'])
-        self.oee.ws['df'] = ws_df.copy()
-        self.assertEqual(self.oee.get_current_job_start_time(), datetime(2022, 4, 4, 8, 0, 0))
+        self.oee.job["id"] = "urn:ngsi_ld:Job:202200045"
+        ws_df = self.oee.download_todays_data_df(self.oee.ws["postgres_table"])
+        self.oee.ws["df"] = ws_df.copy()
+        self.assertEqual(
+            self.oee.get_current_job_start_time(), datetime(2022, 4, 4, 8, 0, 0)
+        )
 
         dt_at_9h = datetime(2022, 4, 4, 9, 0, 0)
         ts_at_9h = dt_at_9h.timestamp() * 1000
-        ws_df.loc[len(ws_df)] = [str(ts_at_9h) + '.0',
-                self.oee.msToDateTimeString(ts_at_9h),
-                '/',
-                'urn:ngsi_ld:Workstation:1',
-                'Workstation',
-                'RefJob',
-                'urn:ngsi_ld:Job:202200045',
-                '[]']
-        ws_df['recvtimets'] = ws_df['recvtimets'].map(str).map(int)
-        ws_df.sort_values(by=['recvtimets'], inplace=True)
+        ws_df.loc[len(ws_df)] = [
+            str(ts_at_9h) + ".0",
+            self.oee.msToDateTimeString(ts_at_9h),
+            "/",
+            "urn:ngsi_ld:Workstation:1",
+            "Workstation",
+            "RefJob",
+            "urn:ngsi_ld:Job:202200045",
+            "[]",
+        ]
+        ws_df["recvtimets"] = ws_df["recvtimets"].map(str).map(int)
+        ws_df.sort_values(by=["recvtimets"], inplace=True)
 
-        self.oee.ws['df'] = ws_df.copy()
+        self.oee.ws["df"] = ws_df.copy()
         self.assertEqual(self.oee.get_current_job_start_time(), dt_at_9h)
 
         dt_at_10h = datetime(2022, 4, 4, 10, 0, 0)
         ts_at_10h = dt_at_10h.timestamp() * 1000
-        ws_df.loc[len(ws_df)] = [str(ts_at_10h) + '.0',
-                self.oee.msToDateTimeString(ts_at_10h),
-                '/',
-                'urn:ngsi_ld:Workstation:1',
-                'Workstation',
-                'RefJob',
-                'urn:ngsi_ld:Job:202200046',
-                '[]']
-        self.oee.ws['df'] = ws_df.copy()
+        ws_df.loc[len(ws_df)] = [
+            str(ts_at_10h) + ".0",
+            self.oee.msToDateTimeString(ts_at_10h),
+            "/",
+            "urn:ngsi_ld:Workstation:1",
+            "Workstation",
+            "RefJob",
+            "urn:ngsi_ld:Job:202200046",
+            "[]",
+        ]
+        self.oee.ws["df"] = ws_df.copy()
         with self.assertRaises(ValueError):
             self.oee.get_current_job_start_time()
         # row_to_be_inserted = pd.DataFrame.from_dict({'recvtimets': [str(ts_at_9h) + '.0'],
@@ -327,11 +426,11 @@ class testOrion(unittest.TestCase):
         #     self.logger.info(f'The current job started before this shift, RefStartTime: {self.today["RefStartTime"]}')
 
     def test_convert_dataframe_to_str(self):
-        '''
+        """
         Cygnus 2.16.0 uploads all data as Text to Postgres
         So with this version of Cygnus, this function is useless
         We do this to ensure that we can always work with strings to increase stability
-        '''
+        """
         pass
         # return df.applymap(str)
 
@@ -447,9 +546,8 @@ class testOrion(unittest.TestCase):
         # return self.oee
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     try:
         unittest.main()
     except Exception as error:
         print(error)
-
