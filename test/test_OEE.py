@@ -52,7 +52,7 @@ POSTGRES_USER = os.environ.get("POSTGRES_USER")
 POSTGRES_SCHEMA = os.environ.get("POSTGRES_SCHEMA")
 
 
-class testOrion(unittest.TestCase):
+class test_OEECalculator(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.logger = getLogger(__name__)
@@ -126,39 +126,35 @@ class testOrion(unittest.TestCase):
         self.assertAlmostEqual(now.timestamp(), self.oee.now.timestamp(), places=PLACES)
 
     def test_now_unix(self):
-        self.oee.now = datetime(2022, 4, 5, 13, 46, 40, tzinfo=timezone.utc)
+        self.oee.now = datetime(2022, 4, 5, 11, 46, 40, tzinfo=timezone.utc)
         # using GMT+2 time zone
         self.assertEqual(self.oee.now_unix(), 1649159200000)
 
-    def test_get_cygnus_postgres_table(self):
-        job_table = self.oee.get_cygnus_postgres_table(self.jsons["Job202200045"])
-        self.assertEqual(job_table, "urn_ngsi_ld_job_202200045_job")
-
     def test_msToDateTimeString(self):
         self.assertEqual(
-            self.oee.msToDateTimeString(1649159200000), "2022-04-05 13:46:40.000"
+            self.oee.msToDateTimeString(1649159200000), "2022-04-05 11:46:40.000"
         )
 
     def test_msToDateTime(self):
         self.assertEqual(
-            self.oee.msToDateTime(1649159200000), datetime(2022, 4, 5, 13, 46, 40)
+            self.oee.msToDateTime(1649159200000), datetime(2022, 4, 5, 11, 46, 40, tzinfo=timezone.utc)
         )
 
     def test_stringToDateTime(self):
         self.assertEqual(
             self.oee.stringToDateTime("2022-04-05 13:46:40.000"),
-            datetime(2022, 4, 5, 13, 46, 40),
+            datetime(2022, 4, 5, 13, 46, 40, tzinfo=timezone.utc),
         )
 
     def test_timeToDatetime(self):
         self.oee.now = datetime(2022, 4, 5, 15, 26, 0, tzinfo=timezone.utc)
         self.assertEqual(
-            self.oee.timeToDatetime("13:46:40"), datetime(2022, 4, 5, 13, 46, 40)
+            self.oee.timeToDatetime("13:46:40"), datetime(2022, 4, 5, 13, 46, 40, tzinfo=timezone.utc)
         )
 
     def test_datetimeToMilliseconds(self):
         self.assertEqual(
-            self.oee.datetimeToMilliseconds(datetime(2022, 4, 5, 13, 46, 40)),
+            self.oee.datetimeToMilliseconds(datetime(2022, 4, 5, 11, 46, 40, tzinfo=timezone.utc)),
             1649159200000,
         )
 
@@ -166,6 +162,10 @@ class testOrion(unittest.TestCase):
         self.oee.ws["df"] = self.ws_df.copy()
         self.oee.convertRecvtimetsToInt(self.oee.ws["df"])
         self.assertEqual(self.oee.ws["df"]["recvtimets"].dtype, np.int64)
+
+    def test_get_cygnus_postgres_table(self):
+        job_table = self.oee.get_cygnus_postgres_table(self.jsons["Job202200045"])
+        self.assertEqual(job_table, "urn_ngsi_ld_job_202200045_job")
 
     def test_get_ws(self):
         self.oee.get_ws()
@@ -190,16 +190,16 @@ class testOrion(unittest.TestCase):
 
     def test_is_datetime_in_todays_shift(self):
         self.oee.today["OperatorWorkingScheduleStartsAt"] = datetime(
-            2022, 4, 4, 8, 0, 0
+            2022, 4, 4, 8, 0, 0, tzinfo=timezone.utc
         )
         self.oee.today["OperatorWorkingScheduleStopsAt"] = datetime(
-            2022, 4, 4, 16, 0, 0
+            2022, 4, 4, 16, 0, 0, tzinfo=timezone.utc
         )
-        dt1 = datetime(2022, 4, 4, 9, 0, 0)
+        dt1 = datetime(2022, 4, 4, 9, 0, 0, tzinfo=timezone.utc)
         self.assertTrue(self.oee.is_datetime_in_todays_shift(dt1))
-        dt2 = datetime(2022, 4, 4, 7, 50, 0)
+        dt2 = datetime(2022, 4, 4, 7, 50, 0, tzinfo=timezone.utc)
         self.assertFalse(self.oee.is_datetime_in_todays_shift(dt2))
-        dt3 = datetime(2022, 4, 4, 16, 10, 0)
+        dt3 = datetime(2022, 4, 4, 16, 10, 0, tzinfo=timezone.utc)
         self.assertFalse(self.oee.is_datetime_in_todays_shift(dt3))
 
     def test_get_todays_shift_limits(self):
@@ -210,11 +210,11 @@ class testOrion(unittest.TestCase):
         self.oee.get_todays_shift_limits()
         self.assertEqual(
             self.oee.today["OperatorWorkingScheduleStartsAt"],
-            datetime(2022, 8, 23, 8, 0, 0),
+            datetime(2022, 8, 23, 8, 0, 0, tzinfo=timezone.utc),
         )
         self.assertEqual(
             self.oee.today["OperatorWorkingScheduleStopsAt"],
-            datetime(2022, 8, 23, 16, 0, 0),
+            datetime(2022, 8, 23, 16, 0, 0, tzinfo=timezone.utc),
         )
 
     def test_get_job_id(self):
@@ -301,11 +301,11 @@ class testOrion(unittest.TestCase):
         )
         self.assertEqual(
             self.oee.today["OperatorWorkingScheduleStartsAt"],
-            datetime(2022, 8, 23, 8, 0, 0),
+            datetime(2022, 8, 23, 8, 0, 0, tzinfo=timezone.utc),
         )
         self.assertEqual(
             self.oee.today["OperatorWorkingScheduleStopsAt"],
-            datetime(2022, 8, 23, 16, 0, 0),
+            datetime(2022, 8, 23, 16, 0, 0, tzinfo=timezone.utc),
         )
         self.assertEqual(
             remove_orion_metadata(self.oee.job["orion"]), self.jsons["Job202200045"]
@@ -318,43 +318,72 @@ class testOrion(unittest.TestCase):
             self.jsons["Core001"]["Operations"]["value"][0],
         )
 
-    def test_download_todays_data_df(self):
+    def test_get_query_start_timestamp(self):
         self.oee.now = datetime(2022, 4, 5, 13, 0, 0, tzinfo=timezone.utc)
+        self.assertEqual(
+            self.oee.get_query_start_timestamp(self.oee.now, how="from_midnight"),
+            datetime(2022, 4, 5, 0, 0, 0, tzinfo=timezone.utc)
+        )
+        self.assertEqual(
+            self.oee.get_query_start_timestamp(self.oee.now, how="from_schedule_start"),
+            datetime(2022, 4, 5, 8, 0, 0, tzinfo=timezone.utc)
+        )
+
+    def test_query_todays_data(self):
+        self.oee.now = datetime(2022, 4, 4, 13, 0, 0, tzinfo=timezone.utc)
         # self.oee.now_unix = self.oee.now.timestamp() * 1000
         self.oee.get_objects_shift_limits()
-        self.oee.ws["df"] = self.oee.download_todays_data_df(
-            self.con, self.oee.ws["postgres_table"]
+        self.oee.ws["df"] = self.oee.query_todays_data(
+            self.con, self.oee.ws["postgres_table"], how="from_midnight"
         )
         df = self.ws_df.copy()
         df["recvtimets"] = df["recvtimets"].map(str).map(int)
-        op_sch_start_unix = self.oee.datetimeToMilliseconds(
-            self.oee.today["OperatorWorkingScheduleStartsAt"]
+        df.dropna(how="any", inplace=True)
+        start_timestamp = self.oee.datetimeToMilliseconds(
+            datetime(2022, 4, 4, tzinfo=timezone.utc)
+            # self.oee.today["OperatorWorkingScheduleStartsAt"].date()
         )
-        self.logger.debug(
-            f"Op. sch. starting time: {op_sch_start_unix}, {self.oee.msToDateTime(op_sch_start_unix)}"
-        )
-        self.logger.debug(f"Now: {self.oee.now_unix()}, {self.oee.now}")
+        # self.logger.debug(
+        #     f"Starting time: {start_timestamp}, {self.oee.msToDateTime(start_timestamp)}"
+        # )
+        # self.logger.debug(f"Now: {self.oee.now_unix()}, {self.oee.now}")
         df = df[
             df[
-                (op_sch_start_unix < df["recvtimets"])
+                (start_timestamp < df["recvtimets"])
                 & (df["recvtimets"] < self.oee.now_unix())
             ]
         ]
         df["recvtimets"] = df["recvtimets"].map(str)
+        self.assertTrue(self.oee.ws["df"].equals(df))
+
+        self.oee.ws["df"] = self.oee.query_todays_data(
+            self.con, self.oee.ws["postgres_table"], how="from_schedule_start"
+        )
+        df = self.ws_df.copy()
+        df["recvtimets"] = df["recvtimets"].map(str).map(int)
         df.dropna(how="any", inplace=True)
-        # df.to_csv('calculated_ws.csv')
-        # df.dtypes.to_csv('calculated_ws_dtypes.csv')
-        # self.oee.ws['df'].to_csv('downloaded_ws.csv')
-        # self.oee.ws['df'].dtypes.to_csv('downloaded_ws.dtypes.csv')
-        # self.logger.debug(f'Downloaded ws: {self.oee.ws["df"].head()}')
-        # self.logger.debug(f'In-test ws: {df.head()}')
+        start_timestamp = self.oee.datetimeToMilliseconds(
+            datetime(2022, 4, 4, 8, 0, 0, tzinfo=timezone.utc)
+            # self.oee.today["OperatorWorkingScheduleStartsAt"].date()
+        )
+        # self.logger.debug(
+        #     f"Starting time: {start_timestamp}, {self.oee.msToDateTime(start_timestamp)}"
+        # )
+        # self.logger.debug(f"Now: {self.oee.now_unix()}, {self.oee.now}")
+        df = df[
+            df[
+                (start_timestamp < df["recvtimets"])
+                & (df["recvtimets"] < self.oee.now_unix())
+            ]
+        ]
+        df["recvtimets"] = df["recvtimets"].map(str)
         self.assertTrue(self.oee.ws["df"].equals(df))
 
         with patch("pandas.read_sql_query") as mocked_read_sql_query:
             mocked_read_sql_query.side_effect = psycopg2.errors.UndefinedTable
             with self.assertRaises(RuntimeError):
                 self.oee.ws["df"] = self.oee.download_todays_data_df(
-                    self.con, self.oee.ws["postgres_table"]
+                    self.con, self.oee.ws["postgres_table"], how="from_midnight"
                 )
 
         # with patch('pandas.read_sql_query') as mocked_read_sql_query:
