@@ -7,6 +7,7 @@ import os
 import numpy as np
 import pandas as pd
 import psycopg2
+import pytz
 import sqlalchemy
 from sqlalchemy import create_engine, table
 from sqlalchemy.types import DateTime, Float, BigInteger, Text
@@ -53,7 +54,7 @@ class OEECalculator:
             Inputs:
                 con:
                     the sqlalchemy module's engine's connection object
-            downloads data from the Orion broker
+            gets data from the Orion broker
                 Cygnus logs
             configures itself for today's shift
             if the object cannot prepare, it clears
@@ -95,7 +96,7 @@ class OEECalculator:
     if POSTGRES_SCHEMA is None:
         POSTGRES_SCHEMA = "default_service"
         logger.warning(
-            'POSTGRES_SCHEMA environment varialbe not found, using default: "{POSTGRES_SCHEMA}"'
+            f'POSTGRES_SCHEMA environment varialbe not found, using default: "{POSTGRES_SCHEMA}"'
         )
 
     def __init__(self, workstation_id):
@@ -131,25 +132,22 @@ class OEECalculator:
     def now_unix(self):
         return self.now.timestamp() * 1000
 
-    def get_cygnus_postgres_table(self, orion_obj):
-        return (
-            orion_obj["id"].replace(":", "_").lower() + "_" + orion_obj["type"].lower()
-        )
-
     def msToDateTimeString(self, ms):
-        return str(datetime.fromtimestamp(ms / 1000.0).strftime(self.DATETIME_FORMAT))[
-            :-3
-        ]
+        return str(
+            pytz.utc.localize(datetime.fromtimestamp(ms / 1000.0)).strftime(
+                self.DATETIME_FORMAT
+            )
+        )[:-3]
 
     def msToDateTime(self, ms):
         return self.stringToDateTime(self.msToDateTimeString(ms))
 
     def stringToDateTime(self, string):
-        return datetime.strptime(string, self.DATETIME_FORMAT)
+        return pytz.utc.localize(datetime.strptime(string, self.DATETIME_FORMAT))
 
     def timeToDatetime(self, string):
-        return datetime.strptime(
-            str(self.now.date()) + " " + string, "%Y-%m-%d %H:%M:%S"
+        return pytz.utc.localize(
+            datetime.strptime(str(self.now.date()) + " " + string, "%Y-%m-%d %H:%M:%S")
         )
 
     def datetimeToMilliseconds(self, datetime_):
@@ -157,6 +155,11 @@ class OEECalculator:
 
     def convertRecvtimetsToInt(self, df):
         df["recvtimets"] = df["recvtimets"].astype("float64").astype("int64")
+
+    def get_cygnus_postgres_table(self, orion_obj):
+        return (
+            orion_obj["id"].replace(":", "_").lower() + "_" + orion_obj["type"].lower()
+        )
 
     def get_ws(self):
         self.ws["orion"] = Orion.get(self.ws["id"])
@@ -256,11 +259,27 @@ class OEECalculator:
         self.get_part()
         self.get_operation()
 
-    def download_todays_data_df(self, con, table_name):
+    def get_query_start_timestamp(self, how):
+
+        if how == "from_midnight":
+            return self.datetimeToMilliseconds(
+                self.today["OperatorWorkingScheduleStartsAt"].date()
+            )
+        elif how == "from_schedule_start":
+            return self.datetimeToMilliseconds(
+                self.today["OperatorWorkingScheduleStartsAt"]
+            )
+        else:
+            raise ValueError(
+                f"Cannot set query start time. Invalid argument: how={how}"
+            )
+
+    def query_todays_data(self, con, table_name, how):
+        start_timestamp = self.get_query_start_timestamp(how)
         try:
             df = pd.read_sql_query(
                 f"""select * from {self.POSTGRES_SCHEMA}.{table_name}
-                                       where {self.datetimeToMilliseconds(self.today['OperatorWorkingScheduleStartsAt'])} < cast (recvtimets as bigint) 
+                                       where {start_timestamp} < cast (recvtimets as bigint)
                                        and cast (recvtimets as bigint) <= {self.now_unix()};""",
                 con=con,
             )
@@ -269,7 +288,7 @@ class OEECalculator:
             sqlalchemy.exc.ProgrammingError,
         ) as error:
             raise RuntimeError(
-                f"The SQL table: {table_name} cannot be downloaded from the table_schema: {self.POSTGRES_SCHEMA}."
+                f"The SQL table: {table_name} cannot be queried from the table_schema: {self.POSTGRES_SCHEMA}."
             ) from error
         return df
 
@@ -299,7 +318,7 @@ class OEECalculator:
         job_changes = df[df["attrname"] == "RefJob"]
 
         if len(job_changes) == 0:
-            # today's downloaded ws df does not contain a job change
+            # today's queried ws df does not contain a job change
             return self.today["OperatorWorkingScheduleStartsAt"]
         last_job = job_changes.iloc[-1]["attrvalue"]
         if last_job != self.job["id"]:
@@ -333,7 +352,9 @@ class OEECalculator:
             # also includes getting the shift's limits
             self.get_objects_shift_limits()
         except (RuntimeError, KeyError, AttributeError, TypeError) as error:
-            message = f"Could not download and extract objects from Orion. Traceback:\n{error}"
+            message = (
+                f"Could not get and extract objects from Orion. Traceback:\n{error}"
+            )
             self.logger.error(message)
             raise RuntimeError(message) from error
 
@@ -342,12 +363,12 @@ class OEECalculator:
                 f"The current time: {self.now} is outside today's shift, no OEE data"
             )
 
-        self.ws["df"] = self.download_todays_data_df(con, self.ws["postgres_table"])
+        self.ws["df"] = self.query_todays_data(con=con, table_name=self.ws["postgres_table"], how="from_midnight")
         self.ws["df"] = self.convert_dataframe_to_str(self.ws["df"])
         self.convertRecvtimetsToInt(self.ws["df"])
         self.ws["df"] = self.sort_df_by_time(self.ws["df"])
 
-        self.job["df"] = self.download_todays_data_df(con, self.job["postgres_table"])
+        self.job["df"] = self.query_todays_data(con=con, table_name=self.job["postgres_table"], how="from_schedule_start")
         self.job["df"] = self.convert_dataframe_to_str(self.job["df"])
         self.convertRecvtimetsToInt(self.job["df"])
         self.job["df"] = self.sort_df_by_time(self.job["df"])
@@ -363,11 +384,17 @@ class OEECalculator:
         self.set_RefStartTime()
 
     def calc_availability(self):
-        # Available is true and false in this periodical order, starting with true
-        # we can sum the timestamps of the true values and the false values disctinctly, getting 2 sums
-        # the total available time is their difference
+        """
+        Available is true and false in this periodical order,
+        starting with true
+        we can sum the timestamps of the true values
+        and the false values disctinctly, getting 2 sums
+        the total available time is their difference
+        """
         df = self.ws["df"]
-        df_av = df[df["attrname"] == "Available"]
+        # filter for values starting from OperatorWorkingScheduleStartsAt
+        df_av = df[df["recvtimets"] >= self.datetimeToMilliseconds(self.today["OperatorWorkingScheduleStartsAt"])]
+        df_av = df_av[df_av["attrname"] == "Available"]
         available_true = df_av[df_av["attrvalue"] == "true"]
         available_false = df_av[df_av["attrvalue"] == "false"]
         total_available_time = (
@@ -392,9 +419,20 @@ class OEECalculator:
         return total_available_time / total_time_so_far_in_shift
 
     def handle_availability(self):
-        if self.ws["df"].size == 0:
+        """
+        Important: the OEECalculator queries data from_midnight
+        So if a Workstation becomes available before the schedule starts,
+        The OEECalculator will recognise that it is available
+        But the availability calculations will not consider any time before
+        the schedule starts. The OEECalculator treats the Workstation
+        as if it became available just when the schedule started.
+        """
+        df = self.ws["df"]
+        df_av = df[df["attrname"] == "Available"]
+        available_true = df_av[df_av["attrvalue"] == "true"]
+        if available_true.size == 0:
             raise ValueError(
-                f'No workstation data found for {self.ws["id"]} up to time {self.now} on day {self.today["day"]}, no OEE data'
+                f'The Workstation {self.ws["id"]} was not turned Available by {self.now} since midnight, no OEE data'
             )
         self.oee["Availability"]["value"] = self.calc_availability()
 
