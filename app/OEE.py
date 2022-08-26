@@ -48,6 +48,12 @@ class OEECalculator:
                 workstation_id:
                     The Orion id of the workstation
 
+        set_time():
+            Inputs:
+                None
+            sets the OEECalculator's time
+            this method is split from the others for testing purposes
+
         prepare(con):
             Inputs:
                 con:
@@ -69,6 +75,8 @@ class OEECalculator:
         calculate_throughput():
             output:
                 the Orion Throughput object (see sample in JSONS objects)
+
+    The preferred way to 
     """
 
     DATETIME_FORMAT = "%Y-%m-%d %H:%M:%S.%f"
@@ -229,7 +237,8 @@ class OEECalculator:
     def get_operation(self):
         found = False
         try:
-            for operation in self.part["orion"]["Operations"]["value"]: if (
+            for operation in self.part["orion"]["Operations"]["value"]:
+                if (
                     operation["OperationType"]["value"]
                     == self.job["orion"]["CurrentOperationType"]["value"]
                 ):
@@ -258,7 +267,8 @@ class OEECalculator:
     def get_query_start_timestamp(self, how):
 
         if how == "from_midnight":
-            return self.today["start"]
+            # construct midnight's datetime
+            return self.datetimeToMilliseconds(datetime.combine(self.now.date(), datetime.min.time()))
         elif how == "from_schedule_start":
             return self.datetimeToMilliseconds(
                 self.today["OperatorWorkingScheduleStartsAt"]
@@ -338,10 +348,6 @@ class OEECalculator:
 
     def prepare(self, con):
         self.set_now()
-        self.today = {
-            "day": self.now.date(),
-            "start": self.stringToDateTime(str(self.now.date()) + " 00:00:00.000"),
-        }
         try:
             # also includes getting the shift's limits
             self.get_objects_shift_limits()
@@ -381,7 +387,7 @@ class OEECalculator:
 
         self.set_RefStartTime()
 
-    def calc_availability(self):
+    def calc_availability(self, df_av):
         """
         Available is true and false in this periodical order,
         starting with true
@@ -389,37 +395,74 @@ class OEECalculator:
         and the false values disctinctly, getting 2 sums
         the total available time is their difference
         """
-        df = self.ws["df"]
-        # filter for values starting from OperatorWorkingScheduleStartsAt
-        df_av = df[
-            df["recvtimets"]
+        # filter for values starting from RefStartTime
+        self.logger.debug(f"df_av:\n{df_av}")
+        df_after = df_av[
+            df_av["recvtimets"]
             >= self.datetimeToMilliseconds(
-                self.today["OperatorWorkingScheduleStartsAt"]
+                self.today["RefStartTime"]
             )
         ]
-        df_av = df_av[df_av["attrname"] == "Available"]
-        available_true = df_av[df_av["attrvalue"] == "true"]
-        available_false = df_av[df_av["attrvalue"] == "false"]
-        total_available_time = (
-            available_false["recvtimets"].sum() - available_true["recvtimets"].sum()
-        )
-        # if the Workstation is available currently, we need to add
-        # the current timestamp to the true timestamps' sum
-        if df_av.iloc[-1]["attrvalue"] == "true":
-            # the current state is Available, add current time
-            total_available_time += self.now_unix()
-        if df_av.iloc[1]["attrvalue"] == "false":
-            # the Workstation's first entry is being turned off
-            # so it is must have been on before
-            # substract the RefStartTime
-            total_available_time -= self.today["RefStartTime"]
-        self.total_available_time = total_available_time
-        total_time_so_far_in_shift = self.datetimeToMilliseconds(
-            self.now
-        ) - self.datetimeToMilliseconds(self.today["RefStartTime"])
-        if total_time_so_far_in_shift == 0:
+        self.logger.debug(f"df_after:\n{df_after}")
+        if df_after.size == 0:
+            # the workstation's available attribute has not changed since the RefStartTime
+            # so the availability is 0 or 1 depending on if the Workstation is on or off
+            # since the df_av has at least one row, check the last row before RefStartTime
+            df_before = df_av[
+                df_av["recvtimets"]
+                < self.datetimeToMilliseconds(
+                    self.today["RefStartTime"]
+                )
+            ]
+            self.logger.debug(f"df_before:\n{df_before}")
+            if df_before.iloc[-1]["attrvalue"] == "true":
+                # the Workstation is on 
+                return 1 
+            else:  # df_before.iloc[-1]["attrvalue"] == "false":
+                # the Workstation is off 
+                return 0
+            
+        # now it is sure that the df_after is not emtpy, at least one row
+        time_on = 0
+        time_off = 0
+        # TODO check all instances of OperatorWorkingScheduleStartsAt if it should be RefStartTime instead
+        previous_timestamp = self.datetimeToMilliseconds(self.today["RefStartTime"])
+        for _, row in df_after.iterrows():
+            self.logger.debug(f"row:\n{row}")
+            """
+            interate all rows
+            check which interval is on and off, and increase times accordingly
+            """
+            current_timestamp = row["recvtimets"]
+            interval_duration = current_timestamp - previous_timestamp
+            self.logger.debug(f"current_timestamp: {current_timestamp}")
+            self.logger.debug(f"previous_timestamp: {previous_timestamp}")
+            self.logger.debug(f"interval_duration: {interval_duration}")
+            if row["attrvalue"] == "true":
+                # the Workstation was turned on, so it was off in the previous interval
+                time_off += interval_duration
+            else:  # row["attrvalue"] == "false"
+                # the Workstation was turned off, so it was on in the previous interval
+                time_on += interval_duration
+            self.logger.debug(f"time_off: {time_off}")
+            self.logger.debug(f"time_on: {time_on}")
+            previous_timestamp = current_timestamp
+
+        # handle the current timestamp using the last row 
+        # the interval from the last entry to now
+        interval_duration = self.now_unix() - previous_timestamp
+        if row["attrvalue"] == "true":
+            # the Workstation is currently on
+            time_on += interval_duration
+        else:  # row["attrvalue"] == "false"
+            # the Workstation is currently off
+            time_off += interval_duration
+
+        self.total_available_time = time_on
+        self.total_time_so_far_in_shift = time_on + time_off
+        if self.total_time_so_far_in_shift == 0:
             raise ZeroDivisionError("Total time so far in the shift is 0, no OEE data")
-        return total_available_time / total_time_so_far_in_shift
+        return self.total_available_time / self.total_time_so_far_in_shift
 
     def handle_availability(self):
         """
@@ -437,7 +480,7 @@ class OEECalculator:
             raise ValueError(
                 f'The Workstation {self.ws["id"]} was not turned Available by {self.now} since midnight, no OEE data'
             )
-        self.oee["Availability"]["value"] = self.calc_availability()
+        self.oee["Availability"]["value"] = self.calc_availability(df_av)
 
     def count_nonzero_unique(self, unique_values):
         if "0" in unique_values:
