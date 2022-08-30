@@ -598,6 +598,63 @@ class test_OEECalculator(unittest.TestCase):
             with self.assertRaises(ValueError):
                 self.oee.prepare(self.con)
 
+    def test_filter_in_relation_to_RefStartTime(self):
+        ms = 1649053800000
+        self.oee.today["RefStartTime"] = self.oee.msToDateTime(ms)
+        _8h = datetime(2022, 4, 4, 8, 0, 0)
+        # _8h40 = datetime(2022, 4, 4, 8, 40, 0)
+        _9h = datetime(2022, 4, 4, 9, 0, 0)
+        # self.oee.now = _9h
+        # self.oee.today["RefStartTime"] = _8h40
+        df = self.prepare_df_between(self.ws_df, _8h, _9h)
+        # df["recvtimets"] = df["recvtimets"].map(str).map(float).map(int)
+        # df.sort_values(by=["recvtimets"], inplace=True)
+        df_after = df[ms <= df["recvtimets"]]
+        df_after.dropna(how="any", inplace=True)
+        df_after.reset_index(drop=True, inplace=True)
+        df_filt = self.oee.filter_in_relation_to_RefStartTime(df, how="after")
+        self.logger.debug(f"df_filt: {df_filt}")
+        self.logger.debug(f"df_after: {df_after}")
+        self.assertTrue(df_filt.equals(df_after))
+        df_before = df[ms > df["recvtimets"]]
+        df_before.dropna(how="any", inplace=True)
+        df_before.reset_index(drop=True, inplace=True)
+        self.assertTrue(self.oee.filter_in_relation_to_RefStartTime(df, how="before").equals(df_before))
+        with self.assertRaises(ValueError):
+            self.oee.filter_in_relation_to_RefStartTime(df, how="somehow_else")
+
+    def test_calc_availability_if_no_availability_record_after_RefStartTime(self):
+        _8h = datetime(2022, 4, 4, 8, 0, 0)
+        _8h40 = datetime(2022, 4, 4, 8, 40, 0)
+        _9h = datetime(2022, 4, 4, 9, 0, 0)
+        self.oee.now = _9h
+        self.oee.today["RefStartTime"] = _8h40
+        df = self.prepare_df_between(self.ws_df, _8h, _8h40)
+        # the RefStartTime is 8:40, the last entry (as of 9h) is 8:30 turn on, so availability = 1
+        self.assertEqual(self.oee.calc_availability_if_no_availability_record_after_RefStartTime(df), 1)
+        total_time_so_far_in_shift = self.oee.datetimeToMilliseconds(_9h) - self.oee.datetimeToMilliseconds(_8h40)
+        self.assertEqual(self.oee.total_time_so_far_in_shift, total_time_so_far_in_shift)
+        self.assertEqual(self.oee.total_available_time, total_time_so_far_in_shift)
+        # the RefStartTime is 8:40, the last entry (as of 9h) is 8:30 turn off, so availability = 0
+        df.at[-1, 'attrvalue'] = "false"
+        self.assertEqual(self.oee.calc_availability_if_no_availability_record_after_RefStartTime(df), 0)
+        self.assertEqual(self.oee.total_time_so_far_in_shift, total_time_so_far_in_shift)
+        self.assertEqual(self.oee.total_available_time, 0)
+        df.at[-1, 'attrvalue'] = "False"
+        with self.assertRaises(ValueError):
+            self.oee.calc_availability_if_no_availability_record_after_RefStartTime(df)
+
+    @patch(f'{OEE.__name__}.datetime', wraps=datetime)
+    def test_calc_availability_if_exists_record_after_RefStartTime(self, mock_datetime):
+        now = datetime(2022, 4, 4, 9, 0, 0)
+        mock_datetime.now.return_value = now
+        self.oee.prepare(self.con)
+        df = self.oee.ws["df"].copy()
+        df_av = df[df["attrname"] == "Available"]
+        df_after = self.oee.filter_in_relation_to_RefStartTime(df_av, how="after")
+        # self.logger.debug("calc_availability_if_exists_record_after_RefStartTime, df_av: {df_av}")
+        self.assertEqual(self.oee.calc_availability_if_exists_record_after_RefStartTime(df_after), 50/60)
+
     @patch(f'{OEE.__name__}.datetime', wraps=datetime)
     def test_calc_availability(self, mock_datetime):
         now = datetime(2022, 4, 4, 9, 0, 0)
@@ -606,66 +663,52 @@ class test_OEECalculator(unittest.TestCase):
         df = self.oee.ws["df"].copy()
         df_av = df[df["attrname"] == "Available"]
         self.assertEqual(self.oee.calc_availability(df_av), 50/60)
-        # df = self.ws["df"]
-        # # filter for values starting from OperatorWorkingScheduleStartsAt
-        # df_av = df[
-        #     df["recvtimets"]
-        #     >= self.datetimeToMilliseconds(
-        #         self.today["OperatorWorkingScheduleStartsAt"]
-        #     )
-        # ]
-        # df_av = df_av[df_av["attrname"] == "Available"]
-        # available_true = df_av[df_av["attrvalue"] == "true"]
-        # available_false = df_av[df_av["attrvalue"] == "false"]
-        # total_available_time = (
-        #     available_false["recvtimets"].sum() - available_true["recvtimets"].sum()
-        # )
-        # # if the Workstation is available currently, we need to add
-        # # the current timestamp to the true timestamps' sum
-        # if df_av.iloc[-1]["attrvalue"] == "true":
-        #     # the current state is Available, add current time
-        #     total_available_time += self.now_unix()
-        # if df_av.iloc[1]["attrvalue"] == "false":
-        #     # the Workstation's first entry is being turned off
-        #     # so it is must have been on before
-        #     # substract the RefStartTime
-        #     total_available_time -= self.today["RefStartTime"]
-        # self.total_available_time = total_available_time
-        # total_time_so_far_in_shift = self.datetimeToMilliseconds(
-        #     self.now
-        # ) - self.datetimeToMilliseconds(self.today["RefStartTime"])
-        # if total_time_so_far_in_shift == 0:
-        #     raise ZeroDivisionError("Total time so far in the shift is 0, no OEE data")
-        # return total_available_time / total_time_so_far_in_shift
 
-    def test_handle_availability(self):
-        pass
-        # if self.ws['df'].size == 0:
-        #     raise ValueError(f'No workstation data found for {self.ws["id"]} up to time {self.now} on day {self.today["day"]}, no OEE data')
-        # self.oee['Availability']['value'] = self.calc_availability()
+    @patch(f'{OEE.__name__}.datetime', wraps=datetime)
+    def test_handle_availability(self, mock_datetime):
+        now = datetime(2022, 4, 4, 9, 0, 0)
+        mock_datetime.now.return_value = now
+        self.oee.prepare(self.con)
+        self.oee.handle_availability()
+        self.assertEqual(self.oee.oee["Availability"]["value"], 50/60)
+        # empty df
+        self.oee.ws["df"] = self.oee.ws["df"].drop(self.oee.ws["df"].index)
+        with self.assertRaises(ValueError):
+            self.oee.handle_availability()
 
     def test_count_nonzero_unique(self):
-        pass
-        # if '0' in unique_values:
-        #     # need to substract 1, because '0' does not represent a successful moulding
-        #     # for example: ['0', '8', '16', '24'] contains 4 unique values
-        #     # but these mean only 3 successful injection mouldings
-        #     return unique_values.shape[0] - 1
-        # else:
-        #     return unique_values.shape[0]
+        uniques = np.array(['1', '2', '3', '6'])
+        self.assertEqual(self.oee.count_nonzero_unique(uniques), 4)
+        uniques = np.array(['1', '2', '0', '3', '6'])
+        self.assertEqual(self.oee.count_nonzero_unique(uniques), 4)
 
     def test_count_injection_mouldings(self):
-        pass
-        # df = self.job['df']
-        # attr_name_val = df[['attrname', 'attrvalue']]
-        # good_unique_values = attr_name_val[attr_name_val['attrname'] == 'GoodPartCounter']['attrvalue'].unique()
-        # reject_unique_values = attr_name_val[attr_name_val['attrname'] == 'RejectPartCounter']['attrvalue'].unique()
-        # self.n_successful_mouldings = self.count_nonzero_unique(good_unique_values)
-        # self.n_failed_mouldings = self.count_nonzero_unique(reject_unique_values)
-        # self.n_total_mouldings = self.n_successful_mouldings + self.n_failed_mouldings
+        now = datetime(2022, 4, 5, 9, 0, 0)
+        _8h = datetime(2022, 4, 5, 8, 0, 0)
+        job_df = self.prepare_df_between(self.job_df.copy(), _8h, now)
+        self.oee.job["df"] = job_df
+        self.oee.count_injection_mouldings()
+        n_successful_mouldings = 83
+        n_failed_mouldings = 1
+        n_total_mouldings = n_successful_mouldings + n_failed_mouldings
+        self.assertEqual(self.oee.n_successful_mouldings, n_successful_mouldings)
+        self.assertEqual(self.oee.n_failed_mouldings, n_failed_mouldings)
+        self.assertEqual(self.oee.n_total_mouldings, n_total_mouldings)
 
-    def test_handle_quality(self):
-        pass
+    @patch(f'{OEE.__name__}.datetime', wraps=datetime)
+    def test_handle_quality(self, mock_datetime):
+        now = datetime(2022, 4, 4, 9, 0, 0)
+        mock_datetime.now.return_value = now
+        self.oee.prepare(self.con)
+        self.oee.handle_availability()
+        n_successful_mouldings = 83
+        n_failed_mouldings = 1
+        n_total_mouldings = n_successful_mouldings + n_failed_mouldings
+        self.assertEqual(self.oee.oee["Quality"]["value"], n_successful_mouldings/n_total_mouldings)
+        self.oee.job["df"] = self.oee.job["df"].drop(self.oee.job["df"].index)
+        with self.assertRaises(ValueError):
+            self.oee.handle_availability()
+
         # if self.job['df'].size == 0:
         #     raise ValueError(f'No job data found for {self.job["id"]} up to time {self.now} on day {self.today}, no OEE data')
         # self.count_injection_mouldings()
@@ -686,9 +729,9 @@ class test_OEECalculator(unittest.TestCase):
         # self.logger.info(f'OEE data: {self.oee}')
         # return self.oee
 
+    def test_calculate_throughput(self):
+        pass
+
 
 if __name__ == "__main__":
-    try:
-        unittest.main()
-    except Exception as error:
-        print(error)
+    unittest.main()

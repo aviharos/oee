@@ -387,68 +387,74 @@ class OEECalculator:
 
         self.set_RefStartTime()
 
-    def calc_availability(self, df_av):
-        """
-        Available is true and false in this periodical order,
-        starting with true
-        we can sum the timestamps of the true values
-        and the false values disctinctly, getting 2 sums
-        the total available time is their difference
-        """
-        # filter for values starting from RefStartTime
-        self.logger.debug(f"df_av:\n{df_av}")
-        df_after = df_av[
-            df_av["recvtimets"]
-            >= self.datetimeToMilliseconds(
-                self.today["RefStartTime"]
-            )
-        ]
-        self.logger.debug(f"df_after:\n{df_after}")
-        if df_after.size == 0:
-            # the workstation's available attribute has not changed since the RefStartTime
-            # so the availability is 0 or 1 depending on if the Workstation is on or off
-            # since the df_av has at least one row, check the last row before RefStartTime
-            df_before = df_av[
-                df_av["recvtimets"]
+    def filter_in_relation_to_RefStartTime(self, df, how):
+        if how == "after":
+            filtered = df[
+                df["recvtimets"]
+                >= self.datetimeToMilliseconds(
+                    self.today["RefStartTime"]
+                )
+            ]
+        elif how == "before":
+            filtered = df[
+                df["recvtimets"]
                 < self.datetimeToMilliseconds(
                     self.today["RefStartTime"]
                 )
             ]
-            self.logger.debug(f"df_before:\n{df_before}")
-            if df_before.iloc[-1]["attrvalue"] == "true":
-                # the Workstation is on 
-                return 1 
-            else:  # df_before.iloc[-1]["attrvalue"] == "false":
-                # the Workstation is off 
-                return 0
-            
-        # now it is sure that the df_after is not emtpy, at least one row
+        else:
+            raise ValueError("filter_RefStartTime: Invalid option how={how}")
+        return filtered.reset_index(drop=True)
+
+    def calc_availability_if_no_availability_record_after_RefStartTime(self, df_before):
+        """
+        the workstation's available attribute has not changed since the RefStartTime
+        so the availability is 0 or 1 depending on if the Workstation is on or off
+        since the df_av has at least one row, check the last row before RefStartTime
+        """
+        self.logger.debug(f"df_before:\n{df_before}")
+        self.total_time_so_far_in_shift = self.now_unix() - self.datetimeToMilliseconds(self.today["RefStartTime"])
+        df_before.sort_values(by=["recvtimets"], inplace=True)
+        self.logger.debug(f"df_before.iloc[-1]['attrvalue']: {df_before.iloc[-1]['attrvalue']}")
+        last_availability = df_before.iloc[-1]["attrvalue"]
+        if last_availability == "true":
+            # the Workstation is on since before RefStartTime
+            self.total_available_time = self.total_time_so_far_in_shift
+            return 1
+        elif last_availability == "false":  # df_before.iloc[-1]["attrvalue"] == "false":
+            # the Workstation is off since before RefStartTime
+            self.total_available_time = 0
+            return 0
+        else:
+            raise ValueError(f"Invalid Availability value: {last_availability} in postgres_table: {self.ws['postgres_table']} at recvtimets: {df_before.iloc[-1]['recvtimets']}")
+
+    def calc_availability_if_exists_record_after_RefStartTime(self, df_after):
+        # TODO check all instances of OperatorWorkingScheduleStartsAt if it should be RefStartTime instead
+        df_after.sort_values(by=["recvtimets"], inplace=True)
         time_on = 0
         time_off = 0
-        # TODO check all instances of OperatorWorkingScheduleStartsAt if it should be RefStartTime instead
         previous_timestamp = self.datetimeToMilliseconds(self.today["RefStartTime"])
         for _, row in df_after.iterrows():
-            self.logger.debug(f"row:\n{row}")
+            # self.logger.debug(f"row:\n{row}")
             """
             interate all rows
             check which interval is on and off, and increase times accordingly
             """
             current_timestamp = row["recvtimets"]
             interval_duration = current_timestamp - previous_timestamp
-            self.logger.debug(f"current_timestamp: {current_timestamp}")
-            self.logger.debug(f"previous_timestamp: {previous_timestamp}")
-            self.logger.debug(f"interval_duration: {interval_duration}")
+            # self.logger.debug(f"current_timestamp: {current_timestamp}")
+            # self.logger.debug(f"previous_timestamp: {previous_timestamp}")
+            # self.logger.debug(f"interval_duration: {interval_duration}")
             if row["attrvalue"] == "true":
                 # the Workstation was turned on, so it was off in the previous interval
                 time_off += interval_duration
             else:  # row["attrvalue"] == "false"
                 # the Workstation was turned off, so it was on in the previous interval
                 time_on += interval_duration
-            self.logger.debug(f"time_off: {time_off}")
-            self.logger.debug(f"time_on: {time_on}")
+            # self.logger.debug(f"time_off: {time_off}")
+            # self.logger.debug(f"time_on: {time_on}")
             previous_timestamp = current_timestamp
 
-        # handle the current timestamp using the last row 
         # the interval from the last entry to now
         interval_duration = self.now_unix() - previous_timestamp
         if row["attrvalue"] == "true":
@@ -463,6 +469,26 @@ class OEECalculator:
         if self.total_time_so_far_in_shift == 0:
             raise ZeroDivisionError("Total time so far in the shift is 0, no OEE data")
         return self.total_available_time / self.total_time_so_far_in_shift
+
+    def calc_availability(self, df_av):
+        """
+        Available is true and false in this periodical order,
+        starting with true
+        we can sum the timestamps of the true values
+        and the false values disctinctly, getting 2 sums
+        the total available time is their difference
+        """
+        # filter for values starting from RefStartTime
+        # self.logger.debug(f"df_av:\n{df_av}")
+        df_after = self.filter_in_relation_to_RefStartTime(df_av, how="after")
+        # self.logger.debug(f"df_after:\n{df_after}")
+        if df_after.size == 0:
+            self.logger.info("No Availability record found after RefStartTime: {self.today['RefStartTime']}, using today's previous availability records")
+            df_before = self.filter_in_relation_to_RefStartTime(df_av, how="before")
+            return self.calc_availability_if_no_availability_record_after_RefStartTime(df_before)
+        else:
+            # now it is sure that the df_after is not emtpy, at least one row
+            return self.calc_availability_if_exists_record_after_RefStartTime(df_after)
 
     def handle_availability(self):
         """
