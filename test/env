@@ -1,0 +1,15 @@
+# Environment variables identical to those in MOMAMS by default. Only for testing purposes.
+# https://github.com/aviharos/momams
+export LOGGING_LEVEL="DEBUG"
+export LOG_TO_FILE=1
+export LOG_TO_STDOUT=1
+export SLEEP_TIME=60
+export POSTGRES_DATABASE="postgres"
+export POSTGRES_HOST="localhost"
+export POSTGRES_PASSWORD="password"
+export POSTGRES_PORT=5432
+export POSTGRES_SCHEMA="default_service"
+export POSTGRES_USER="postgres"
+export ORION_HOST="localhost"
+export ORION_PORT=1026
+
