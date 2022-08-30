@@ -8,7 +8,6 @@ Never use the tests in a production environment.
 Do you still want to proceed? [yN]"
 read ans
 if [ $ans = 'y' ]; then
-    source env
     python modules/reupload_jsons_to_Orion.py
     python test_object_to_template.py
     python test_Orion.py
