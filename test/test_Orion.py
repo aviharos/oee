@@ -19,7 +19,7 @@ ORION_PORT = os.environ.get("ORION_PORT")
 orion_entities = f"http://{ORION_HOST}:{ORION_PORT}/v2/entities"
 
 
-class testOrion(unittest.TestCase):
+class test_Orion(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         with open(os.path.join("..", "json", "Core001.json"), "r") as f:
@@ -106,10 +106,7 @@ class testOrion(unittest.TestCase):
 
 
 def main():
-    try:
-        unittest.main()
-    except Exception as error:
-        print(error)
+    unittest.main()
 
 
 if __name__ == "__main__":
