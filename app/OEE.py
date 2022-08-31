@@ -48,12 +48,6 @@ class OEECalculator:
                 workstation_id:
                     The Orion id of the workstation
 
-        set_time():
-            Inputs:
-                None
-            sets the OEECalculator's time
-            this method is split from the others for testing purposes
-
         prepare(con):
             Inputs:
                 con:
