@@ -526,6 +526,8 @@ class OEECalculator:
         reject_unique_values = attr_name_val[
             attr_name_val["attrname"] == "RejectPartCounter"
         ]["attrvalue"].unique()
+        self.logger.debug(f"good_unique values: {good_unique_values}")
+        self.logger.debug(f"reject_unique values: {reject_unique_values}")
         self.n_successful_mouldings = self.count_nonzero_unique(good_unique_values)
         self.n_failed_mouldings = self.count_nonzero_unique(reject_unique_values)
         self.n_total_mouldings = self.n_successful_mouldings + self.n_failed_mouldings
@@ -545,7 +547,7 @@ class OEECalculator:
     def handle_performance(self):
         self.oee["Performance"]["value"] = (
             self.n_total_mouldings
-            * self.operation["orion"]["OperationTime"]["value"]
+            * self.operation["orion"]["OperationTime"]["value"] * 1e3  # we count in milliseconds
             / self.total_available_time
         )
 
@@ -565,9 +567,10 @@ class OEECalculator:
         self.shiftLengthInMilliseconds = self.datetimeToMilliseconds(
             self.today["OperatorWorkingScheduleStopsAt"]
         ) - self.datetimeToMilliseconds(self.today["RefStartTime"])
-        self.throughput["Throughput"]["value"] = (
-            (self.shiftLengthInMilliseconds / self.operation["OperationTime"]["value"])
-            * self.operation["PartsPerOperation"]["value"]
+        self.throughput["ThroughputPerShift"]["value"] = (
+                # use milliseconds
+            (self.shiftLengthInMilliseconds / (self.operation["orion"]["OperationTime"]["value"] * 1e3))
+            * self.operation["orion"]["PartsPerOperation"]["value"]
             * self.oee["OEE"]["value"]
         )
         self.logger.info(f"Throughput: {self.throughput}")
