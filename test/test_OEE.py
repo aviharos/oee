@@ -113,7 +113,8 @@ class test_OEECalculator(unittest.TestCase):
 
     @classmethod
     def tearDownClass(cls):
-        pass
+        cls.con.close()
+        cls.engine.dispose()
 
     @classmethod
     def prepare_df_between(cls, df, start, end):
