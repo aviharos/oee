@@ -72,6 +72,7 @@ def getWorkstations():
 
 
 def update(objects):
+    logger_Orion.debug(f"update: objects: {objects}")
     """
     A method that takes an iterable (objects) that contains Orion objects,
     then updates them in Orion.
@@ -81,6 +82,7 @@ def update(objects):
     url = f"http://{ORION_HOST}:{ORION_PORT}/v2/op/update"
     try:
         json_ = {"actionType": "append", "entities": list(objects)}
+        logger_Orion.debug(f"update: json_: {json_}")
     except TypeError as error:
         raise TypeError(
             f"The objects {objects} are not iterable, cannot make a list. Please, provide an iterable object"

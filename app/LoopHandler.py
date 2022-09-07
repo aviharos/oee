@@ -1,5 +1,6 @@
 ﻿# -*- coding: utf-8 -*-
 # Standard Library imports
+import copy
 import json
 import os
 
@@ -40,6 +41,9 @@ class LoopHandler:
             f"POSTGRES_PORT environment variable is not set, using default: {POSTGRES_PORT}"
         )
 
+    def __init__(self):
+        self.ids = copy.deepcopy(self.blank_ids)
+
     def delete_attributes(self, object_):
         file = f"{object_}.json"
         try:
@@ -58,8 +62,9 @@ class LoopHandler:
                 orion_object["Quality"]["value"] = None
                 orion_object["OEE"]["value"] = None
             if object_ == "Throughput":
-                orion_object["Throughput"]["value"] = None
-            Orion.update((orion_object))
+                orion_object["ThroughputPerShift"]["value"] = None
+            self.logger.debug(f"Delete attributes, object: {orion_object}")
+            Orion.update([orion_object])
 
     def get_ids(self, ws):
         self.ids["ws"] = ws["id"]
@@ -79,11 +84,11 @@ class LoopHandler:
         return oee, throughput
 
     def handle_ws(self, ws):
-        self.ids = self.blank_ids.copy()
+        self.ids = copy.deepcopy(self.blank_ids)
         self.get_ids(ws)
         self.logger.info(f'Calculating KPIs for {ws["id"]}')
         oee, throughput = self.calculate_KPIs()
-        Orion.update((oee, throughput))
+        Orion.update([oee, throughput])
 
     def handle(self):
         self.engine = create_engine(

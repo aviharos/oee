@@ -3,6 +3,7 @@ import unittest
 from modules import reupload_jsons_to_Orion
 from test_Orion import test_Orion
 from test_OEE import test_OEECalculator
+from test_LoopHandler import test_LoopHandler
 
 
 def main():

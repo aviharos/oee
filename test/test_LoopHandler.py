@@ -1,4 +1,5 @@
 import copy
+import json
 import os
 import sys
 import unittest
@@ -6,16 +7,19 @@ from unittest.mock import patch
 
 # custom imports
 from modules.remove_orion_metadata import remove_orion_metadata 
+from modules import reupload_jsons_to_Orion
 
 sys.path.insert(0, os.path.join("..", "app"))
+import Orion
 from LoopHandler import LoopHandler
+
 
 class test_LoopHandler(unittest.TestCase):
     pass
 
     @classmethod
     def setUpClass(cls):
-        pass
+        reupload_jsons_to_Orion.main()
 
     @classmethod
     def tearDownClass(cls):
@@ -32,8 +36,8 @@ class test_LoopHandler(unittest.TestCase):
         pass
 
     def test_delete_attributes(self):
+        self.loopHandler.ids["oee"] = "urn:ngsi_ld:OEE:1"
         self.loopHandler.delete_attributes("OEE")
-        downloaded_OEE = remove_orion_metadata(Orion.get("urn:ngsi_ld:OEE:1"))
         blank_OEE = {
             "type": "OEE",
             "id": "urn:ngsi_ld:OEE:1",
@@ -44,8 +48,10 @@ class test_LoopHandler(unittest.TestCase):
             "Quality": {"type": "Number", "value": None},
             "OEE": {"type": "Number", "value": None}
         }
+        downloaded_OEE = remove_orion_metadata(Orion.get("urn:ngsi_ld:OEE:1"))
         self.assertEqual(downloaded_OEE, blank_OEE)
 
+        self.loopHandler.ids["throughput"] = "urn:ngsi_ld:Throughput:1"
         self.loopHandler.delete_attributes("Throughput")
         downloaded_Throughput = remove_orion_metadata(Orion.get("urn:ngsi_ld:Throughput:1"))
         blank_Throughput = {
@@ -56,29 +62,21 @@ class test_LoopHandler(unittest.TestCase):
             "ThroughputPerShift": {"type": "Number", "value": None}
         }
         self.assertEqual(downloaded_Throughput, blank_Throughput)
-        # file = f"{object_}.json"
-        # try:
-        #     orion_object = object_to_template(os.path.join("..", "json", file))
-        # except FileNotFoundError as error:
-        #     self.logger.critical(f"{file} not found.\n{error}")
-        # except json.decoder.JSONDecodeError as error:
-        #     self.logger.critical(f"{file} is invalid.\n{error}")
-        # else:
-        #     orion_object["id"] = self.ids[object_.lower()]
-        #     orion_object["RefWorkstation"]["value"] = self.ids["ws"]
-        #     orion_object["RefJob"]["value"] = self.ids["job"]
-        #     Orion.update((orion_object))
 
     def test_get_ids(self):
-        pass
-        # self.ids["ws"] = ws["id"]
-        # self.ids["job"] = ws["RefJob"]["value"]
-        # if not Orion.exists(self.ids["job"]):
-        #     raise ValueError(
-        #         f'Critical: object does not exist in Orion: {self.ids["job"]}'
-        #     )
-        # self.ids["oee"] = ws["RefOEE"]["value"]
-        # self.ids["throughput"] = ws["RefThroughput"]["value"]
+        self.loopHandler.ids = copy.deepcopy(self.loopHandler.blank_ids)
+        with open(os.path.join("..", "json", "Workstation.json")) as f:
+            ws = json.load(f)
+        self.loopHandler.get_ids(ws)
+        self.assertEqual(self.loopHandler.ids["ws"], ws["id"])
+        self.assertEqual(self.loopHandler.ids["job"], ws["RefJob"]["value"])
+        self.assertEqual(self.loopHandler.ids["oee"], ws["RefOEE"]["value"])
+        self.assertEqual(self.loopHandler.ids["throughput"], ws["RefThroughput"]["value"])
+
+        with patch("Orion.exists") as mock_Orion_exist:
+            mock_Orion_exist.return_value = False
+            with self.assertRaises(ValueError):
+                self.loopHandler.get_ids(ws)
 
     def test_calculate_KPIs(self):
         pass
