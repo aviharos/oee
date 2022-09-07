@@ -4,6 +4,9 @@ import sys
 import unittest
 from unittest.mock import patch
 
+# custom imports
+from modules.remove_orion_metadata import remove_orion_metadata 
+
 sys.path.insert(0, os.path.join("..", "app"))
 from LoopHandler import LoopHandler
 
@@ -12,21 +15,47 @@ class test_LoopHandler(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
-        cls.loopHandler_template = LoopHandler()
+        pass
 
     @classmethod
     def tearDownClass(cls):
         pass
 
     def setUp(self):
-        self.loopHandler = copy.deepcopy(self.loopHandler_template)
+        self.loopHandler = LoopHandler()
+        self.loopHandler.ids["OEE"] = "urn:ngsi_ld:OEE:1"
+        self.loopHandler.ids["Throughput"] = "urn:ngsi_ld:Throughput:1"
+        self.loopHandler.ids["ws"] = "urn:ngsi_ld:Workstation:1"
+        self.loopHandler.ids["job"] = "urn:ngsi_ld:Job:202200045"
 
     def tearDown(self):
         pass
 
     def test_delete_attributes(self):
-        self.loopHandler.ids["OEE"]
-        object_ = "OEE"
+        self.loopHandler.delete_attributes("OEE")
+        downloaded_OEE = remove_orion_metadata(Orion.get("urn:ngsi_ld:OEE:1"))
+        blank_OEE = {
+            "type": "OEE",
+            "id": "urn:ngsi_ld:OEE:1",
+            "RefWorkstation": {"type": "Relationship", "value": "urn:ngsi_ld:Workstation:1"},
+            "RefJob": {"type": "Relationship", "value": "urn:ngsi_ld:Job:202200045"},
+            "Availability": {"type": "Number", "value": None},
+            "Performance": {"type": "Number", "value": None},
+            "Quality": {"type": "Number", "value": None},
+            "OEE": {"type": "Number", "value": None}
+        }
+        self.assertEqual(downloaded_OEE, blank_OEE)
+
+        self.loopHandler.delete_attributes("Throughput")
+        downloaded_Throughput = remove_orion_metadata(Orion.get("urn:ngsi_ld:Throughput:1"))
+        blank_Throughput = {
+            "type": "Throughput",
+            "id": "urn:ngsi_ld:Throughput:1",
+            "RefWorkstation": {"type": "Relationship", "value": "urn:ngsi_ld:Workstation:1"},
+            "RefJob": {"type": "Relationship", "value": "urn:ngsi_ld:Job:202200045"},
+            "ThroughputPerShift": {"type": "Number", "value": None}
+        }
+        self.assertEqual(downloaded_Throughput, blank_Throughput)
         # file = f"{object_}.json"
         # try:
         #     orion_object = object_to_template(os.path.join("..", "json", file))

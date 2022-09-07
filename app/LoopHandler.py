@@ -52,6 +52,13 @@ class LoopHandler:
             orion_object["id"] = self.ids[object_.lower()]
             orion_object["RefWorkstation"]["value"] = self.ids["ws"]
             orion_object["RefJob"]["value"] = self.ids["job"]
+            if object_ == "OEE":
+                orion_object["Availability"]["value"] = None
+                orion_object["Performance"]["value"] = None
+                orion_object["Quality"]["value"] = None
+                orion_object["OEE"]["value"] = None
+            if object_ == "Throughput":
+                orion_object["Throughput"]["value"] = None
             Orion.update((orion_object))
 
     def get_ids(self, ws):
