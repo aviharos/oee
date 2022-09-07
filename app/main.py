@@ -32,13 +32,16 @@ def loop(scheduler_):
 
 
 def main():
+    logger_main.info("Starting OEE microservice...")
+    for k, v in os.environ:
+        if "PASS" not in k:
+            logger_main.info(f"environ: {k}={v}")
     scheduler = sched.scheduler(time.time, time.sleep)
-    scheduler.enter(SLEEP_TIME, 1, loop, (scheduler,))
-    logger_main.info("Starting OEE app...")
+    scheduler.enter(0, 1, loop, (scheduler,))
     try:
         scheduler.run()
     except KeyboardInterrupt:
-        logger_main.info("KeyboardInterrupt. Stopping OEE app...")
+        logger_main.info("KeyboardInterrupt. Stopping OEE microservice...")
 
 
 if __name__ == "__main__":
