@@ -6,7 +6,7 @@ import glob
 import os
 import sys
 import unittest
-from unittest.mock import mock_open, patch
+from unittest.mock import patch
 
 # PyPI imports
 import pandas as pd
@@ -14,7 +14,7 @@ import numpy as np
 import psycopg2
 import sqlalchemy
 from sqlalchemy import create_engine
-from sqlalchemy.types import DateTime, Float, BigInteger, Text
+from sqlalchemy.types import Text
 
 # Custom imports
 sys.path.insert(0, os.path.join("..", "app"))
@@ -28,16 +28,6 @@ JOB_ID = "urn:ngsi_ld:Job:202200045"
 JOB_FILE = "urn_ngsi_ld_job_202200045_job.csv"
 JOB_TABLE = "urn_ngsi_ld_job_202200045_job"
 PLACES = 4
-COL_DTYPES = {
-    "recvtimets": BigInteger(),
-    "recvtime": DateTime(),
-    "availability": Float(),
-    "performance": Float(),
-    "quality": Float(),
-    "oee": Float(),
-    "throughput_shift": Float(),
-    "job": Text(),
-}
 
 # from OEE import OEECalculator
 import OEE
@@ -67,11 +57,6 @@ class test_OEECalculator(unittest.TestCase):
             cls.engine.execute(sqlalchemy.schema.CreateSchema(POSTGRES_SCHEMA))
 
         cls.oee_template = OEE.OEECalculator(WS_ID)
-
-        # def remove_trailing_dot_0(str_):
-        #     # remove trailing '.0'-s from str representation on integers
-        #     # e.g. '110.0' -> '110'
-        #     return str_.split('.')[0]
 
         # read and upload both tables to PostgreSQL
         # then download them to ensure that the data types
@@ -131,8 +116,7 @@ class test_OEECalculator(unittest.TestCase):
         cls.logger.info(f"start_timestamp: {start_timestamp}")
         cls.logger.info(f"end timestamp: {end_timestamp}")
         df = df[
-            (start_timestamp <= df["recvtimets"])
-            & (df["recvtimets"] <= end_timestamp)
+            (start_timestamp <= df["recvtimets"]) & (df["recvtimets"] <= end_timestamp)
         ].reset_index(drop=True)
         return df
 
@@ -143,8 +127,12 @@ class test_OEECalculator(unittest.TestCase):
 
     @classmethod
     def are_dfs_equal(cls, df1, df2):
-        df1_sorted = df1.sort_values(by=["recvtimets", "attrname"]).reset_index(drop=True)
-        df2_sorted = df2.sort_values(by=["recvtimets", "attrname"]).reset_index(drop=True)
+        df1_sorted = df1.sort_values(by=["recvtimets", "attrname"]).reset_index(
+            drop=True
+        )
+        df2_sorted = df2.sort_values(by=["recvtimets", "attrname"]).reset_index(
+            drop=True
+        )
         return df1_sorted.equals(df2_sorted)
 
     def setUp(self):
@@ -536,7 +524,8 @@ class test_OEECalculator(unittest.TestCase):
     datetime.datetime cannot be patched directly,
     patch datetime inside module
     """
-    @patch(f'{OEE.__name__}.datetime', wraps=datetime)
+
+    @patch(f"{OEE.__name__}.datetime", wraps=datetime)
     def test_prepare(self, mock_datetime):
         now = datetime(2022, 4, 5, 9, 0, 0)
         mock_datetime.now.return_value = now
@@ -573,7 +562,9 @@ class test_OEECalculator(unittest.TestCase):
         # self.write_df_with_dtypes(self.oee.job["df"].sort_values(by=["recvtimets", "attrname"]), "job_oee")
         self.assertTrue(self.are_dfs_equal(self.oee.job["df"], job_df))
 
-        self.assertEqual(self.oee.oee["id"], self.jsons["Workstation"]["RefOEE"]["value"])
+        self.assertEqual(
+            self.oee.oee["id"], self.jsons["Workstation"]["RefOEE"]["value"]
+        )
         self.assertEqual(
             self.oee.oee["RefWorkstation"]["value"], self.jsons["Workstation"]["id"]
         )
@@ -584,9 +575,7 @@ class test_OEECalculator(unittest.TestCase):
 
         # with patch("datetime.datetime.now") as mock_now:
         # mock_now.return_value = now
-        with patch(
-            "OEE.OEECalculator.get_objects_shift_limits"
-        ) as mock_get_objects:
+        with patch("OEE.OEECalculator.get_objects_shift_limits") as mock_get_objects:
             mock_get_objects.side_effect = RuntimeError
             with self.assertRaises(RuntimeError):
                 self.oee.prepare(self.con)
@@ -599,9 +588,7 @@ class test_OEECalculator(unittest.TestCase):
             mock_get_objects.side_effect = TypeError
             with self.assertRaises(RuntimeError):
                 self.oee.prepare(self.con)
-        with patch(
-            "OEE.OEECalculator.is_datetime_in_todays_shift"
-        ) as mock_is_in_shift:
+        with patch("OEE.OEECalculator.is_datetime_in_todays_shift") as mock_is_in_shift:
             mock_is_in_shift.return_value = False
             with self.assertRaises(ValueError):
                 self.oee.prepare(self.con)
@@ -627,7 +614,11 @@ class test_OEECalculator(unittest.TestCase):
         df_before = df[ms > df["recvtimets"]]
         df_before.dropna(how="any", inplace=True)
         df_before.reset_index(drop=True, inplace=True)
-        self.assertTrue(self.oee.filter_in_relation_to_RefStartTime(df, how="before").equals(df_before))
+        self.assertTrue(
+            self.oee.filter_in_relation_to_RefStartTime(df, how="before").equals(
+                df_before
+            )
+        )
         with self.assertRaises(ValueError):
             self.oee.filter_in_relation_to_RefStartTime(df, how="somehow_else")
 
@@ -639,20 +630,32 @@ class test_OEECalculator(unittest.TestCase):
         self.oee.today["RefStartTime"] = _8h40
         df = self.prepare_df_between(self.ws_df, _8h, _8h40)
         # the RefStartTime is 8:40, the last entry (as of 9h) is 8:30 turn on, so availability = 1
-        self.assertEqual(self.oee.calc_availability_if_no_availability_record_after_RefStartTime(df), 1)
-        total_time_so_far_in_shift = self.oee.datetimeToMilliseconds(_9h) - self.oee.datetimeToMilliseconds(_8h40)
-        self.assertEqual(self.oee.total_time_so_far_in_shift, total_time_so_far_in_shift)
+        self.assertEqual(
+            self.oee.calc_availability_if_no_availability_record_after_RefStartTime(df),
+            1,
+        )
+        total_time_so_far_in_shift = self.oee.datetimeToMilliseconds(
+            _9h
+        ) - self.oee.datetimeToMilliseconds(_8h40)
+        self.assertEqual(
+            self.oee.total_time_so_far_in_shift, total_time_so_far_in_shift
+        )
         self.assertEqual(self.oee.total_available_time, total_time_so_far_in_shift)
         # the RefStartTime is 8:40, the last entry (as of 9h) is 8:30 turn off, so availability = 0
-        df.at[-1, 'attrvalue'] = "false"
-        self.assertEqual(self.oee.calc_availability_if_no_availability_record_after_RefStartTime(df), 0)
-        self.assertEqual(self.oee.total_time_so_far_in_shift, total_time_so_far_in_shift)
+        df.at[-1, "attrvalue"] = "false"
+        self.assertEqual(
+            self.oee.calc_availability_if_no_availability_record_after_RefStartTime(df),
+            0,
+        )
+        self.assertEqual(
+            self.oee.total_time_so_far_in_shift, total_time_so_far_in_shift
+        )
         self.assertEqual(self.oee.total_available_time, 0)
-        df.at[-1, 'attrvalue'] = "False"
+        df.at[-1, "attrvalue"] = "False"
         with self.assertRaises(ValueError):
             self.oee.calc_availability_if_no_availability_record_after_RefStartTime(df)
 
-    @patch(f'{OEE.__name__}.datetime', wraps=datetime)
+    @patch(f"{OEE.__name__}.datetime", wraps=datetime)
     def test_calc_availability_if_exists_record_after_RefStartTime(self, mock_datetime):
         now = datetime(2022, 4, 4, 9, 0, 0)
         mock_datetime.now.return_value = now
@@ -661,33 +664,36 @@ class test_OEECalculator(unittest.TestCase):
         df_av = df[df["attrname"] == "Available"]
         df_after = self.oee.filter_in_relation_to_RefStartTime(df_av, how="after")
         # self.logger.debug("calc_availability_if_exists_record_after_RefStartTime, df_av: {df_av}")
-        self.assertEqual(self.oee.calc_availability_if_exists_record_after_RefStartTime(df_after), 50/60)
+        self.assertEqual(
+            self.oee.calc_availability_if_exists_record_after_RefStartTime(df_after),
+            50 / 60,
+        )
 
-    @patch(f'{OEE.__name__}.datetime', wraps=datetime)
+    @patch(f"{OEE.__name__}.datetime", wraps=datetime)
     def test_calc_availability(self, mock_datetime):
         now = datetime(2022, 4, 4, 9, 0, 0)
         mock_datetime.now.return_value = now
         self.oee.prepare(self.con)
         df = self.oee.ws["df"].copy()
         df_av = df[df["attrname"] == "Available"]
-        self.assertEqual(self.oee.calc_availability(df_av), 50/60)
+        self.assertEqual(self.oee.calc_availability(df_av), 50 / 60)
 
-    @patch(f'{OEE.__name__}.datetime', wraps=datetime)
+    @patch(f"{OEE.__name__}.datetime", wraps=datetime)
     def test_handle_availability(self, mock_datetime):
         now = datetime(2022, 4, 4, 9, 0, 0)
         mock_datetime.now.return_value = now
         self.oee.prepare(self.con)
         self.oee.handle_availability()
-        self.assertEqual(self.oee.oee["Availability"]["value"], 50/60)
+        self.assertEqual(self.oee.oee["Availability"]["value"], 50 / 60)
         # empty df
         self.oee.ws["df"] = self.oee.ws["df"].drop(self.oee.ws["df"].index)
         with self.assertRaises(ValueError):
             self.oee.handle_availability()
 
     def test_count_nonzero_unique(self):
-        uniques = np.array(['1', '2', '3', '6'])
+        uniques = np.array(["1", "2", "3", "6"])
         self.assertEqual(self.oee.count_nonzero_unique(uniques), 4)
-        uniques = np.array(['1', '2', '0', '3', '6'])
+        uniques = np.array(["1", "2", "0", "3", "6"])
         self.assertEqual(self.oee.count_nonzero_unique(uniques), 4)
 
     def test_count_injection_mouldings(self):
@@ -703,7 +709,7 @@ class test_OEECalculator(unittest.TestCase):
         self.assertEqual(self.oee.n_failed_mouldings, n_failed_mouldings)
         self.assertEqual(self.oee.n_total_mouldings, n_total_mouldings)
 
-    @patch(f'{OEE.__name__}.datetime', wraps=datetime)
+    @patch(f"{OEE.__name__}.datetime", wraps=datetime)
     def test_handle_quality(self, mock_datetime):
         now = datetime(2022, 4, 4, 9, 0, 0)
         mock_datetime.now.return_value = now
@@ -712,12 +718,14 @@ class test_OEECalculator(unittest.TestCase):
         n_successful_mouldings = 70
         n_failed_mouldings = 1
         n_total_mouldings = n_successful_mouldings + n_failed_mouldings
-        self.assertEqual(self.oee.oee["Quality"]["value"], n_successful_mouldings/n_total_mouldings)
+        self.assertEqual(
+            self.oee.oee["Quality"]["value"], n_successful_mouldings / n_total_mouldings
+        )
         self.oee.job["df"] = self.oee.job["df"].drop(self.oee.job["df"].index)
         with self.assertRaises(ValueError):
             self.oee.handle_quality()
 
-    @patch(f'{OEE.__name__}.datetime', wraps=datetime)
+    @patch(f"{OEE.__name__}.datetime", wraps=datetime)
     def test_handle_performance(self, mock_datetime):
         now = datetime(2022, 4, 4, 9, 0, 0)
         mock_datetime.now.return_value = now
@@ -740,36 +748,74 @@ class test_OEECalculator(unittest.TestCase):
         self.assertEqual(self.oee.oee["Performance"]["value"], performance)
         # self.oee['Performance']['value'] = self.n_total_mouldings * self.operation['orion']['OperationTime']['value'] / self.total_available_time
 
-    @patch(f'{OEE.__name__}.datetime', wraps=datetime)
+    @patch(f"{OEE.__name__}.datetime", wraps=datetime)
     def test_calculate_OEE(self, mock_datetime):
         now = datetime(2022, 4, 4, 9, 0, 0)
         mock_datetime.now.return_value = now
         self.oee.prepare(self.con)
         oeeCalculator_oee = self.oee.calculate_OEE()
         oee = copy.deepcopy(self.jsons["OEE"])
-        oee["Availability"]["value"] = 50/60
-        oee["Quality"]["value"] = 70/71
+        oee["Availability"]["value"] = 50 / 60
+        oee["Quality"]["value"] = 70 / 71
         oee["Performance"]["value"] = (71 * 46) / (50 * 60)
-        oee["OEE"]["value"] = oee["Availability"]["value"] * oee["Quality"]["value"] * oee["Performance"]["value"]
-        self.assertAlmostEqual(self.oee.oee["Availability"]["value"], oee["Availability"]["value"], places=PLACES)
-        self.assertAlmostEqual(self.oee.oee["Quality"]["value"], oee["Quality"]["value"], places=PLACES)
-        self.assertAlmostEqual(self.oee.oee["Performance"]["value"], oee["Performance"]["value"], places=PLACES)
-        self.assertAlmostEqual(self.oee.oee["OEE"]["value"], oee["OEE"]["value"], places=PLACES)
-        self.assertAlmostEqual(oeeCalculator_oee["Availability"]["value"], oee["Availability"]["value"], places=PLACES)
-        self.assertAlmostEqual(oeeCalculator_oee["Quality"]["value"], oee["Quality"]["value"], places=PLACES)
-        self.assertAlmostEqual(oeeCalculator_oee["Performance"]["value"], oee["Performance"]["value"], places=PLACES)
-        self.assertAlmostEqual(oeeCalculator_oee["OEE"]["value"], oee["OEE"]["value"], places=PLACES)
+        oee["OEE"]["value"] = (
+            oee["Availability"]["value"]
+            * oee["Quality"]["value"]
+            * oee["Performance"]["value"]
+        )
+        self.assertAlmostEqual(
+            self.oee.oee["Availability"]["value"],
+            oee["Availability"]["value"],
+            places=PLACES,
+        )
+        self.assertAlmostEqual(
+            self.oee.oee["Quality"]["value"], oee["Quality"]["value"], places=PLACES
+        )
+        self.assertAlmostEqual(
+            self.oee.oee["Performance"]["value"],
+            oee["Performance"]["value"],
+            places=PLACES,
+        )
+        self.assertAlmostEqual(
+            self.oee.oee["OEE"]["value"], oee["OEE"]["value"], places=PLACES
+        )
+        self.assertAlmostEqual(
+            oeeCalculator_oee["Availability"]["value"],
+            oee["Availability"]["value"],
+            places=PLACES,
+        )
+        self.assertAlmostEqual(
+            oeeCalculator_oee["Quality"]["value"],
+            oee["Quality"]["value"],
+            places=PLACES,
+        )
+        self.assertAlmostEqual(
+            oeeCalculator_oee["Performance"]["value"],
+            oee["Performance"]["value"],
+            places=PLACES,
+        )
+        self.assertAlmostEqual(
+            oeeCalculator_oee["OEE"]["value"], oee["OEE"]["value"], places=PLACES
+        )
 
-    @patch(f'{OEE.__name__}.datetime', wraps=datetime)
+    @patch(f"{OEE.__name__}.datetime", wraps=datetime)
     def test_calculate_throughput(self, mock_datetime):
         now = datetime(2022, 4, 4, 9, 0, 0)
         mock_datetime.now.return_value = now
         self.oee.prepare(self.con)
         self.oee.calculate_OEE()
         oeeCalculator_throughput = self.oee.calculate_throughput()
-        throughput = (8*3600e3/46e3) * 8 * self.oee.oee["OEE"]["value"]
-        self.assertAlmostEqual(oeeCalculator_throughput["ThroughputPerShift"]["value"], throughput, places=PLACES)
+        throughput = (8 * 3600e3 / 46e3) * 8 * self.oee.oee["OEE"]["value"]
+        self.assertAlmostEqual(
+            oeeCalculator_throughput["ThroughputPerShift"]["value"],
+            throughput,
+            places=PLACES,
+        )
+
+
+def main():
+    unittest.main()
 
 
 if __name__ == "__main__":
-    unittest.main()
+    main()
