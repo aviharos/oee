@@ -33,7 +33,7 @@ def loop(scheduler_):
 
 def main():
     logger_main.info("Starting OEE microservice...")
-    for k, v in os.environ:
+    for k, v in os.environ.items():
         if "PASS" not in k:
             logger_main.info(f"environ: {k}={v}")
     scheduler = sched.scheduler(time.time, time.sleep)
