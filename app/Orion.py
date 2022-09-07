@@ -92,37 +92,3 @@ def update(objects):
         )
     else:
         return response.status_code
-
-
-# def getActiveJobId(workstationId):
-#     workstation = get(workstationId)
-#     try:
-#         refJobId = workstation['RefJob']['value']
-#         return refJobId
-#     except KeyError:
-#         raise KeyError(f'Missing RefJob attribute in Workstation: {workstation}, no OEE data')
-
-# def post(url, obj):
-#     try:
-#         response = requests.post(url, json=obj)
-#         response.close()
-#     except:
-#         raise RuntimeError(f'Put request failed to URL: {url} for unknown reason')
-#
-#     else:
-#         if response.status_code == 201:
-#             return response.status_code
-#         else:
-#             raise RuntimeError(f'The object could not be created in Orion. URL: {url}, status code:{response.status_code}')
-
-# def deleteObject(url):
-#     try:
-#         response = requests.delete(url)
-#         response.close()
-#     except:
-#         raise RuntimeError(f'Delete request failed to URL: {url} for unknown reason')
-#     else:
-#         if response.status_code == 204:
-#             return response.status_code
-#         else:
-#             raise RuntimeError(f'The object could not be deleted in Orion. URL: {url}, status code:{response.status_code}')
