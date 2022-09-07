@@ -91,7 +91,7 @@ class test_Orion(unittest.TestCase):
         ws2m["RefOEE"]["value"] = "urn:ngsi_ld:OEE:3"
         requests.post(url=orion_entities, json=ws1m)
         requests.post(url=orion_entities, json=ws2m)
-        Orion.update((ws1m, ws2m))
+        Orion.update([ws1m, ws2m])
         downloaded_workstations = [
             remove_orion_metadata(ws) for ws in Orion.getWorkstations()
         ]
