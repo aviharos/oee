@@ -44,28 +44,6 @@ class LoopHandler:
     def __init__(self):
         self.ids = copy.deepcopy(self.blank_ids)
 
-    def delete_attributes(self, object_):
-        file = f"{object_}.json"
-        try:
-            orion_object = object_to_template(os.path.join("..", "json", file))
-        except FileNotFoundError as error:
-            self.logger.critical(f"{file} not found.\n{error}")
-        except json.decoder.JSONDecodeError as error:
-            self.logger.critical(f"{file} is invalid.\n{error}")
-        else:
-            orion_object["id"] = self.ids[object_.lower()]
-            orion_object["RefWorkstation"]["value"] = self.ids["ws"]
-            orion_object["RefJob"]["value"] = self.ids["job"]
-            if object_ == "OEE":
-                orion_object["Availability"]["value"] = None
-                orion_object["Performance"]["value"] = None
-                orion_object["Quality"]["value"] = None
-                orion_object["OEE"]["value"] = None
-            if object_ == "Throughput":
-                orion_object["ThroughputPerShift"]["value"] = None
-            self.logger.debug(f"Delete attributes, object: {orion_object}")
-            Orion.update([orion_object])
-
     def get_ids(self, ws):
         self.ids["ws"] = ws["id"]
         self.ids["job"] = ws["RefJob"]["value"]
@@ -89,6 +67,28 @@ class LoopHandler:
         self.logger.info(f'Calculating KPIs for {ws["id"]}')
         oee, throughput = self.calculate_KPIs()
         Orion.update([oee, throughput])
+
+    def delete_attributes(self, object_):
+        file = f"{object_}.json"
+        try:
+            orion_object = object_to_template(os.path.join("..", "json", file))
+        except FileNotFoundError as error:
+            self.logger.critical(f"{file} not found.\n{error}")
+        except json.decoder.JSONDecodeError as error:
+            self.logger.critical(f"{file} is invalid.\n{error}")
+        else:
+            orion_object["id"] = self.ids[object_.lower()]
+            orion_object["RefWorkstation"]["value"] = self.ids["ws"]
+            orion_object["RefJob"]["value"] = self.ids["job"]
+            if object_ == "OEE":
+                orion_object["Availability"]["value"] = None
+                orion_object["Performance"]["value"] = None
+                orion_object["Quality"]["value"] = None
+                orion_object["OEE"]["value"] = None
+            if object_ == "Throughput":
+                orion_object["ThroughputPerShift"]["value"] = None
+            self.logger.debug(f"Delete attributes, object: {orion_object}")
+            Orion.update([orion_object])
 
     def handle(self):
         self.engine = create_engine(

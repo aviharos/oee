@@ -1,10 +1,12 @@
 ﻿# -*- coding: utf-8 -*-
 # Standard Library imports
-# PyPI packages
 import os
+
+# PyPI packages
 import requests
 
-from modules.log_it import log_it
+# Custom imports
+# from modules.log_it import log_it
 from Logger import getLogger
 
 logger_Orion = getLogger(__name__)
