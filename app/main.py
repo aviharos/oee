@@ -12,14 +12,24 @@ logger_main = getLogger(__name__)
 # Load environment variables
 SLEEP_TIME = os.environ.get("SLEEP_TIME")
 if SLEEP_TIME is None:
+    logger_main.warning("SLEEP_TIME environment variable is not set. Using default: 60s.")
     SLEEP_TIME = 60  # seconds
+else:
+    try:
+        SLEEP_TIME = float(SLEEP_TIME)
+    except Exception as error:
+        logger_main.warning(f"SLEEP_TIME environment variable is not a number. Using default: 60s.{error}")
+        SLEEP_TIME = 60
 
 
 def loop(scheduler_):
     logger_main.info("Calculating OEE values")
-    loopHandler = LoopHandler()
     try:
+        loopHandler = LoopHandler()
         loopHandler.handle()
+    except (KeyboardInterrupt,
+            SystemExit):
+        raise KeyboardInterrupt
     except Exception as error:
         # Catch any uncategorised error and log it
         logger_main.error(error)
