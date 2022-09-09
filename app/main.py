@@ -9,36 +9,38 @@ from LoopHandler import LoopHandler
 
 logger_main = getLogger(__name__)
 
-# Load environment variables
-SLEEP_TIME = os.environ.get("SLEEP_TIME")
-if SLEEP_TIME is None:
-    logger_main.warning("SLEEP_TIME environment variable is not set. Using default: 60s.")
-    SLEEP_TIME = 60  # seconds
-else:
-    try:
-        SLEEP_TIME = float(SLEEP_TIME)
-    except Exception as error:
-        logger_main.warning(f"SLEEP_TIME environment variable is not a number. Using default: 60s.{error}")
-        SLEEP_TIME = 60
+
+def get_SLEEP_TIME():
+    SLEEP_TIME = os.environ.get("SLEEP_TIME")
+    if SLEEP_TIME is None:
+        logger_main.warning("SLEEP_TIME environment variable is not set. Using default: 60s.")
+        SLEEP_TIME = 60  # seconds
+        return SLEEP_TIME
+    else:
+        try:
+            SLEEP_TIME = float(SLEEP_TIME)
+            return SLEEP_TIME
+        except (ValueError, TypeError):
+            logger_main.critical(f"SLEEP_TIME is not a number: {os.environ.get('SLEEP_TIME')}")
+            raise
+
+
+SLEEP_TIME = get_SLEEP_TIME()
 
 
 def loop(scheduler_):
     logger_main.info("Calculating OEE values")
-    try:
-        loopHandler = LoopHandler()
-        loopHandler.handle()
-    except (KeyboardInterrupt,
-            SystemExit):
-        raise KeyboardInterrupt
-    except Exception as error:
-        # Catch any uncategorised error and log it
-        logger_main.error(error)
-    finally:
-        # SLEEP_TIME means the number of seconds slept between 2 loops
-        # the OEE microservice does not follow a strict period time
-        # to ensure that the previous loop is always finished
-        # before starting a new one is due
-        scheduler_.enter(SLEEP_TIME, 1, loop, (scheduler_,))
+    loopHandler = LoopHandler()
+    loopHandler.handle()
+    """
+    SLEEP_TIME means the number of seconds slept
+    after the end of the previous loop and the start
+    of the next loop
+    the OEE microservice does not follow a strict period time
+    to ensure that the previous loop is always finished
+    before starting a new one is due
+    """
+    scheduler_.enter(SLEEP_TIME, 1, loop, (scheduler_,))
 
 
 def main():
