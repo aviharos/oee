@@ -12,10 +12,18 @@ if LOGGING_LEVEL is None:
 
 LOG_TO_FILE = os.environ.get("LOG_TO_FILE")
 if LOG_TO_FILE is None:
+    LOG_TO_FILE = True
+elif LOG_TO_FILE.lower() == "false":
     LOG_TO_FILE = False
+else:
+    LOG_TO_FILE = True
 
 LOG_TO_STDOUT = os.environ.get("LOG_TO_STDOUT")
 if LOG_TO_STDOUT is None:
+    LOG_TO_STDOUT = True
+elif LOG_TO_STDOUT.lower() == "false":
+    LOG_TO_STDOUT = False
+else:
     LOG_TO_STDOUT = True
 
 
