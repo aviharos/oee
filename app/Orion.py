@@ -37,13 +37,14 @@ if ORION_PORT is None:
     ORION_PORT = default_port
 
 
-def getRequest(url):
+def getRequest(url: str):
     """Send a GET request to Orion
-
-    And returns the response status code and the json
 
     Args:
         url: any Orion that is suitable for GET requests
+
+    Returns:
+        the response status code and the json
 
     Raises:
         RuntimeError: when the request fails for any reason
@@ -65,15 +66,16 @@ def getRequest(url):
         return response.status_code, response.json()
 
 
-def get(object_id, host=ORION_HOST, port=ORION_PORT):
+def get(object_id: str, host=ORION_HOST, port=ORION_PORT):
     """Get an object from Orion identified by the ID
-
-    Returns the object in JSON format idenfitied by object_id
 
     Args:
         object_id: the Orion object id
         host: Orion host. Default: ORION_HOST environment variable
         port: Orion port. Default: ORION_PORT environment variable
+
+    Returns:
+        The object in JSON format idenfitied by object_id
 
     Raises:
         RuntimeError: if the get request's status code is not 200
@@ -91,11 +93,12 @@ def get(object_id, host=ORION_HOST, port=ORION_PORT):
 def exists(object_id):
     """Check if an object exists in Orion
 
-    Returns True if the object idenfitied by object_id exists,
-    False otherwise.
-
     Args:
         object_id: the object's id in Orion
+
+    Returns:
+        True if the object idenfitied by object_id exists,
+        False otherwise.
     """
     try:
         get(object_id)
@@ -107,7 +110,8 @@ def exists(object_id):
 def getWorkstations():
     """Download all Workstation objects at once from Orion
 
-    Returns a list of the Workstation objects
+    Returns:
+        A list of the Workstation objects
 
     Raises:
         RuntimeError: if the get request's status_code is not 200

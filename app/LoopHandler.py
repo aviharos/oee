@@ -1,4 +1,16 @@
 ﻿# -*- coding: utf-8 -*-
+"""A wrapper around the OEECalculator object
+
+It uses environment variables for configuration
+
+Environment variables:
+    POSTGRES_USER
+    POSTGRES_PASSWORD
+    POSTGRES_HOST
+    POSTGRES_PORT
+If any of the previous environment variables (except the port)
+is missing, a RuntimeError is raised
+"""
 # Standard Library imports
 import copy
 import json
@@ -17,6 +29,15 @@ import Orion
 
 
 class LoopHandler:
+    """A class for calculating all KPIs of each Workstation
+
+    It connects to the Postgres database,
+    Gets all workstations from the Orion broker
+    Calculates the OEE and Throughput objects using the OEECalculator
+    and updates the OEE and Throughput objects in Orion
+
+    It also catches the OEECalculator object's exceptions and logs them
+    """
     logger = getLogger(__name__)
     blank_ids = {"ws": None, "job": None, "oee": None, "throughput": None}
     # Load environment variables
@@ -44,7 +65,21 @@ class LoopHandler:
     def __init__(self):
         self.ids = copy.deepcopy(self.blank_ids)
 
-    def get_ids(self, ws):
+    def get_ids(self, ws: dict):
+        """Get the Id of the necessary Orion objects
+
+        Ids:
+            Workstation
+            Job
+            OEE
+            Throughput
+
+        Args:
+            ws (dict): Orion workstation object
+
+        Raises:
+            ValueError: if the Workstation's Job does not exist in Orion
+        """
         self.ids["ws"] = ws["id"]
         self.ids["job"] = ws["RefJob"]["value"]
         if not Orion.exists(self.ids["job"]):
@@ -55,27 +90,68 @@ class LoopHandler:
         self.ids["throughput"] = ws["RefThroughput"]["value"]
 
     def calculate_KPIs(self):
+        """Calculate the OEE and the Throughput of the current Workstation
+
+        Wraps the OEECalculator class
+
+        Returns:
+            Tuple: (oee, throughput):
+                oee:
+                    the OEE object to be uploaded to Orion
+                throughput:
+                    the Throughput object to be uploaded to Orion
+        """
         oeeCalculator = OEECalculator(self.ids["ws"])
         oeeCalculator.prepare(self.con)
         oee = oeeCalculator.calculate_OEE()
         throughput = oeeCalculator.calculate_throughput()
         return oee, throughput
 
-    def handle_ws(self, ws):
+    def handle_ws(self, ws: dict):
+        """Handle everything related to calculating and updating the OEE and Throughput of a Workstation
+
+        After calculating the OEE and the Throughput, these are alo updated in the Orion broker
+
+        Args:
+            ws (dict): Orion Workstation
+        """ 
         self.ids = copy.deepcopy(self.blank_ids)
         self.get_ids(ws)
         self.logger.info(f'Calculating KPIs for {ws["id"]}')
         oee, throughput = self.calculate_KPIs()
         Orion.update([oee, throughput])
 
-    def delete_attributes(self, object_):
+    def delete_attributes(self, object_: str):
+        """Delete all attributes of the OEE or Throughput object in Orion
+
+        This is needed only if calculating the OEE and Throughput
+        fails for some reason or they are not cannot be calculated. 
+
+        If the OEECalculator fails, or
+        if there is no shift for a specific Workstation, the OEE and Throughput values
+        are also cleared.
+
+        The method is called for the OEE and the Throughput both.
+
+        Args:
+            object_ (str): either "OEE" or "Throughput"
+
+        Raises:
+            NotImplementedError: if the arg object_ is not supported
+            FileNotFoundError: if the OEE.json or the Throughput.json is not found
+            json.decoder.JSONDecodeError: if the OEE.json of the Throughput.json file cannot be decoded
+        """
+        if object_ not in ("OEE", "Throughput"):
+            raise NotImplementedError(f"Delete attributes: unsupported object: {object_}")
         file = f"{object_}.json"
         try:
             orion_object = object_to_template(os.path.join("..", "json", file))
         except FileNotFoundError as error:
             self.logger.critical(f"{file} not found.\n{error}")
+            raise
         except json.decoder.JSONDecodeError as error:
             self.logger.critical(f"{file} is invalid.\n{error}")
+            raise
         else:
             orion_object["id"] = self.ids[object_.lower()]
             orion_object["RefWorkstation"]["value"] = self.ids["ws"]
@@ -87,10 +163,19 @@ class LoopHandler:
                 orion_object["OEE"]["value"] = None
             if object_ == "Throughput":
                 orion_object["ThroughputPerShift"]["value"] = None
-            self.logger.debug(f"Delete attributes, object: {orion_object}")
             Orion.update([orion_object])
+            self.logger.info(f"Object cleared successfully: {orion_object}")
 
     def handle(self):
+        """A function for handling all the Workstations
+
+        This function creates the Postgres engine and the connection,
+        and also disposes and closes them respectively.
+        It wraps the handle_ws function
+
+        If the OEECalculator throws any exception,
+        this function tries to delete all KPI values using the function delete_attributes
+        """
         self.engine = create_engine(
             f"postgresql://{self.POSTGRES_USER}:{self.POSTGRES_PASSWORD}@{self.POSTGRES_HOST}:{self.POSTGRES_PORT}"
         )

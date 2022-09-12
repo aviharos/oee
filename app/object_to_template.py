@@ -1,4 +1,6 @@
 # -*- coding: utf-8 -*-
+"""A module for creating templates of objects stored in JSON
+"""
 # Standard Library imports
 import json
 
@@ -14,6 +16,9 @@ def object_to_template(file_):
 
     Args:
         file_: the path to the json file containing the Orion object
+
+    Returns:
+        the template Orion object as a dict
     """
     with open(file_, "r") as f:
         obj = json.load(f)

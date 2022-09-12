@@ -17,7 +17,7 @@ import pandas as pd
 import numpy as np
 import psycopg2
 import sqlalchemy
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, delete
 from sqlalchemy.types import Text
 # custom imports
 from modules.remove_orion_metadata import remove_orion_metadata
@@ -190,6 +190,19 @@ class test_LoopHandler(unittest.TestCase):
         self.loopHandler.delete_attributes("Throughput")
         downloaded_Throughput = remove_orion_metadata(Orion.get("urn:ngsi_ld:Throughput:1"))
         self.assertEqual(downloaded_Throughput, self.blank_throughput)
+
+        with self.assertRaises(NotImplementedError):
+            self.loopHandler.delete_attributes("KPI")
+
+        with patch("LoopHandler.object_to_template") as mock_object_to_template:
+            mock_object_to_template.side_effect = FileNotFoundError
+            with self.assertRaises(FileNotFoundError):
+                self.loopHandler.delete_attributes("OEE")
+
+        # with patch("object_to_template.object_to_template") as mock_object_to_template:
+        #     mock_object_to_template.return_value = "{'invalid': json}"
+        #     with self.assertRaises(json.decoder.JSONDecodeError):
+        #         self.loopHandler.delete_attributes("OEE")
 
     @patch(f"{OEE.__name__}.datetime", wraps=datetime)
     def test_handle(self, mock_datetime):

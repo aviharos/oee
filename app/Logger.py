@@ -51,10 +51,11 @@ else:
 def getLogger(name):
     """Return a configured logger
 
-    Return a logger for a specific file.
-
     Args:
         name: the invoking module's __name__
+
+    Returns:
+        A logger for a specific file.
     """
     logging_levels = {
         "DEBUG": logging.DEBUG,
