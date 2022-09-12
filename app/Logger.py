@@ -1,4 +1,25 @@
 # -*- coding: utf-8 -*-
+"""
+A module for configuring all loggers identically
+All the options are set in environment variables
+
+Environment variables (defaults are starred):
+LOGGING_LEVEL:
+    DEBUG*
+    INFO
+    WARNING
+    ERROR
+    CRITICAL
+    meaning the same as in python's logging module
+
+LOG_TO_FILE:
+    TRUE*
+    FALSE
+
+LOG_TO_STDOUT:
+    TRUE*
+    FALSE
+"""
 # Standard Library imports
 import logging
 import os
@@ -28,6 +49,13 @@ else:
 
 
 def getLogger(name):
+    """Return a configured logger
+
+    Return a logger for a specific file.
+
+    Args:
+        name: the invoking module's __name__
+    """
     logging_levels = {
         "DEBUG": logging.DEBUG,
         "INFO": logging.INFO,

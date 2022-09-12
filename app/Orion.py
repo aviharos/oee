@@ -1,4 +1,16 @@
 ﻿# -*- coding: utf-8 -*-
+"""
+A set of modules for interacting with the Orion broker
+
+The Orion host and port are read from the environment variables
+
+Environment variables:
+    ORION_HOST: the URL of the Orion broker
+    ORION_PORT: the port of the Orion broker
+
+Raises:
+    RuntimeError: if the Orion_HOST is not set
+"""
 # Standard Library imports
 import os
 
@@ -11,20 +23,32 @@ from Logger import getLogger
 
 logger_Orion = getLogger(__name__)
 
-# get environment variables
+# environment variables
 ORION_HOST = os.environ.get("ORION_HOST")
 if ORION_HOST is None:
     raise RuntimeError("Critical: ORION_HOST environment variable is not set")
 
 ORION_PORT = os.environ.get("ORION_PORT")
 if ORION_PORT is None:
+    default_port = 1026
     logger_Orion.warning(
-        "ORION_PORT environment variable not set, using default value: 1026"
+        f"ORION_PORT environment variable not set, using default value: {default_port}"
     )
-    ORION_PORT = 1026
+    ORION_PORT = default_port
 
 
 def getRequest(url):
+    """Send a GET request to Orion
+
+    And returns the response status code and the json
+
+    Args:
+        url: any Orion that is suitable for GET requests
+
+    Raises:
+        RuntimeError: when the request fails for any reason
+        ValueError: if the json parsing fails
+    """
     try:
         response = requests.get(url)
         response.close()
@@ -42,8 +66,17 @@ def getRequest(url):
 
 
 def get(object_id, host=ORION_HOST, port=ORION_PORT):
-    """
-    Returns the object in JSON format idenfitied by object_id and the status code of the request
+    """Get an object from Orion identified by the ID
+
+    Returns the object in JSON format idenfitied by object_id
+
+    Args:
+        object_id: the Orion object id
+        host: Orion host. Default: ORION_HOST environment variable
+        port: Orion port. Default: ORION_PORT environment variable
+
+    Raises:
+        RuntimeError: if the get request's status code is not 200
     """
     url = f"http://{host}:{port}/v2/entities/{object_id}"
     logger_Orion.debug(url)
@@ -56,6 +89,14 @@ def get(object_id, host=ORION_HOST, port=ORION_PORT):
 
 
 def exists(object_id):
+    """Check if an object exists in Orion
+
+    Returns True if the object idenfitied by object_id exists,
+    False otherwise.
+
+    Args:
+        object_id: the object's id in Orion
+    """
     try:
         get(object_id)
         return True
@@ -64,6 +105,13 @@ def exists(object_id):
 
 
 def getWorkstations():
+    """Download all Workstation objects at once from Orion
+
+    Returns a list of the Workstation objects
+
+    Raises:
+        RuntimeError: if the get request's status_code is not 200
+    """
     url = f"http://{ORION_HOST}:{ORION_PORT}/v2/entities?type=Workstation"
     status_code, workstations = getRequest(url)
     if status_code != 200:
@@ -74,13 +122,21 @@ def getWorkstations():
 
 
 def update(objects):
-    logger_Orion.debug(f"update: objects: {objects}")
-    """
-    A method that takes an iterable (objects) that contains Orion objects,
+    """Updates the objects in Orion
+
+    This method takes an iterable (objects) that contain Orion objects
     then updates them in Orion.
     If an object already exists, it will be overwritten. More information:
     https://github.com/FIWARE/tutorials.CRUD-Operations#six-request
+
+    Args:
+        objects: an iterable containing Orion objects
+
+    Raises:
+        TypeError: if the objects does not contain an iterable
+        RuntimeError: if the POST request's status code is not 204
     """
+    logger_Orion.debug(f"update: objects: {objects}")
     url = f"http://{ORION_HOST}:{ORION_PORT}/v2/op/update"
     try:
         json_ = {"actionType": "append", "entities": list(objects)}
