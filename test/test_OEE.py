@@ -137,7 +137,7 @@ class test_OEECalculator(unittest.TestCase):
     def test_msToDateTimeString(self):
         dt = datetime(2022, 4, 5, 13, 46, 40)
         self.assertEqual(
-                self.oee.msToDateTimeString(dt.timestamp()*1e3), f"{dt.year}-{dt.month:02d}-{dt.day:02d} {dt.hour}:{dt.minute}:{dt.second}.000"
+                self.oee.msToDateTimeString(dt.timestamp()*1e3), f"{dt.year}-{dt.month:02d}-{dt.day:02d} {dt.hour}:{dt.minute:02d}:{dt.second:02d}.000"
         )
 
     def test_msToDateTime(self):
