@@ -29,7 +29,7 @@ class test_Orion(unittest.TestCase):
         with open(os.path.join("..", "json", "Workstation.json"), "r") as f:
             cls.ws1 = json.load(f)
         # make a second Workstation
-        cls.ws2 = copy.deepcopy(cls.ws1.copy)
+        cls.ws2 = copy.deepcopy(cls.ws1)
         cls.ws2["id"] = "urn:ngsi_ld:Workstation:2"
         cls.ws2["RefJob"]["value"] = "urn:ngsi_ld:Job:2000000"
 
