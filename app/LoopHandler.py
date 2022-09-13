@@ -192,12 +192,13 @@ class LoopHandler:
         except (
             AttributeError,
             KeyError,
+            NotImplementedError,
             RuntimeError,
             TypeError,
             ValueError,
             ZeroDivisionError,
             psycopg2.OperationalError,
-            sqlalchemy.exc.OperationalError,
+            sqlalchemy.exc.OperationalError
         ) as error:
             # could not calculate OEE or Throughput
             # try to delete the OEE and Throughput values, if we have enough data

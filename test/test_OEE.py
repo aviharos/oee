@@ -5,6 +5,7 @@ import json
 import glob
 import os
 import sys
+from typing import Type
 import unittest
 from unittest.mock import patch
 
@@ -205,8 +206,13 @@ class test_OEECalculator(unittest.TestCase):
             self.jsons["OperatorSchedule"],
         )
         self.oee.ws["orion"] = copy.deepcopy(self.jsons["Workstation"])
-        self.oee.ws["orion"]["RefOperatorSchedule"] = "invalid_operationSchedule:id"
+
+        del(self.oee.ws["orion"]["RefOperatorSchedule"]["value"])
         with self.assertRaises(KeyError):
+            self.oee.get_operatorSchedule()
+
+        self.oee.ws["orion"]["RefOperatorSchedule"] = "invalid_operationSchedule:id"
+        with self.assertRaises(TypeError):
             self.oee.get_operatorSchedule()
 
     def test_is_datetime_in_todays_shift(self):
@@ -238,11 +244,23 @@ class test_OEECalculator(unittest.TestCase):
             datetime(2022, 8, 23, 16, 0, 0),
         )
 
+        self.oee.operatorSchedule["orion"]["OperatorWorkingScheduleStopsAt"]["value"] = "3 o'clock"
+        with self.assertRaises(ValueError):
+            self.oee.get_todays_shift_limits()
+
+        del(self.oee.operatorSchedule["orion"]["OperatorWorkingScheduleStopsAt"]["value"])
+        with self.assertRaises(KeyError):
+            self.oee.get_todays_shift_limits()
+
+        self.oee.operatorSchedule["orion"]["OperatorWorkingScheduleStopsAt"] = "no_value_field"
+        with self.assertRaises(TypeError):
+            self.oee.get_todays_shift_limits()
+
     def test_get_job_id(self):
         self.oee.ws["orion"] = copy.deepcopy(self.jsons["Workstation"])
         self.assertEqual(self.oee.get_job_id(), "urn:ngsi_ld:Job:202200045")
         self.oee.ws["orion"]["RefJob"] = None
-        with self.assertRaises(KeyError):
+        with self.assertRaises(TypeError):
             self.oee.get_job_id()
 
     def test_get_job(self):
@@ -309,6 +327,14 @@ class test_OEECalculator(unittest.TestCase):
         with self.assertRaises(KeyError):
             self.oee.get_operation()
 
+        del(self.oee.job["orion"]["CurrentOperationType"]["value"])
+        with self.assertRaises(KeyError):
+            self.oee.get_operation()
+
+        self.oee.job["orion"]["CurrentOperationType"] = None
+        with self.assertRaises(TypeError):
+            self.oee.get_operation()
+
     def test_get_objects_shift_limits(self):
         self.oee.now = datetime(2022, 8, 23, 13, 0, 0)
         self.oee.get_objects_shift_limits()
@@ -352,6 +378,9 @@ class test_OEECalculator(unittest.TestCase):
             self.oee.get_query_start_timestamp(how="from_schedule_start"),
             self.oee.datetimeToMilliseconds(datetime(2022, 4, 5, 8, 0, 0)),
         )
+
+        with self.assertRaises(NotImplementedError):
+            self.oee.get_query_start_timestamp(how="somehow_else")
 
     def test_query_todays_data(self):
         self.oee.now = datetime(2022, 4, 4, 13, 0, 0)
@@ -580,13 +609,13 @@ class test_OEECalculator(unittest.TestCase):
             with self.assertRaises(RuntimeError):
                 self.oee.prepare(self.con)
             mock_get_objects.side_effect = KeyError
-            with self.assertRaises(RuntimeError):
+            with self.assertRaises(KeyError):
                 self.oee.prepare(self.con)
             mock_get_objects.side_effect = AttributeError
-            with self.assertRaises(RuntimeError):
+            with self.assertRaises(AttributeError):
                 self.oee.prepare(self.con)
             mock_get_objects.side_effect = TypeError
-            with self.assertRaises(RuntimeError):
+            with self.assertRaises(TypeError):
                 self.oee.prepare(self.con)
         with patch("OEE.OEECalculator.is_datetime_in_todays_shift") as mock_is_in_shift:
             mock_is_in_shift.return_value = False
@@ -619,7 +648,7 @@ class test_OEECalculator(unittest.TestCase):
                 df_before
             )
         )
-        with self.assertRaises(ValueError):
+        with self.assertRaises(NotImplementedError):
             self.oee.filter_in_relation_to_RefStartTime(df, how="somehow_else")
 
     def test_calc_availability_if_no_availability_record_after_RefStartTime(self):
