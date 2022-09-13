@@ -116,26 +116,24 @@ class OEECalculator:
         return f'OEECalculator object for workstation: {self.ws["id"]}'
 
     def set_now(self):
-        """A module for setting the OEECalculator's timestamp
+        """A module for setting and freezing the OEECalculator's timestamp
 
-        Cygnus uses UTC regardless of timezone by default
-        The OEE Calculator uses local timezone.
-
-        But since the timestamps are not affected,
-        and the OEECalculator uses only the timestamps for
-        calculations, there is no need to use timezone information.
+        Cygnus uses UTC timestamps in milliseconds regardless of timezone by default
+        The OEE Calculator also uses does the same. 
+        The human readable datetime objects are displayed locally.
 
         This method is called only once per calculation.
         """
-        self.now = datetime.now()
+        self.now_unix = datetime.now().timestamp() * 1e3
 
-    def now_unix(self):
+    @property
+    def now_datetime(self):
         """Function for getting the frozen timestamp in milliseconds
 
         Returns:
             the oeeCalculator.now timestamp in milliseconds (numeric)
         """
-        return self.now.timestamp() * 1000
+        return self.msToDateTime(self.now_unix)
 
     def msToDateTimeString(self, ms: float):
         """Convert a timestamp in milliseconds to human readable format according to the DATETIME_FORMAT
@@ -184,7 +182,7 @@ class OEECalculator:
             datetime object
         """
         return datetime.strptime(
-            str(self.now.date()) + " " + string, "%Y-%m-%d %H:%M:%S"
+            str(self.now_datetime.date()) + " " + string, "%Y-%m-%d %H:%M:%S"
         )
 
     def datetimeToMilliseconds(self, datetime_):
@@ -391,7 +389,7 @@ class OEECalculator:
         if how == "from_midnight":
             # construct midnight's datetime
             return self.datetimeToMilliseconds(
-                datetime.combine(self.now.date(), datetime.min.time())
+                datetime.combine(self.now_datetime.date(), datetime.min.time())
             )
         elif how == "from_schedule_start":
             return self.datetimeToMilliseconds(
@@ -422,7 +420,7 @@ class OEECalculator:
             df = pd.read_sql_query(
                 f"""select * from {self.POSTGRES_SCHEMA}.{table_name}
                                        where {start_timestamp} <= cast (recvtimets as bigint)
-                                       and cast (recvtimets as bigint) <= {self.now_unix()};""",
+                                       and cast (recvtimets as bigint) <= {self.now_unix};""",
                 con=con,
             )
         except (
@@ -552,9 +550,9 @@ class OEECalculator:
             self.logger.error(message)
             raise error.__class__(message) from error
 
-        if not self.is_datetime_in_todays_shift(self.now):
+        if not self.is_datetime_in_todays_shift(self.now_datetime):
             raise ValueError(
-                f"The current time: {self.now} is outside today's shift, no OEE data"
+                f"The current time: {self.now_datetime} is outside today's shift, no OEE data"
             )
 
         self.ws["df"] = self.query_todays_data(
@@ -635,7 +633,7 @@ class OEECalculator:
                 if the Cygnus log contains an invalid Availability value
         """
         self.logger.debug(f"df_before:\n{df_before}")
-        self.total_time_so_far_in_shift = self.now_unix() - self.datetimeToMilliseconds(
+        self.total_time_so_far_in_shift = self.now_unix - self.datetimeToMilliseconds(
             self.today["RefStartTime"]
         )
         df_before.sort_values(by=["recvtimets"], inplace=True)
@@ -686,7 +684,7 @@ class OEECalculator:
 
             The first and last intervals are special.
             The first interval starts at RefStartTime, ends at the first entry
-            The last interval starts at the last entry, ends at self.now_unix()
+            The last interval starts at the last entry, ends at self.now_unix
 
             The first interval is handled here, because the previous_timestamp
             starts at RefStartTime
@@ -702,7 +700,7 @@ class OEECalculator:
             previous_timestamp = current_timestamp
 
         # last interval
-        interval_duration = self.now_unix() - previous_timestamp
+        interval_duration = self.now_unix - previous_timestamp
         if row["attrvalue"] == "true":
             # the Workstation is currently on
             time_on += interval_duration
@@ -769,7 +767,7 @@ class OEECalculator:
         available_true = df_av[df_av["attrvalue"] == "true"]
         if available_true.size == 0:
             raise ValueError(
-                f'The Workstation {self.ws["id"]} was not turned Available by {self.now} since midnight, no OEE data'
+                f'The Workstation {self.ws["id"]} was not turned Available by {self.now_datetime} since midnight, no OEE data'
             )
         self.oee["Availability"]["value"] = self.calc_availability(df_av)
 
@@ -830,7 +828,7 @@ class OEECalculator:
                 No completed production cycle in the Job's logs"""
         if self.job["df"].size == 0:
             raise ValueError(
-                f'No job data found for {self.job["id"]} up to time {self.now} on day {self.today}, no OEE data'
+                f'No job data found for {self.job["id"]} up to time {self.now_datetime} on day {self.today}, no OEE data'
             )
         self.count_cycles()
         if self.n_total_cycles == 0:

@@ -1,40 +1,34 @@
+"""test OEE.OEECalculator 
+"""
 # Standard Library imports
 import copy
 from datetime import datetime
-import json
-import glob
 import os
 import sys
-from typing import Type
 import unittest
 from unittest.mock import patch
 
 # PyPI imports
-import pandas as pd
 import numpy as np
+import pandas as pd
 import psycopg2
-import sqlalchemy
-from sqlalchemy import create_engine
-from sqlalchemy.types import Text
 
 # Custom imports
 sys.path.insert(0, os.path.join("..", "app"))
+import OEE
+from Logger import getLogger
+from modules.remove_orion_metadata import remove_orion_metadata
+from modules.TestCase_common import setupClass_common
 
 # Constants
 WS_ID = "urn:ngsi_ld:Workstation:1"
-WS_FILE = "urn_ngsi_ld_workstation_1_workstation.csv"
 WS_TABLE = "urn_ngsi_ld_workstation_1_workstation"
-OEE_TABLE = WS_TABLE + "_oee"
+OEE_TABLE = f"{WS_TABLE}_oee"
+WS_FILE = f"{WS_TABLE}.csv"
 JOB_ID = "urn:ngsi_ld:Job:202200045"
-JOB_FILE = "urn_ngsi_ld_job_202200045_job.csv"
 JOB_TABLE = "urn_ngsi_ld_job_202200045_job"
+JOB_FILE = f"{JOB_TABLE}.csv"
 PLACES = 4
-
-# from OEE import OEECalculator
-import OEE
-from Logger import getLogger
-from modules import reupload_jsons_to_Orion
-from modules.remove_orion_metadata import remove_orion_metadata
 
 # Load environment variables
 POSTGRES_HOST = os.environ.get("POSTGRES_HOST")
@@ -48,54 +42,7 @@ class test_OEECalculator(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.logger = getLogger(__name__)
-        cls.maxDiff = None
-        reupload_jsons_to_Orion.main()
-        cls.engine = create_engine(
-            f"postgresql://{POSTGRES_USER}:{POSTGRES_PASSWORD}@{POSTGRES_HOST}:{POSTGRES_PORT}"
-        )
-        cls.con = cls.engine.connect()
-        if not cls.engine.dialect.has_schema(cls.engine, POSTGRES_SCHEMA):
-            cls.engine.execute(sqlalchemy.schema.CreateSchema(POSTGRES_SCHEMA))
-
-        cls.oee_template = OEE.OEECalculator(WS_ID)
-
-        # read and upload both tables to PostgreSQL
-        # then download them to ensure that the data types
-        # match the data types in production
-        cls.ws_df = pd.read_csv(os.path.join("csv", WS_FILE))
-        cls.ws_df["recvtimets"] = cls.ws_df["recvtimets"].map(int)
-        cls.ws_df.to_sql(
-            name=WS_TABLE,
-            con=cls.con,
-            schema=POSTGRES_SCHEMA,
-            index=False,
-            dtype=Text,
-            if_exists="replace",
-        )
-        cls.ws_df = pd.read_sql_query(
-            f"select * from {POSTGRES_SCHEMA}.{WS_TABLE}", con=cls.con
-        )
-
-        cls.job_df = pd.read_csv(os.path.join("csv", JOB_FILE))
-        cls.job_df["recvtimets"] = cls.job_df["recvtimets"].map(int)
-        cls.job_df.to_sql(
-            name=JOB_TABLE,
-            con=cls.con,
-            schema=POSTGRES_SCHEMA,
-            index=False,
-            dtype=Text,
-            if_exists="replace",
-        )
-        cls.job_df = pd.read_sql_query(
-            f"select * from {POSTGRES_SCHEMA}.{JOB_TABLE}", con=cls.con
-        )
-
-        cls.jsons = {}
-        jsons = glob.glob(os.path.join("..", "json", "*.json"))
-        for file in jsons:
-            json_name = os.path.splitext(os.path.basename(file))[0]
-            with open(file, "r") as f:
-                cls.jsons[json_name] = json.load(f)
+        setupClass_common(cls)
 
     @classmethod
     def tearDownClass(cls):
@@ -103,13 +50,26 @@ class test_OEECalculator(unittest.TestCase):
         cls.engine.dispose()
 
     @classmethod
-    def prepare_df_between(cls, df, start, end):
+    def prepare_df_between(cls, df: pd.DataFrame, start: datetime, end: datetime):
+        """A function for filtering a pandas DataFrame containing Cygnus logs between two timestamps
+
+        Args:
+            df (pd.DataFrame): DataFrame to filter 
+            start (datetime): start timestamp 
+            end (datetime): end timestamp 
+
+        Returns:
+            filtered DataFrame (pd.DataFrame)
+        """
         cls.logger.info(f"start: {start}")
         cls.logger.info(f"end: {end}")
+        # conver to str because Cygnus also does this
         df = df.applymap(str)
+        # convert recvtimets to int64 from string float format
         df["recvtimets"] = df["recvtimets"].astype("float64").astype("int64")
         df.sort_values(by=["recvtimets"], inplace=True)
         cls.logger.info(f"df before drop:\n{df}")
+        # drop any NaN values
         df.dropna(how="any", inplace=True)
         cls.logger.info(f"df after drop:\n{df}")
         start_timestamp = start.timestamp() * 1000
@@ -122,12 +82,31 @@ class test_OEECalculator(unittest.TestCase):
         return df
 
     @classmethod
-    def write_df_with_dtypes(cls, df, name):
+    def write_df_with_dtypes(cls, df: pd.DataFrame, name: str):
+        """ A function for logging purposes, not even used in the tests 
+
+        Write the DataFrame and its dtypes into two separate csv files 
+
+        Args:
+            df (pd.DataFrame): DataFrame to write 
+            name (str): name to be used in both files 
+        """
         df.to_csv(f"{name}_val.csv")
         df.dtypes.to_csv(f"{name}_dtypes.csv")
 
     @classmethod
-    def are_dfs_equal(cls, df1, df2):
+    def are_dfs_equal(cls, df1: pd.DataFrame, df2: pd.DataFrame):
+        """Check if two pandas DataFrames are equal 
+
+        Args:
+            df1 (pd.DataFrame): first DataFrame 
+            df2 (pd.DataFrame): second DataFrame 
+
+        Returns:
+            Boolean:
+                True if they completely match,
+                False otherwise 
+        """
         df1_sorted = df1.sort_values(by=["recvtimets", "attrname"]).reset_index(
             drop=True
         )
@@ -137,47 +116,55 @@ class test_OEECalculator(unittest.TestCase):
         return df1_sorted.equals(df2_sorted)
 
     def setUp(self):
+        """ Create a copy of the oee template using copy.deepcopy """
         self.oee = copy.deepcopy(self.oee_template)
 
     def tearDown(self):
         pass
 
-    def test_set_now(self):
-        now = datetime.now()
+    @patch(f"{OEE.__name__}.datetime", wraps=datetime)
+    def test_set_now(self, mock_datetime):
+        now = datetime(2022, 4, 5, 13, 46, 40)
+        mock_datetime.now.return_value = now
         self.oee.set_now()
-        self.assertAlmostEqual(now.timestamp(), self.oee.now.timestamp(), places=PLACES)
+        self.assertAlmostEqual(now.timestamp(), self.oee.now_datetime.timestamp(), places=PLACES)
 
-    def test_now_unix(self):
-        self.oee.now = datetime(2022, 4, 5, 13, 46, 40)
-        # using GMT+2 time zone
-        self.assertEqual(self.oee.now_unix(), 1649159200000)
+    def test_now_datetime(self):
+        now = datetime(2022, 4, 5, 13, 46, 40)
+        self.oee.now_unix = now.timestamp() * 1e3
+        self.assertEqual(self.oee.now_datetime, now)
 
     def test_msToDateTimeString(self):
+        dt = datetime(2022, 4, 5, 13, 46, 40)
         self.assertEqual(
-            self.oee.msToDateTimeString(1649159200000), "2022-04-05 13:46:40.000"
+                self.oee.msToDateTimeString(dt.timestamp()*1e3), f"{dt.year}-{dt.month:02d}-{dt.day:02d} {dt.hour}:{dt.minute}:{dt.second}.000"
         )
 
     def test_msToDateTime(self):
+        dt = datetime(2022, 4, 5, 13, 46, 40)
         self.assertEqual(
-            self.oee.msToDateTime(1649159200000), datetime(2022, 4, 5, 13, 46, 40)
+            self.oee.msToDateTime(dt.timestamp()*1e3), dt
         )
 
     def test_stringToDateTime(self):
+        dt = datetime(2022, 4, 5, 13, 46, 40)
         self.assertEqual(
-            self.oee.stringToDateTime("2022-04-05 13:46:40.000"),
-            datetime(2022, 4, 5, 13, 46, 40),
+            self.oee.stringToDateTime(f"{dt.year}-{dt.month}-{dt.day} {dt.hour}:{dt.minute}:{dt.second}.000"),
+            dt,
         )
 
     def test_timeToDatetime(self):
-        self.oee.now = datetime(2022, 4, 5, 15, 26, 0)
+        dt = datetime(2022, 4, 5, 15, 26, 0)
+        self.oee.now_unix = dt.timestamp()*1e3
         self.assertEqual(
             self.oee.timeToDatetime("13:46:40"), datetime(2022, 4, 5, 13, 46, 40)
         )
 
     def test_datetimeToMilliseconds(self):
+        dt = datetime(2022, 4, 5, 13, 46, 40)
         self.assertEqual(
-            self.oee.datetimeToMilliseconds(datetime(2022, 4, 5, 13, 46, 40)),
-            1649159200000,
+            self.oee.datetimeToMilliseconds(dt),
+            dt.timestamp()*1e3,
         )
 
     def test_convertRecvtimetsToInt(self):
@@ -230,7 +217,8 @@ class test_OEECalculator(unittest.TestCase):
         self.assertFalse(self.oee.is_datetime_in_todays_shift(dt3))
 
     def test_get_todays_shift_limits(self):
-        self.oee.now = datetime(2022, 8, 23, 13, 0, 0)
+        now = datetime(2022, 8, 23, 13, 0, 0)
+        self.oee.now_unix = now.timestamp()*1e3
         self.oee.operatorSchedule["orion"] = copy.deepcopy(
             self.jsons["OperatorSchedule"]
         )
@@ -342,7 +330,8 @@ class test_OEECalculator(unittest.TestCase):
             self.oee.get_operation()
 
     def test_get_objects_shift_limits(self):
-        self.oee.now = datetime(2022, 8, 23, 13, 0, 0)
+        now = datetime(2022, 8, 23, 13, 0, 0)
+        self.oee.now_unix = now.timestamp()*1e3
         self.oee.get_objects_shift_limits()
         self.assertEqual(
             remove_orion_metadata(self.oee.ws["orion"]), self.jsons["Workstation"]
@@ -371,7 +360,8 @@ class test_OEECalculator(unittest.TestCase):
         )
 
     def test_get_query_start_timestamp(self):
-        self.oee.now = datetime(2022, 4, 5, 13, 0, 0)
+        now = datetime(2022, 4, 5, 13, 0, 0)
+        self.oee.now_unix = now.timestamp()*1e3
         self.oee.operatorSchedule["orion"] = copy.deepcopy(
             self.jsons["OperatorSchedule"]
         )
@@ -389,7 +379,8 @@ class test_OEECalculator(unittest.TestCase):
             self.oee.get_query_start_timestamp(how="somehow_else")
 
     def test_query_todays_data(self):
-        self.oee.now = datetime(2022, 4, 4, 13, 0, 0)
+        now = datetime(2022, 4, 4, 13, 0, 0)
+        self.oee.now_unix = now.timestamp()*1e3
         self.oee.operatorSchedule["orion"] = copy.deepcopy(
             self.jsons["OperatorSchedule"]
         )
@@ -403,7 +394,7 @@ class test_OEECalculator(unittest.TestCase):
         start_timestamp = self.oee.datetimeToMilliseconds(datetime(2022, 4, 4))
         df = df[
             (start_timestamp <= df["recvtimets"])
-            & (df["recvtimets"] <= self.oee.now_unix())
+            & (df["recvtimets"] <= self.oee.now_unix)
         ]
         df["recvtimets"] = df["recvtimets"].map(str)
         self.oee.ws["df"].dropna(how="any", inplace=True)
@@ -419,7 +410,7 @@ class test_OEECalculator(unittest.TestCase):
         start_timestamp = self.oee.datetimeToMilliseconds(datetime(2022, 4, 4, 8, 0, 0))
         df = df[
             (start_timestamp <= df["recvtimets"])
-            & (df["recvtimets"] <= self.oee.now_unix())
+            & (df["recvtimets"] <= self.oee.now_unix)
         ]
         df["recvtimets"] = df["recvtimets"].map(str)
         df.reset_index(inplace=True, drop=True)
@@ -439,7 +430,8 @@ class test_OEECalculator(unittest.TestCase):
                 )
 
     def test_get_current_job_start_time_today(self):
-        self.oee.now = datetime(2022, 4, 4, 13, 0, 0)
+        now = datetime(2022, 4, 4, 13, 0, 0)
+        self.oee.now_unix = now.timestamp()*1e3
         self.oee.operatorSchedule["orion"] = copy.deepcopy(
             self.jsons["OperatorSchedule"]
         )
@@ -501,7 +493,8 @@ class test_OEECalculator(unittest.TestCase):
             self.oee.get_current_job_start_time_today()
 
     def test_set_RefStartTime(self):
-        self.oee.now = datetime(2022, 4, 5, 13, 46, 40)
+        now = datetime(2022, 4, 5, 13, 46, 40)
+        self.oee.now_unix = now.timestamp()*1e3
         self.oee.operatorSchedule["orion"] = copy.deepcopy(
             self.jsons["OperatorSchedule"]
         )
@@ -559,7 +552,6 @@ class test_OEECalculator(unittest.TestCase):
     datetime.datetime cannot be patched directly,
     patch datetime inside module
     """
-
     @patch(f"{OEE.__name__}.datetime", wraps=datetime)
     def test_prepare(self, mock_datetime):
         now = datetime(2022, 4, 5, 9, 0, 0)
@@ -568,7 +560,7 @@ class test_OEECalculator(unittest.TestCase):
         _8h = datetime(2022, 4, 5, 8, 0, 0)
         _16h = datetime(2022, 4, 5, 16, 0, 0)
         self.oee.prepare(self.con)
-        self.assertEqual(self.oee.now_unix(), self.oee.datetimeToMilliseconds(now))
+        self.assertEqual(self.oee.now_unix, self.oee.datetimeToMilliseconds(now))
         self.assertEqual(
             remove_orion_metadata(self.oee.ws["orion"]), self.jsons["Workstation"]
         )
@@ -629,12 +621,13 @@ class test_OEECalculator(unittest.TestCase):
                 self.oee.prepare(self.con)
 
     def test_filter_in_relation_to_RefStartTime(self):
-        ms = 1649053800000
-        self.oee.today["RefStartTime"] = self.oee.msToDateTime(ms)
+        _8h30 = datetime(2022, 4, 4, 8, 30, 0)
+        ms = _8h30.timestamp()*1e3
+        self.oee.today["RefStartTime"] = _8h30
         _8h = datetime(2022, 4, 4, 8, 0, 0)
         # _8h40 = datetime(2022, 4, 4, 8, 40, 0)
         _9h = datetime(2022, 4, 4, 9, 0, 0)
-        # self.oee.now = _9h
+        # self.oee.now_unix = _9h
         # self.oee.today["RefStartTime"] = _8h40
         df = self.prepare_df_between(self.ws_df, _8h, _9h)
         # df["recvtimets"] = df["recvtimets"].map(str).map(float).map(int)
@@ -661,7 +654,7 @@ class test_OEECalculator(unittest.TestCase):
         _8h = datetime(2022, 4, 4, 8, 0, 0)
         _8h40 = datetime(2022, 4, 4, 8, 40, 0)
         _9h = datetime(2022, 4, 4, 9, 0, 0)
-        self.oee.now = _9h
+        self.oee.now_unix = _9h.timestamp()*1e3
         self.oee.today["RefStartTime"] = _8h40
         df = self.prepare_df_between(self.ws_df, _8h, _8h40)
         # the RefStartTime is 8:40, the last entry (as of 9h) is 8:30 turn on, so availability = 1
