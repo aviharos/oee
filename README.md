@@ -102,27 +102,23 @@ The microservice does not contain an API.
 
 ## Testing
 
-Some tests are included in the source code, but further testing needs to be done. 
+For testing, you need to create a conda environment and install necessary packages.
 
-For testing, you need to create a conda environment and install necessary packages, then run the following files.
-
-<<<<<<< HEAD
     conda create -n oee python=3.8
     conda activate oee
     conda install pandas psycopg2 requests sqlalchemy
-    cd app
-    python OEE.py
-    python Orion.py
-=======
-conda create -n oee python=3.8
-conda activate oee
-conda install pandas psycopg2 requests sqlalchemy
-cd app
-python OEE.py
-python Orion.py
->>>>>>> development
 
-We intend to to more thorough testing and refactoring in the future.
+Then run the tests as follows.
+WARNING: the tests set environment variables, change the Orion broker and PostgreSQL data,
+and need MOMAMS up and running. Any overwritten data is deleted forever. Proceed at your own risk.
+
+    cd tests
+    source env 
+    python test_object_to_template.py
+    python test_Orion.py
+    python test_OEE.py
+    python test_LoopHandler.py
+    python test_main.py
 
 ## Limitations
 We intend to more thorough testing and refactoring in the future. The OEE microservice cannot handle HTTPS and Fiware’s authentication system.
@@ -131,8 +127,5 @@ We intend to more thorough testing and refactoring in the future. The OEE micros
 
 [MIT license](LICENSE)
 
-<<<<<<< HEAD
 The Robo4Toys TTE does not hold any copyright of any FIWARE or 3rd party software.
 
-=======
->>>>>>> development
