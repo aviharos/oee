@@ -7,9 +7,9 @@
 			{
 				"type": "Operation",
 				"OperationNumber": {"type": "Number", "value": 10},
-				"OperationTime": {"type": "Number", "value": 46},
 				"OperationType": {"type": "Text", "value": "Core001_injection_moulding"},
-				"PartsPerOperation": {"type": "Number", "value": 8}
+				"CycleTime": {"type": "Number", "value": 46},
+				"PartsPerCycle": {"type": "Number", "value": 8}
 			}
 		]
 	}

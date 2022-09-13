@@ -1,3 +1,7 @@
+# Vim files
+*.swp
+Session.vim
+
 .pylint.d/*
 
 # Byte-compiled / optimized / DLL files

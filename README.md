@@ -13,6 +13,7 @@ An OEE calculator microservice to be used with Fiware Cygnus time series data. F
   - [Usage](#usage)
   - [API](#api)
   - [Testing](#testing)
+  - [Limitations](#limitations)
   - [License](#license)
 
 ## Background
@@ -105,18 +106,33 @@ Some tests are included in the source code, but further testing needs to be done
 
 For testing, you need to create a conda environment and install necessary packages, then run the following files.
 
+<<<<<<< HEAD
     conda create -n oee python=3.8
     conda activate oee
     conda install pandas psycopg2 requests sqlalchemy
     cd app
     python OEE.py
     python Orion.py
+=======
+conda create -n oee python=3.8
+conda activate oee
+conda install pandas psycopg2 requests sqlalchemy
+cd app
+python OEE.py
+python Orion.py
+>>>>>>> development
 
 We intend to to more thorough testing and refactoring in the future.
+
+## Limitations
+We intend to more thorough testing and refactoring in the future. The OEE microservice cannot handle HTTPS and Fiware’s authentication system.
 
 ## License
 
 [MIT license](LICENSE)
 
+<<<<<<< HEAD
 The Robo4Toys TTE does not hold any copyright of any FIWARE or 3rd party software.
 
+=======
+>>>>>>> development
