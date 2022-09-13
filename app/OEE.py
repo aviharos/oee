@@ -776,10 +776,10 @@ class OEECalculator:
     def count_nonzero_unique(self, unique_values: np.array):
         """Count nonzero unique values of an iterable
 
-        Used for counting the number of successful and failed injection mouldings.
-        "0" does not count for a successful or failed injection moulding, so it is discarded.
+        Used for counting the number of successful and failed cycles
+        "0" does not count for a successful or failed cycles, so it is discarded.
         for example: ['0', '8', '16', '24'] contains 4 unique values
-        but these mean only 3 successful injection mouldings
+        but these mean only 3 successful cycles
 
         Args:
             unique_values (iterable): iterable object, containing numbers in string format
@@ -787,21 +787,25 @@ class OEECalculator:
         Returns:
             Integer:
                 The number of unique values that are not 0
-                This is the number of successful or failed injection mouldings
+                This is the number of successful or failed cycles
         """
         if "0" in unique_values:
-            # need to substract 1, because '0' does not represent a successful moulding
+            # need to substract 1, because '0' does not represent a successful cycle
             return unique_values.shape[0] - 1
         else:
             return unique_values.shape[0]
 
-    def count_injection_mouldings(self):
-        """Count the number of successful and failed injection mouldings
+    def count_cycles(self):
+        """Count the number of successful and failed production cycles 
+
+        In this terminology, a cycle consists of the Workstation creating
+        self.operation["orion"]["PartsPerOperation"] pcs of parts,
+        all of them good or reject parts.
 
         The values are stored in
-            n_successful_mouldings
-            n_failed_mouldings
-            n_total_mouldings"""
+            n_successful_cycles
+            n_failed_cycles
+            n_total_cycles"""
         df = self.job["df"]
         attr_name_val = df[["attrname", "attrvalue"]]
         good_unique_values = attr_name_val[
@@ -812,9 +816,9 @@ class OEECalculator:
         ]["attrvalue"].unique()
         self.logger.debug(f"good_unique values: {good_unique_values}")
         self.logger.debug(f"reject_unique values: {reject_unique_values}")
-        self.n_successful_mouldings = self.count_nonzero_unique(good_unique_values)
-        self.n_failed_mouldings = self.count_nonzero_unique(reject_unique_values)
-        self.n_total_mouldings = self.n_successful_mouldings + self.n_failed_mouldings
+        self.n_successful_cycles = self.count_nonzero_unique(good_unique_values)
+        self.n_failed_cycles = self.count_nonzero_unique(reject_unique_values)
+        self.n_total_cycles = self.n_successful_cycles + self.n_failed_cycles
 
     def handle_quality(self):
         """Handle everything related to quality KPI
@@ -828,11 +832,11 @@ class OEECalculator:
             raise ValueError(
                 f'No job data found for {self.job["id"]} up to time {self.now} on day {self.today}, no OEE data'
             )
-        self.count_injection_mouldings()
-        if self.n_total_mouldings == 0:
+        self.count_cycles()
+        if self.n_total_cycles == 0:
             raise ValueError("No operation was completed yet, no OEE data")
         self.oee["Quality"]["value"] = (
-            self.n_successful_mouldings / self.n_total_mouldings
+            self.n_successful_cycles / self.n_total_cycles
         )
 
     def handle_performance(self):
@@ -840,7 +844,7 @@ class OEECalculator:
 
         Store the result in self.oee["Performance"]["value"]"""
         self.oee["Performance"]["value"] = (
-            self.n_total_mouldings
+            self.n_total_cycles
             * self.operation["orion"]["OperationTime"]["value"]
             * 1e3  # we count in milliseconds
             / self.total_available_time

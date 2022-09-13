@@ -731,18 +731,18 @@ class test_OEECalculator(unittest.TestCase):
         uniques = np.array(["1", "2", "0", "3", "6"])
         self.assertEqual(self.oee.count_nonzero_unique(uniques), 4)
 
-    def test_count_injection_mouldings(self):
+    def test_count_cycles(self):
         now = datetime(2022, 4, 4, 9, 0, 0)
         _8h = datetime(2022, 4, 4, 8, 0, 0)
         job_df = self.prepare_df_between(self.job_df.copy(), _8h, now)
         self.oee.job["df"] = job_df
-        self.oee.count_injection_mouldings()
-        n_successful_mouldings = 70
-        n_failed_mouldings = 1
-        n_total_mouldings = n_successful_mouldings + n_failed_mouldings
-        self.assertEqual(self.oee.n_successful_mouldings, n_successful_mouldings)
-        self.assertEqual(self.oee.n_failed_mouldings, n_failed_mouldings)
-        self.assertEqual(self.oee.n_total_mouldings, n_total_mouldings)
+        self.oee.count_cycles()
+        n_successful_cycles = 70
+        n_failed_cycles = 1
+        n_total_cycles = n_successful_cycles + n_failed_cycles
+        self.assertEqual(self.oee.n_successful_cycles, n_successful_cycles)
+        self.assertEqual(self.oee.n_failed_cycles, n_failed_cycles)
+        self.assertEqual(self.oee.n_total_cycles, n_total_cycles)
 
     @patch(f"{OEE.__name__}.datetime", wraps=datetime)
     def test_handle_quality(self, mock_datetime):
@@ -750,11 +750,11 @@ class test_OEECalculator(unittest.TestCase):
         mock_datetime.now.return_value = now
         self.oee.prepare(self.con)
         self.oee.handle_quality()
-        n_successful_mouldings = 70
-        n_failed_mouldings = 1
-        n_total_mouldings = n_successful_mouldings + n_failed_mouldings
+        n_successful_cycles = 70
+        n_failed_cycles = 1
+        n_total_cycles = n_successful_cycles + n_failed_cycles
         self.assertEqual(
-            self.oee.oee["Quality"]["value"], n_successful_mouldings / n_total_mouldings
+            self.oee.oee["Quality"]["value"], n_successful_cycles / n_total_cycles
         )
         self.oee.job["df"] = self.oee.job["df"].drop(self.oee.job["df"].index)
         with self.assertRaises(ValueError):
@@ -768,9 +768,9 @@ class test_OEECalculator(unittest.TestCase):
         self.oee.handle_availability()
         self.oee.handle_quality()
         self.oee.handle_performance()
-        n_successful_mouldings = 70
-        n_failed_mouldings = 1
-        n_total_mouldings = n_successful_mouldings + n_failed_mouldings
+        n_successful_cycles = 70
+        n_failed_cycles = 1
+        n_total_cycles = n_successful_cycles + n_failed_cycles
         """
         This performance value is higher than 1 because
         for testing purposes, the 8:20 to 8:30 (GMT+2) time interval was set as unavailable
@@ -779,9 +779,9 @@ class test_OEECalculator(unittest.TestCase):
         So the total available time is 50 minutes, but 60 minutes worth of production
         log is present in the job logs, this is why the performance is so high
         """
-        performance = (n_total_mouldings * 46) / (50 * 60)
+        performance = (n_total_cycles * 46) / (50 * 60)
         self.assertEqual(self.oee.oee["Performance"]["value"], performance)
-        # self.oee['Performance']['value'] = self.n_total_mouldings * self.operation['orion']['OperationTime']['value'] / self.total_available_time
+        # self.oee['Performance']['value'] = self.n_total_cycles * self.operation['orion']['OperationTime']['value'] / self.total_available_time
 
     @patch(f"{OEE.__name__}.datetime", wraps=datetime)
     def test_calculate_OEE(self, mock_datetime):
