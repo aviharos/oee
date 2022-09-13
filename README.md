@@ -102,6 +102,8 @@ The microservice does not contain an API.
 
 ## Testing
 
+WARNING: the tests set environment variables, change the Orion broker and PostgreSQL data, and need MOMAMS up and running. Any overwritten data is deleted forever. Proceed at your own risk.
+
 For testing, you need to create a conda environment and install necessary packages.
 
     conda create -n oee python=3.8
@@ -109,8 +111,6 @@ For testing, you need to create a conda environment and install necessary packag
     conda install pandas psycopg2 requests sqlalchemy
 
 Then run the tests as follows.
-WARNING: the tests set environment variables, change the Orion broker and PostgreSQL data,
-and need MOMAMS up and running. Any overwritten data is deleted forever. Proceed at your own risk.
 
     cd tests
     source env 
