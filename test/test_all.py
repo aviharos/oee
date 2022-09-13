@@ -1,8 +1,10 @@
 import sys
 import unittest
+from test_object_to_template import test_object_to_template
 from test_Orion import test_Orion
 from test_OEE import test_OEECalculator
 from test_LoopHandler import test_LoopHandler
+from test_main import test_main
 
 
 def main():
