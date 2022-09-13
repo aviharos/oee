@@ -307,19 +307,19 @@ class test_OEECalculator(unittest.TestCase):
                     {
                         "type": "Operation",
                         "OperationNumber": {"type": "Number", "value": 10},
-                        "OperationTime": {"type": "Number", "value": 46},
                         "OperationType": {
                             "type": "Text",
                             "value": "Core001_injection_moulding",
                         },
-                        "PartsPerOperation": {"type": "Number", "value": 8},
+                        "CycleTime": {"type": "Number", "value": 46},
+                        "PartsPerCycle": {"type": "Number", "value": 8},
                     },
                     {
                         "type": "Operation",
                         "OperationNumber": {"type": "Number", "value": 20},
-                        "OperationTime": {"type": "Number", "value": 33},
                         "OperationType": {"type": "Text", "value": "Core001_deburring"},
-                        "PartsPerOperation": {"type": "Number", "value": 16},
+                        "CycleTime": {"type": "Number", "value": 33},
+                        "PartsPerCycle": {"type": "Number", "value": 16},
                     },
                 ],
             },
@@ -781,7 +781,7 @@ class test_OEECalculator(unittest.TestCase):
         """
         performance = (n_total_cycles * 46) / (50 * 60)
         self.assertEqual(self.oee.oee["Performance"]["value"], performance)
-        # self.oee['Performance']['value'] = self.n_total_cycles * self.operation['orion']['OperationTime']['value'] / self.total_available_time
+        # self.oee['Performance']['value'] = self.n_total_cycles * self.operation['orion']['CycleTime']['value'] / self.total_available_time
 
     @patch(f"{OEE.__name__}.datetime", wraps=datetime)
     def test_calculate_OEE(self, mock_datetime):

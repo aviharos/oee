@@ -799,7 +799,7 @@ class OEECalculator:
         """Count the number of successful and failed production cycles 
 
         In this terminology, a cycle consists of the Workstation creating
-        self.operation["orion"]["PartsPerOperation"] pcs of parts,
+        self.operation["orion"]["PartsPerCycle"] pcs of parts,
         all of them good or reject parts.
 
         The values are stored in
@@ -845,7 +845,7 @@ class OEECalculator:
         Store the result in self.oee["Performance"]["value"]"""
         self.oee["Performance"]["value"] = (
             self.n_total_cycles
-            * self.operation["orion"]["OperationTime"]["value"]
+            * self.operation["orion"]["CycleTime"]["value"]
             * 1e3  # we count in milliseconds
             / self.total_available_time
         )
@@ -880,9 +880,9 @@ class OEECalculator:
             # use milliseconds
             (
                 self.shiftLengthInMilliseconds
-                / (self.operation["orion"]["OperationTime"]["value"] * 1e3)
+                / (self.operation["orion"]["CycleTime"]["value"] * 1e3)
             )
-            * self.operation["orion"]["PartsPerOperation"]["value"]
+            * self.operation["orion"]["PartsPerCycle"]["value"]
             * self.oee["OEE"]["value"]
         )
         self.logger.info(f"Throughput: {self.throughput}")
