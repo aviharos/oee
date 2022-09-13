@@ -49,7 +49,7 @@ class OEECalculator:
 
     Args:
         workstation_id:
-            the Orion id of the Workstation 
+            the Orion id of the Workstation
         con:
             The sqlalchemy module's engine's connection object to PostgreSQL
 
@@ -89,7 +89,7 @@ class OEECalculator:
         )
 
     def __init__(self, workstation_id: str):
-        """The constructor of the OEECalculator class 
+        """The constructor of the OEECalculator class
 
         Args:
             workstation_id (str): the Workstation's id in Orion
@@ -116,7 +116,7 @@ class OEECalculator:
         return f'OEECalculator object for workstation: {self.ws["id"]}'
 
     def set_now(self):
-        """A module for setting the OEECalculator's timestamp 
+        """A module for setting the OEECalculator's timestamp
 
         Cygnus uses UTC regardless of timezone by default
         The OEE Calculator uses local timezone.
@@ -151,7 +151,7 @@ class OEECalculator:
         ]
 
     def msToDateTime(self, ms: float):
-        """Convert a timestamp in milliseconds to datetime object 
+        """Convert a timestamp in milliseconds to datetime object
 
         Args:
             ms (float): timestamp in milliseconds
@@ -162,18 +162,18 @@ class OEECalculator:
         return self.stringToDateTime(self.msToDateTimeString(ms))
 
     def stringToDateTime(self, string: str):
-        """Convert a datetime in DATETIME_FORMAT string format to a datetime.datetime object 
+        """Convert a datetime in DATETIME_FORMAT string format to a datetime.datetime object
 
         Args:
             string (str): datetime in string
 
         Returns:
-            timestamp in datetime object 
+            timestamp in datetime object
         """
         return datetime.strptime(string, self.DATETIME_FORMAT)
 
     def timeToDatetime(self, string: str):
-        """Convert a time (no date component) in string format to datetime 
+        """Convert a time (no date component) in string format to datetime
 
         The date component is the date of the oeeCalculator.now
 
@@ -191,7 +191,7 @@ class OEECalculator:
         """Convert datetime to unix timestamp in milliseconds
 
         Args:
-            datetime_ (datetime): datetime to convert 
+            datetime_ (datetime): datetime to convert
 
         Returns:
             unix timestamp in milliseconds
@@ -202,12 +202,12 @@ class OEECalculator:
         df["recvtimets"] = df["recvtimets"].astype("float64").astype("int64")
 
     def get_cygnus_postgres_table(self, orion_obj: dict):
-        """Get the table name of the PostgreSQL logs 
+        """Get the table name of the PostgreSQL logs
 
-        The table names are set by Fiware Cygnus, this method just recreates the table name 
+        The table names are set by Fiware Cygnus, this method just recreates the table name
 
         Args:
-            orion_obj (dict): Orion object 
+            orion_obj (dict): Orion object
 
         Returns:
             postgres table name (str)
@@ -217,13 +217,13 @@ class OEECalculator:
         )
 
     def get_ws(self):
-        """ Download the Workstation object from Orion, get the table name of PostgreSQL logs """
+        """Download the Workstation object from Orion, get the table name of PostgreSQL logs"""
         self.ws["orion"] = Orion.get(self.ws["id"])
         self.ws["postgres_table"] = self.get_cygnus_postgres_table(self.ws["orion"])
         self.logger.debug(f"Workstation: {self.ws}")
 
     def get_operatorSchedule(self):
-        """ Get the OperatorSchedule object of the Workstation from orion 
+        """Get the OperatorSchedule object of the Workstation from orion
 
         Raises:
             KeyError or TypeError if the id cannot be read from the Workstation Orion object
@@ -240,10 +240,10 @@ class OEECalculator:
         self.logger.debug(f"OperatorSchedule: {self.operatorSchedule}")
 
     def is_datetime_in_todays_shift(self, datetime_: datetime):
-        """Check if datetime is in todays shift 
+        """Check if datetime is in todays shift
 
         Args:
-            datetime_ (datetime): datetime object to check 
+            datetime_ (datetime): datetime object to check
 
         Returns:
             True if the datetime is within the shift of the Workstation
@@ -256,9 +256,9 @@ class OEECalculator:
         return True
 
     def get_todays_shift_limits(self):
-        """ Get the limits of today's schedule
+        """Get the limits of today's schedule
 
-        Extract the schedule's start and end OperatorSchedule object 
+        Extract the schedule's start and end OperatorSchedule object
         Store the date in self.today
 
         Raises:
@@ -280,7 +280,7 @@ class OEECalculator:
         self.logger.debug(f"Today: {self.today}")
 
     def get_job_id(self):
-        """Get the referenced Job's Orion id from the Workstation Orion object 
+        """Get the referenced Job's Orion id from the Workstation Orion object
 
         Returns:
             the Job's Orion id (str)
@@ -296,14 +296,14 @@ class OEECalculator:
             ) from error
 
     def get_job(self):
-        """ Get Job from Orion, fill the self.job dict """
+        """Get Job from Orion, fill the self.job dict"""
         self.job["id"] = self.get_job_id()
         self.job["orion"] = Orion.get(self.job["id"])
         self.job["postgres_table"] = self.get_cygnus_postgres_table(self.job["orion"])
         self.logger.debug(f"Job: {self.job}")
 
     def get_part_id(self):
-        """Get the referenced Part's Orion id from the Job Orion object 
+        """Get the referenced Part's Orion id from the Job Orion object
 
         Returns:
             the Part's Orion id (str)
@@ -320,14 +320,14 @@ class OEECalculator:
         self.part["id"] = part_id
 
     def get_part(self):
-        """ Get Part from Orion, store in self.part dict """
+        """Get Part from Orion, store in self.part dict"""
         self.get_part_id()
         self.logger.debug(f'Part id: {self.part["id"]}')
         self.part["orion"] = Orion.get(self.part["id"])
         # self.logger.debug(f'Part: {self.part}')
 
     def get_operation(self):
-        """ Get Operation, store in self.operation["orion"]
+        """Get Operation, store in self.operation["orion"]
 
         The operations are stored in the Part object's Operations list
 
@@ -360,14 +360,14 @@ class OEECalculator:
         self.logger.debug(f"Operation: {self.operation}")
 
     def get_objects_shift_limits(self):
-        """Get objects from Orion 
+        """Get objects from Orion
 
-        Fills the following dicts: 
-            self.ws 
-            self.job 
-            self.part 
+        Fills the following dicts:
+            self.ws
+            self.job
+            self.part
             self.operation
-            """
+        """
         self.get_ws()
         self.get_operatorSchedule()
         self.get_todays_shift_limits()
@@ -376,7 +376,7 @@ class OEECalculator:
         self.get_operation()
 
     def get_query_start_timestamp(self, how: str):
-        """Get the PostgreSQL query's starting timestamp 
+        """Get the PostgreSQL query's starting timestamp
 
         Args:
             how (str): "from_midnight" or "from_schedule_start"
@@ -390,7 +390,9 @@ class OEECalculator:
         """
         if how == "from_midnight":
             # construct midnight's datetime
-            return self.datetimeToMilliseconds(datetime.combine(self.now.date(), datetime.min.time()))
+            return self.datetimeToMilliseconds(
+                datetime.combine(self.now.date(), datetime.min.time())
+            )
         elif how == "from_schedule_start":
             return self.datetimeToMilliseconds(
                 self.today["OperatorWorkingScheduleStartsAt"]
@@ -405,7 +407,7 @@ class OEECalculator:
 
         Args:
             con (sqlalchemy connection object): self.con, the LoopHandler creates it
-            table_name (str): PostgreSQL table name 
+            table_name (str): PostgreSQL table name
             how (str): "from_midnight" or "from_schedule_start"
 
         Returns:
@@ -433,7 +435,7 @@ class OEECalculator:
         return df
 
     def convert_dataframe_to_str(self, df: pd.DataFrame):
-        """ Convert a pandas DataFrame's all columns to str
+        """Convert a pandas DataFrame's all columns to str
 
         Cygnus 2.16.0 uploads all data as Text to Postgres
         So with this version of Cygnus, this function is useless
@@ -466,7 +468,7 @@ class OEECalculator:
         return df_.sort_values(by=["recvtimets"])
 
     def get_current_job_start_time_today(self):
-        """Get the Job's start time. If it is before the schedule's start, return the schedule start time 
+        """Get the Job's start time. If it is before the schedule's start, return the schedule start time
 
         If the the current job started in today's shift,
         return its start time,
@@ -495,16 +497,16 @@ class OEECalculator:
         return self.msToDateTime(last_job_change)
 
     def set_RefStartTime(self):
-        """ Get RefStartTime
+        """Get RefStartTime
 
         RefStartTime is the one later in time of these two:
-            1. Current Job's start time 
-            2. Current schedule's start time 
+            1. Current Job's start time
+            2. Current schedule's start time
 
         This way, only one Job will be considered (1.),
         and only one working interval in the schedule is considered (2.)
 
-        As a consequence, the OEE and Throughput metrics always refer to the current Job 
+        As a consequence, the OEE and Throughput metrics always refer to the current Job
         and the current working interval of the schedule
 
         The result is stored in self.today["RefStartTime"]
@@ -523,7 +525,7 @@ class OEECalculator:
             )
 
     def prepare(self, con):
-        """Prepare the OEECalculator object 
+        """Prepare the OEECalculator object
 
         Download all Objects from Orion
         Set time data
@@ -537,7 +539,7 @@ class OEECalculator:
             RuntimeError, KeyError, AttributeError or TypeError:
                 if getting the Orion objects or reading their attributes fails
             ValueError:
-                if the Workstation is currently not operational according to the 
+                if the Workstation is currently not operational according to the
                     referenced OperatorSchedule
 
         """
@@ -546,9 +548,7 @@ class OEECalculator:
             # also includes getting the shift's limits
             self.get_objects_shift_limits()
         except (RuntimeError, KeyError, AttributeError, TypeError) as error:
-            message = (
-                f"Could not get and extract objects from Orion."
-            )
+            message = f"Could not get and extract objects from Orion."
             self.logger.error(message)
             raise error.__class__(message) from error
 
@@ -582,10 +582,10 @@ class OEECalculator:
         self.set_RefStartTime()
 
     def filter_in_relation_to_RefStartTime(self, df: pd.DataFrame, how: str):
-        """Filter Cygnus logs in relation to RefStartTime 
+        """Filter Cygnus logs in relation to RefStartTime
 
         Args:
-            df (pd.DataFrame): queried Cygnus logs 
+            df (pd.DataFrame): queried Cygnus logs
             how (str): "before" or "after"
 
         Returns:
@@ -598,30 +598,28 @@ class OEECalculator:
         if how == "after":
             filtered = df[
                 df["recvtimets"]
-                >= self.datetimeToMilliseconds(
-                    self.today["RefStartTime"]
-                )
+                >= self.datetimeToMilliseconds(self.today["RefStartTime"])
             ]
         elif how == "before":
             filtered = df[
                 df["recvtimets"]
-                < self.datetimeToMilliseconds(
-                    self.today["RefStartTime"]
-                )
+                < self.datetimeToMilliseconds(self.today["RefStartTime"])
             ]
         else:
             raise NotImplementedError(f"filter_RefStartTime: Invalid option how={how}")
         return filtered.reset_index(drop=True)
 
-    def calc_availability_if_no_availability_record_after_RefStartTime(self, df_before: pd.DataFrame):
+    def calc_availability_if_no_availability_record_after_RefStartTime(
+        self, df_before: pd.DataFrame
+    ):
         """Calculate availability if there is no availability record after RefStartTime in the Workstation logs
 
-        The Workstation's available attribute has not changed since the RefStartTime. 
+        The Workstation's available attribute has not changed since the RefStartTime.
         It was either on or off without a change ever since.
         So the availability is 0 or 1 depending on if the Workstation is on or off.
         Since today's workstation logs contains at least one row, check the last row before RefStartTime.
-        The only possible explanation is that the Workstation was turned on or off 
-        before the RefStartTime and nothing changed since then. 
+        The only possible explanation is that the Workstation was turned on or off
+        before the RefStartTime and nothing changed since then.
 
         Also sets the total_available_time and total_time_so_far_in_shift attributes.
 
@@ -637,22 +635,32 @@ class OEECalculator:
                 if the Cygnus log contains an invalid Availability value
         """
         self.logger.debug(f"df_before:\n{df_before}")
-        self.total_time_so_far_in_shift = self.now_unix() - self.datetimeToMilliseconds(self.today["RefStartTime"])
+        self.total_time_so_far_in_shift = self.now_unix() - self.datetimeToMilliseconds(
+            self.today["RefStartTime"]
+        )
         df_before.sort_values(by=["recvtimets"], inplace=True)
-        self.logger.debug(f"df_before.iloc[-1]['attrvalue']: {df_before.iloc[-1]['attrvalue']}")
+        self.logger.debug(
+            f"df_before.iloc[-1]['attrvalue']: {df_before.iloc[-1]['attrvalue']}"
+        )
         last_availability = df_before.iloc[-1]["attrvalue"]
         if last_availability == "true":
             # the Workstation is on since before RefStartTime
             self.total_available_time = self.total_time_so_far_in_shift
             return 1
-        elif last_availability == "false":  # df_before.iloc[-1]["attrvalue"] == "false":
+        elif (
+            last_availability == "false"
+        ):  # df_before.iloc[-1]["attrvalue"] == "false":
             # the Workstation is off since before RefStartTime
             self.total_available_time = 0
             return 0
         else:
-            raise ValueError(f"Invalid Availability value: {last_availability} in postgres_table: {self.ws['postgres_table']} at recvtimets: {df_before.iloc[-1]['recvtimets']}")
+            raise ValueError(
+                f"Invalid Availability value: {last_availability} in postgres_table: {self.ws['postgres_table']} at recvtimets: {df_before.iloc[-1]['recvtimets']}"
+            )
 
-    def calc_availability_if_exists_record_after_RefStartTime(self, df_after: pd.DataFrame):
+    def calc_availability_if_exists_record_after_RefStartTime(
+        self, df_after: pd.DataFrame
+    ):
         """Calculate availability if there is at least one Availability record in the Cygnus logs since RefStartTime
 
         Args:
@@ -672,15 +680,15 @@ class OEECalculator:
         for _, row in df_after.iterrows():
             """
             Interate all rows
-            Every 2 rows defines an interval during which the Workstation was on 
+            Every 2 rows defines an interval during which the Workstation was on
             Or off without interruption
             Check which interval is on and off, and increase times accordingly
 
-            The first and last intervals are special. 
+            The first and last intervals are special.
             The first interval starts at RefStartTime, ends at the first entry
             The last interval starts at the last entry, ends at self.now_unix()
 
-            The first interval is handled here, because the previous_timestamp 
+            The first interval is handled here, because the previous_timestamp
             starts at RefStartTime
             """
             current_timestamp = row["recvtimets"]
@@ -711,12 +719,12 @@ class OEECalculator:
     def calc_availability(self, df_av: pd.DataFrame):
         """Calculate the availability of the Workstation
 
-        The Workstation's Available attribute 
-        is true and false in this periodical order. 
+        The Workstation's Available attribute
+        is true and false in this periodical order.
 
-        This function first checks if there is any availability log since RefStartTime 
+        This function first checks if there is any availability log since RefStartTime
         Then uses either of the two functions:
-            calc_availability_if_exists_record_after_RefStartTime 
+            calc_availability_if_exists_record_after_RefStartTime
             calc_availability_if_no_availability_record_after_RefStartTime
 
         Args:
@@ -727,9 +735,13 @@ class OEECalculator:
         """
         df_after = self.filter_in_relation_to_RefStartTime(df_av, how="after")
         if df_after.size == 0:
-            self.logger.info("No Availability record found after RefStartTime: {self.today['RefStartTime']}, using today's previous availability records")
+            self.logger.info(
+                "No Availability record found after RefStartTime: {self.today['RefStartTime']}, using today's previous availability records"
+            )
             df_before = self.filter_in_relation_to_RefStartTime(df_av, how="before")
-            return self.calc_availability_if_no_availability_record_after_RefStartTime(df_before)
+            return self.calc_availability_if_no_availability_record_after_RefStartTime(
+                df_before
+            )
         else:
             # now it is sure that the df_after is not emtpy, at least one row
             return self.calc_availability_if_exists_record_after_RefStartTime(df_after)
@@ -741,7 +753,7 @@ class OEECalculator:
         So if a Workstation becomes available before the schedule starts,
         The OEECalculator will recognise that it is available
         But the availability calculations will not consider any time before
-        the schedule starts. 
+        the schedule starts.
         The OEECalculator treats the Workstation
         as if it became available just when the schedule started.
         This way, the Availability KPI cannot exceed 1.
@@ -764,7 +776,7 @@ class OEECalculator:
     def count_nonzero_unique(self, unique_values: np.array):
         """Count nonzero unique values of an iterable
 
-        Used for counting the number of successful and failed injection mouldings. 
+        Used for counting the number of successful and failed injection mouldings.
         "0" does not count for a successful or failed injection moulding, so it is discarded.
         for example: ['0', '8', '16', '24'] contains 4 unique values
         but these mean only 3 successful injection mouldings
@@ -774,7 +786,7 @@ class OEECalculator:
 
         Returns:
             Integer:
-                The number of unique values that are not 0 
+                The number of unique values that are not 0
                 This is the number of successful or failed injection mouldings
         """
         if "0" in unique_values:
@@ -784,9 +796,9 @@ class OEECalculator:
             return unique_values.shape[0]
 
     def count_injection_mouldings(self):
-        """ Count the number of successful and failed injection mouldings 
+        """Count the number of successful and failed injection mouldings
 
-        The values are stored in 
+        The values are stored in
             n_successful_mouldings
             n_failed_mouldings
             n_total_mouldings"""
@@ -805,7 +817,7 @@ class OEECalculator:
         self.n_total_mouldings = self.n_successful_mouldings + self.n_failed_mouldings
 
     def handle_quality(self):
-        """ Handle everything related to quality KPI
+        """Handle everything related to quality KPI
 
         Store the result in self.oee["Quality"]["value"]
 
@@ -824,17 +836,18 @@ class OEECalculator:
         )
 
     def handle_performance(self):
-        """ Handle everythin related to the Performance KPI
+        """Handle everythin related to the Performance KPI
 
         Store the result in self.oee["Performance"]["value"]"""
         self.oee["Performance"]["value"] = (
             self.n_total_mouldings
-            * self.operation["orion"]["OperationTime"]["value"] * 1e3  # we count in milliseconds
+            * self.operation["orion"]["OperationTime"]["value"]
+            * 1e3  # we count in milliseconds
             / self.total_available_time
         )
 
     def calculate_OEE(self):
-        """Calculate the OEE 
+        """Calculate the OEE
 
         Returns:
             self.oee: OEE Object that will eventually be uploaded to Orion
@@ -851,7 +864,7 @@ class OEECalculator:
         return self.oee
 
     def calculate_throughput(self):
-        """Calculate the Throughput 
+        """Calculate the Throughput
 
         Returns:
             self.throughput: Throughput Object that will eventually be uploaded to Orion
@@ -860,8 +873,11 @@ class OEECalculator:
             self.today["OperatorWorkingScheduleStopsAt"]
         ) - self.datetimeToMilliseconds(self.today["RefStartTime"])
         self.throughput["ThroughputPerShift"]["value"] = (
-                # use milliseconds
-            (self.shiftLengthInMilliseconds / (self.operation["orion"]["OperationTime"]["value"] * 1e3))
+            # use milliseconds
+            (
+                self.shiftLengthInMilliseconds
+                / (self.operation["orion"]["OperationTime"]["value"] * 1e3)
+            )
             * self.operation["orion"]["PartsPerOperation"]["value"]
             * self.oee["OEE"]["value"]
         )

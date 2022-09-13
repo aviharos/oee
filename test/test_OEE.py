@@ -207,7 +207,7 @@ class test_OEECalculator(unittest.TestCase):
         )
         self.oee.ws["orion"] = copy.deepcopy(self.jsons["Workstation"])
 
-        del(self.oee.ws["orion"]["RefOperatorSchedule"]["value"])
+        del self.oee.ws["orion"]["RefOperatorSchedule"]["value"]
         with self.assertRaises(KeyError):
             self.oee.get_operatorSchedule()
 
@@ -244,15 +244,21 @@ class test_OEECalculator(unittest.TestCase):
             datetime(2022, 8, 23, 16, 0, 0),
         )
 
-        self.oee.operatorSchedule["orion"]["OperatorWorkingScheduleStopsAt"]["value"] = "3 o'clock"
+        self.oee.operatorSchedule["orion"]["OperatorWorkingScheduleStopsAt"][
+            "value"
+        ] = "3 o'clock"
         with self.assertRaises(ValueError):
             self.oee.get_todays_shift_limits()
 
-        del(self.oee.operatorSchedule["orion"]["OperatorWorkingScheduleStopsAt"]["value"])
+        del self.oee.operatorSchedule["orion"]["OperatorWorkingScheduleStopsAt"][
+            "value"
+        ]
         with self.assertRaises(KeyError):
             self.oee.get_todays_shift_limits()
 
-        self.oee.operatorSchedule["orion"]["OperatorWorkingScheduleStopsAt"] = "no_value_field"
+        self.oee.operatorSchedule["orion"][
+            "OperatorWorkingScheduleStopsAt"
+        ] = "no_value_field"
         with self.assertRaises(TypeError):
             self.oee.get_todays_shift_limits()
 
@@ -327,7 +333,7 @@ class test_OEECalculator(unittest.TestCase):
         with self.assertRaises(KeyError):
             self.oee.get_operation()
 
-        del(self.oee.job["orion"]["CurrentOperationType"]["value"])
+        del self.oee.job["orion"]["CurrentOperationType"]["value"]
         with self.assertRaises(KeyError):
             self.oee.get_operation()
 
