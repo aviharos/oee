@@ -1,7 +1,9 @@
-'''
-This file is meant to upload the json objects to the
+"""
+This file is meant to upload the Orion objects stored in JSON to the
 Orion broker before testing with a physical or virtual PLC.
-'''
+
+All files of the "json" directory are uploaded.
+"""
 
 import json
 import glob

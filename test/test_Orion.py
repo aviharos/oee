@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 # Standard Library imports
+import copy
 import json
 import os
 import requests
@@ -21,12 +22,14 @@ orion_entities = f"http://{ORION_HOST}:{ORION_PORT}/v2/entities"
 class test_Orion(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
+        """ Upload Core001 and Workstation to Orion """
         with open(os.path.join("..", "json", "Core001.json"), "r") as f:
             cls.obj = json.load(f)
         requests.post(url=orion_entities, json=cls.obj)
         with open(os.path.join("..", "json", "Workstation.json"), "r") as f:
             cls.ws1 = json.load(f)
-        cls.ws2 = cls.ws1.copy()
+        # make a second Workstation
+        cls.ws2 = copy.deepcopy(cls.ws1.copy)
         cls.ws2["id"] = "urn:ngsi_ld:Workstation:2"
         cls.ws2["RefJob"]["value"] = "urn:ngsi_ld:Job:2000000"
 
@@ -41,12 +44,14 @@ class test_Orion(unittest.TestCase):
         pass
 
     def test_getRequest(self):
+        # try downloading the Core001 object
         status_code, downloaded_json = Orion.getRequest(
             f'{orion_entities}/{self.obj["id"]}'
         )
         downloaded_json = remove_orion_metadata(downloaded_json)
         self.assertEqual(status_code, 200)
         self.assertEqual(downloaded_json, self.obj)
+
         with patch("requests.get") as mocked_get:
             mocked_get.side_effect = ValueError
             with self.assertRaises(RuntimeError):
@@ -66,17 +71,22 @@ class test_Orion(unittest.TestCase):
         self.assertFalse(Orion.exists("urn:ngsi_ld:Part:Core123"))
 
     def test_getWorkstations(self):
+        # delete uploaded Workstation objects
         requests.delete(url=f'{orion_entities}/{self.ws1["id"]}')
         requests.delete(url=f'{orion_entities}/{self.ws2["id"]}')
+
+        # there are no Workstation objects in Orion
         self.assertEqual(len(Orion.getWorkstations()), 0)
-        # print(ws1)
-        # print(ws2)
+
+        # post 2 Workstation objects
         requests.post(url=orion_entities, json=self.ws1)
         requests.post(url=orion_entities, json=self.ws2)
         downloaded_workstations = [
             remove_orion_metadata(ws) for ws in Orion.getWorkstations()
         ]
         self.assertEqual(len(downloaded_workstations), 2)
+
+        # check if the 2 downloaded Workstation objects match the uploaded ones
         if downloaded_workstations[0]["id"] == self.ws1["id"]:
             self.assertEqual(downloaded_workstations[0], self.ws1)
             self.assertEqual(downloaded_workstations[1], self.ws2)
@@ -85,13 +95,18 @@ class test_Orion(unittest.TestCase):
             self.assertEqual(downloaded_workstations[1], self.ws1)
 
     def test_update(self):
+        # create copies of Workstation objects to be used in the test's scope
         ws1m = self.ws1.copy()
         ws1m["RefJob"]["value"] = "urn:ngsi_ld:Job:12"
         ws2m = self.ws2.copy()
         ws2m["RefOEE"]["value"] = "urn:ngsi_ld:OEE:3"
+
+        # update both Workstations in Orion
         requests.post(url=orion_entities, json=ws1m)
         requests.post(url=orion_entities, json=ws2m)
         Orion.update([ws1m, ws2m])
+
+        # check if update was successful
         downloaded_workstations = [
             remove_orion_metadata(ws) for ws in Orion.getWorkstations()
         ]
