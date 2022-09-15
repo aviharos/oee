@@ -127,7 +127,7 @@ class test_OEECalculator(unittest.TestCase):
         now = datetime(2022, 4, 5, 13, 46, 40)
         mock_datetime.now.return_value = now
         self.oee.set_now()
-        self.assertAlmostEqual(now.timestamp(), self.oee.now_datetime.timestamp(), places=PLACES)
+        self.assertAlmostEqual(now.timestamp(), self.oee.now_datetime.timestamp(), places=8)
 
     def test_now_datetime(self):
         now = datetime(2022, 4, 5, 13, 46, 40)
