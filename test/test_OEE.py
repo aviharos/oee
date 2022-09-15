@@ -177,8 +177,10 @@ class test_OEECalculator(unittest.TestCase):
         self.assertEqual(job_table, "urn_ngsi_ld_job_202200045_job")
 
     def test_get_ws(self):
+        """ Test if downloaded Workstation object and its postgres_table match """
         self.oee.get_ws()
         self.assertEqual(
+            # need to remove metadata fields when checking downloaded Orion objects
             remove_orion_metadata(self.oee.ws["orion"]), self.jsons["Workstation"]
         )
         self.assertEqual(
@@ -186,6 +188,11 @@ class test_OEECalculator(unittest.TestCase):
         )
 
     def test_get_operatorSchedule(self):
+        """ Test if the OperatorSchedule object of the Workstation can be downloaded and processed """
+        """
+        manually add the Workstation object that is normally 
+        downloaded before the OperatorSchedule
+        """
         self.oee.ws["orion"] = copy.deepcopy(self.jsons["Workstation"])
         self.oee.get_operatorSchedule()
         self.assertEqual(
@@ -196,10 +203,12 @@ class test_OEECalculator(unittest.TestCase):
 
         del self.oee.ws["orion"]["RefOperatorSchedule"]["value"]
         with self.assertRaises(KeyError):
+            # missing key
             self.oee.get_operatorSchedule()
 
         self.oee.ws["orion"]["RefOperatorSchedule"] = "invalid_operationSchedule:id"
         with self.assertRaises(TypeError):
+            # "invalid_operationSchedule:id"["value"] will result in TypeError
             self.oee.get_operatorSchedule()
 
     def test_is_datetime_in_todays_shift(self):
@@ -242,12 +251,14 @@ class test_OEECalculator(unittest.TestCase):
             "value"
         ]
         with self.assertRaises(KeyError):
+            # missing key: "value"
             self.oee.get_todays_shift_limits()
 
         self.oee.operatorSchedule["orion"][
             "OperatorWorkingScheduleStopsAt"
         ] = "no_value_field"
         with self.assertRaises(TypeError):
+            # "no_value_field"["value"] will result in a TypeError
             self.oee.get_todays_shift_limits()
 
     def test_get_job_id(self):
