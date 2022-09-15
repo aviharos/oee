@@ -41,7 +41,7 @@ def getRequest(url: str):
     """Send a GET request to Orion
 
     Args:
-        url: any Orion that is suitable for GET requests
+        url (str): any Orion that is suitable for GET requests
 
     Returns:
         the response status code and the json
@@ -66,13 +66,13 @@ def getRequest(url: str):
         return response.status_code, response.json()
 
 
-def get(object_id: str, host=ORION_HOST, port=ORION_PORT):
+def get(object_id: str, host: str=ORION_HOST, port: int =ORION_PORT):
     """Get an object from Orion identified by the ID
 
     Args:
-        object_id: the Orion object id
-        host: Orion host. Default: ORION_HOST environment variable
-        port: Orion port. Default: ORION_PORT environment variable
+        object_id (str): the Orion object id
+        host (str): Orion host. Default: ORION_HOST environment variable
+        port (int): Orion port. Default: ORION_PORT environment variable
 
     Returns:
         The object in JSON format idenfitied by object_id
@@ -90,11 +90,11 @@ def get(object_id: str, host=ORION_HOST, port=ORION_PORT):
     return json_
 
 
-def exists(object_id):
+def exists(object_id: str):
     """Check if an object exists in Orion
 
     Args:
-        object_id: the object's id in Orion
+        object_id (str): the object's id in Orion
 
     Returns:
         True if the object idenfitied by object_id exists,
@@ -125,7 +125,7 @@ def getWorkstations():
     return workstations
 
 
-def update(objects):
+def update(objects: list):
     """Updates the objects in Orion
 
     This method takes an iterable (objects) that contain Orion objects

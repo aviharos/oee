@@ -5,7 +5,7 @@
 import json
 
 
-def object_to_template(file_):
+def object_to_template(file_: str):
     """A module for creating templates of Orion objects stored in the "jsons" directory
 
     Reads a json object from the json folder,

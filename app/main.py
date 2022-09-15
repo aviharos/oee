@@ -46,7 +46,7 @@ def get_SLEEP_TIME():
 SLEEP_TIME = get_SLEEP_TIME()
 
 
-def loop(scheduler_):
+def loop(scheduler_: sched.scheduler):
     """The main loop, that runs each cycle
 
     SLEEP_TIME means the number of seconds slept
@@ -57,7 +57,7 @@ def loop(scheduler_):
     before starting a new one is due
 
     Args:
-        scheduler_ (scheduler): instance of sched.scheduler, used in all loops
+        scheduler_ (sched.scheduler): instance of sched.scheduler, used in all loops
     """
     logger_main.info("Calculating OEE values")
     loopHandler = LoopHandler()

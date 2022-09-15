@@ -48,11 +48,11 @@ else:
     LOG_TO_STDOUT = True
 
 
-def getLogger(name):
+def getLogger(name: str):
     """Return a configured logger
 
     Args:
-        name: the invoking module's __name__
+        name (str): the invoking module's __name__
 
     Returns:
         A logger for a specific file.
