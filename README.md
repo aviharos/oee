@@ -149,7 +149,7 @@ The Operations are not separate Orion objects. Their attributes are as follows:
 - CycleTime (Number): the cycle time of the operation in seconds. Every cycle, the Workstation produces a set of parts.
 - PartsPerCycle (Number): each cycle produces this many parts.
 
-If you cannot trace the Workstation through the Job object to the Part object's Operation, somethings is missing.
+If you cannot trace the Workstation through the Job object to the Part object's Operation, something is missing.
 
 #### OperatorSchedule 
 
