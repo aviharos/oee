@@ -45,7 +45,6 @@ class test_object_to_template(unittest.TestCase):
         ws["RefOEE"]["value"] = None
         ws["RefThroughput"]["value"] = None
         ws["RefOperatorSchedule"]["value"] = None
-        ws["RefAlert"]["value"] = None
         self.assertEqual(
             ws, object_to_template(os.path.join("..", "json", "Workstation.json"))
         )
