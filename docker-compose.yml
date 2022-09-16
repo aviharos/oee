@@ -1,0 +1,75 @@
+version: "3.5"
+services:
+
+  # Orion is the context broker
+  orion:
+    image: fiware/orion:3.6.0
+    hostname: orion
+    container_name: fiware-orion
+    depends_on:
+      - mongo-db
+    ports:
+      - "1026:1026"
+    command: -dbhost mongo-db -logLevel DEBUG -noCache
+
+  # Cygnus is configured to write context data to PostgeSQL
+  cygnus:
+    image: fiware/cygnus-ngsi:2.16.0
+    hostname: cygnus
+    container_name: fiware-cygnus
+    networks:
+      - default
+    depends_on:
+      - postgres-db
+    ports:
+      - "5055:5055"
+      - "5080:5080" 
+    environment:
+      - "CYGNUS_POSTGRESQL_HOST=postgres-db" # Hostname of the PostgreSQL server used to persist historical context data
+      - "CYGNUS_POSTGRESQL_PORT=5432" # Port that the PostgreSQL server uses to listen to commands
+      - "CYGNUS_POSTGRESQL_USER=${POSTGRES_USER}" # Username for the PostgreSQL database user
+      - "CYGNUS_POSTGRESQL_PASS=${POSTGRES_PASSWORD}" # Password for the PostgreSQL database user
+      - "CYGNUS_POSTGRESQL_DATABASE=${POSTGRES_DATABASE}" # PostgreSQL database
+      - "CYGNUS_POSTGRESQL_ENABLE_CACHE=true" # Switch to enable caching within the PostgreSQL configuration
+      - "CYGNUS_POSTGRESQL_SERVICE_PORT=5055" # The port the agent.conf is configured for
+      - "CYGNUS_LOG_LEVEL=DEBUG" # The logging level for Cygnus
+      - "CYGNUS_SERVICE_PORT=5055" # Notification Port that Cygnus listens to for Postgres subscriptions
+      - "CYGNUS_API_PORT=5080" # Port that Cygnus listens on for operational reasons
+
+  # Databases - Orion uses Mongo-DB, Cygnus is persisting to Postgres
+  mongo-db:
+    # mongo 5.0.9 works fine too, but not on all hosts
+    image: mongo:4.4.15
+    hostname: mongo-db
+    container_name: db-mongo
+    ports:
+      - "27017:27017" 
+    # command: --bind_ip_all --smallfiles
+    volumes:
+      - mongo-db:/data
+
+  postgres-db:
+    image: postgres:14.4
+    hostname: postgres-db
+    container_name: db-postgres
+    ports:
+      - "5432:5432"
+    environment:
+      - "POSTGRES_PASSWORD=${POSTGRES_PASSWORD}"
+      - "POSTGRES_USER=${POSTGRES_USER}"
+      - "POSTGRES_DB=${POSTGRES_DATABASE}"
+    volumes:
+      - postgres-db:/var/lib/postgresql/data
+
+  # Robo4Toys ROSE-AP 1
+  # OEE calculator microservice
+  oee:
+   image: oee:latest
+   hostname: oee
+   container_name: r4t-oee
+
+volumes:
+  mongo-db:
+    driver: local
+  postgres-db:
+    driver: local
