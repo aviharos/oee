@@ -208,12 +208,12 @@ class LoopHandler:
                     "A critical error occured, not even the ids of the objects could be determined. No OEE data. An OEE and a Throughput object should be cleared, but it cannot be determined, which ones."
                 )
             else:
-                self.logger.warning(
+                self.logger.error(
                     "An error happened, trying to clear all attributes of the OEE and Throughput objects."
                 )
                 for object_ in ("OEE", "Throughput"):
                     self.delete_attributes(object_)
-                self.logger.warning(
+                self.logger.info(
                     "Cleared OEE and Throughput."
                 )
         finally:
