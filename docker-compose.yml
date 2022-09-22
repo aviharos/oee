@@ -67,6 +67,19 @@ services:
    image: oee:latest
    hostname: oee
    container_name: r4t-oee
+   environment:
+     - "LOGGING_LEVEL=DEBUG"
+     - "LOG_TO_FILE=true"
+     - "LOG_TO_STDOUT=true"
+     - "SLEEP_TIME=60"
+     - "POSTGRES_DATABASE=postgres"
+     - "POSTGRES_HOST=localhost"
+     - "POSTGRES_PASSWORD=password"
+     - "POSTGRES_PORT=5432"
+     - "POSTGRES_SCHEMA=default_service"
+     - "POSTGRES_USER=postgres"
+     - "ORION_HOST=localhost"
+     - "ORION_PORT=1026"
 
 volumes:
   mongo-db:
