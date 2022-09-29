@@ -1,28 +1,52 @@
-FROM python:3.7.13-bullseye
+# Builder stage
+FROM python:3.8.14-slim as builder
+
+WORKDIR /app
+
+ENV PYTHONDONTWRITEBYTECODE 1
+
+ENV PYTHONUNBUFFERED 1
+
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends gcc libpq-dev python-dev
+
+RUN python -m venv /opt/venv
+
+ENV PATH="/opt/venv/bin:$PATH"
+
+COPY requirements.txt .
+RUN pip install -r requirements.txt
+
+# Final stage
+FROM python:3.8.14-slim
+
+RUN apt-get update && \
+    apt-get install libpq5 -y
 
 ARG USER=appuser
 
 ARG GROUP=appuser
 
-ENV HOME /home/$USER
-
-ENV PYTHONPATH "${PYTHONPATH}:$HOME/app/app"
-
 RUN groupadd --system $GROUP && \
     useradd --system --gid $USER $GROUP
 
-WORKDIR $HOME/app/app
+COPY --from=builder --chown=$USER:$GROUP /opt/venv /opt/venv
 
-COPY --chown=$USER:$GROUP dependencies.txt ./
+ENV PATH="/opt/venv/bin:$PATH"
 
-RUN pip3 install --no-cache-dir --upgrade pip && \
-    pip3 install --no-cache-dir -r dependencies.txt
+ENV HOME /home/$USER
+
+WORKDIR $HOME/app
+
+RUN chown -R $USER:$GROUP $HOME/app
 
 USER $USER
 
-COPY --chown=$USER:$GROUP app/* ./
+COPY --chown=$USER:$GROUP json/ ./json/
 
-COPY --chown=$USER:$GROUP json ../
+COPY --chown=$USER:$GROUP app/ ./app/
+
+WORKDIR $HOME/app/app
 
 ENTRYPOINT ["python3", "./main.py"]
 
