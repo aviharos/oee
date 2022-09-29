@@ -59,7 +59,7 @@ def loop(scheduler_: sched.scheduler):
     Args:
         scheduler_ (sched.scheduler): instance of sched.scheduler, used in all loops
     """
-    logger_main.info("Calculating OEE values")
+    logger_main.info("Calculating OEE and Throughput values")
     loopHandler = LoopHandler()
     loopHandler.handle()
     scheduler_.enter(SLEEP_TIME, 1, loop, (scheduler_,))
