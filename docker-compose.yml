@@ -67,6 +67,7 @@ services:
    image: oee:latest
    hostname: oee
    container_name: r4t-oee
+   restart: always
    networks:
      - default
    depends_on:
