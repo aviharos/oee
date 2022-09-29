@@ -43,6 +43,8 @@ Currently, the microservice is not intended to be fully automatic. Whenever a ne
 ## Usage
 The microservice is designed to run inside a docker-compose project. See a minimal [docker-compose.yml](docker-compose.yml) file. The Robo4Toys TTE's project solution repository, MOMAMS also provides a more compley [docker-compose.yml](https://github.com/aviharos/momams/blob/main/docker-compose.yml) file. However, since the microservice does not depend on any microservice besides the Orion Context Broker, Cygnus, MongoDB and PostgreSQL; it can be used without the Robo4Toys TTE's other microservices.
 
+The microservice does not store data or have any kind of memory. It just periodically performs a calculation. If the container crashes, it is safe to restart it automatically.
+
 ### Notifying Cygnus of all context changes
 After running the docker-compose project, you need to set Orion to notify Cygnus of all context changes using the script:
 
@@ -211,25 +213,31 @@ The microservice does not contain an API.
 
 WARNING: the tests set environment variables, change the Orion Context Broker and PostgreSQL data. Any overwritten data is deleted forever. Proceed at your own risk.
 
-For testing, you need to create a conda environment and install necessary packages.
+For testing, you need to create an environment and install necessary packages. Example with conda:
 
     conda create -n oee python=3.8
     conda activate oee
     conda install pandas psycopg2 requests sqlalchemy
 
-Then start the docker-compose project:
+Then start the *test* [docker-compose](test/docker-compose.yml) project, that is not identical to the minimal [docker-compose.yml](docker-compose.yml) mentioned in Usage:
 
+    cd test
     docker-compose up -d
 
 Then run the tests as follows.
 
-    cd test
     source env 
     python test_object_to_template.py
     python test_Orion.py
     python test_OEE.py
     python test_LoopHandler.py
     python test_main.py
+
+Now you can stop the test docker-compose project:
+
+    docker-compose down
+
+Please note that the tests were originally written in the GMT+2 time zone. The tests have not been executed in any other timezone yet.
 
 ## Limitations
 The OEE microservice currently cannot handle HTTPS and Fiware’s authentication system.
