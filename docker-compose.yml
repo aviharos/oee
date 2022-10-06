@@ -74,10 +74,11 @@ services:
      - orion
      - postgres-db
    environment:
-     ORION_HOST: "orion"
-     LOGGING_LEVEL: "DEBUG"
      LOG_TO_FILE: "false"
      LOG_TO_STDOUT: "true"
+     LOGGING_LEVEL: "DEBUG"
+     ORION_HOST: "orion"
+     ORION_PORT: 1026
      SLEEP_TIME: 60
      POSTGRES_DATABASE: "${POSTGRES_DATABASE}"
      POSTGRES_HOST: "postgres-db"
@@ -85,7 +86,6 @@ services:
      POSTGRES_PORT: 5432
      POSTGRES_SCHEMA: "default_service"
      POSTGRES_USER: "${POSTGRES_USER}"
-     ORION_PORT: 1026
 
 volumes:
   mongo-db:
