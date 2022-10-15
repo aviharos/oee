@@ -73,8 +73,8 @@ def main():
     """
     logger_main.info("Starting OEE microservice...")
     for k, v in os.environ.items():
-        if "PASS" not in k:
-            logger_main.info(f"environ: {k}={v}")
+        if "PASS" not in k and "KEY" not in k:
+            logger_main.debug(f"environ: {k}={v}")
     scheduler = sched.scheduler(time.time, time.sleep)
     scheduler.enter(0, 1, loop, (scheduler,))
     try:
