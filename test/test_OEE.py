@@ -14,7 +14,7 @@ import pandas as pd
 import psycopg2
 
 # Custom imports
-sys.path.insert(0, os.path.join("..", "app"))
+sys.path.insert(0, os.path.join("..", "src"))
 import OEE
 from Logger import getLogger
 from modules.remove_orion_metadata import remove_orion_metadata

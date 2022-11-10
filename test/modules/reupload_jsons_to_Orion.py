@@ -12,7 +12,7 @@ import sys
 # PyPI imports
 
 # Custom imports
-sys.path.insert(0, '../app')
+sys.path.insert(0, '../src')
 import Orion
 
 def main():

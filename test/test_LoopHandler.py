@@ -24,7 +24,7 @@ from modules.remove_orion_metadata import remove_orion_metadata
 from modules import reupload_jsons_to_Orion
 from modules.assertDeepAlmostEqual import assertDeepAlmostEqual
 
-sys.path.insert(0, os.path.join("..", "app"))
+sys.path.insert(0, os.path.join("..", "src"))
 from Logger import getLogger
 from LoopHandler import LoopHandler
 from object_to_template import object_to_template

@@ -7,7 +7,7 @@ import sys
 import unittest
 
 # Custom imports
-sys.path.insert(0, os.path.join("..", "app"))
+sys.path.insert(0, os.path.join("..", "src"))
 from object_to_template import object_to_template
 
 

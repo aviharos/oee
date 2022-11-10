@@ -19,7 +19,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.types import Text
 
 # Custom imports
-sys.path.insert(0, os.path.join("..", "app"))
+sys.path.insert(0, os.path.join("..", "src"))
 from modules.remove_orion_metadata import remove_orion_metadata
 from modules import reupload_jsons_to_Orion
 from modules.assertDeepAlmostEqual import assertDeepAlmostEqual

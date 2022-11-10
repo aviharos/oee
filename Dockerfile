@@ -1,7 +1,7 @@
 # Builder stage
 FROM python:3.8.14-slim as builder
 
-WORKDIR /app
+WORKDIR /oee
 
 ENV PYTHONDONTWRITEBYTECODE 1
 
@@ -15,6 +15,7 @@ RUN python -m venv /opt/venv
 ENV PATH="/opt/venv/bin:$PATH"
 
 COPY requirements.txt .
+
 RUN pip install -r requirements.txt
 
 # Final stage
@@ -23,9 +24,9 @@ FROM python:3.8.14-slim
 RUN apt-get update && \
     apt-get install libpq5 -y
 
-ARG USER=appuser
+ARG USER=oee
 
-ARG GROUP=appuser
+ARG GROUP=oee
 
 RUN groupadd --system $GROUP && \
     useradd --system --gid $USER $GROUP
@@ -36,17 +37,17 @@ ENV PATH="/opt/venv/bin:$PATH"
 
 ENV HOME /home/$USER
 
-WORKDIR $HOME/app
+WORKDIR $HOME/oee
 
-RUN chown -R $USER:$GROUP $HOME/app
+RUN chown -R $USER:$GROUP $HOME/oee
 
 USER $USER
 
 COPY --chown=$USER:$GROUP json/ ./json/
 
-COPY --chown=$USER:$GROUP app/ ./app/
+COPY --chown=$USER:$GROUP src/ ./src/
 
-WORKDIR $HOME/app/app
+WORKDIR $HOME/oee/src
 
 ENTRYPOINT ["python3", "./main.py"]
 
