@@ -464,25 +464,37 @@ class test_OEECalculator(unittest.TestCase):
             datetime(2022, 4, 4, 8, 0, 0),
         )
 
+        def insert_RefJob_entry_at(df, datetime_: datetime):
+
+
+            timestamp = self.oee.datetimeToMilliseconds(datetime_)
+            df.loc[len(df)] = [
+                int(timestamp),
+                self.oee.msToDateTimeString(timestamp),
+                "/",
+                "urn:ngsi_ld:Workstation:1",
+                "Workstation",
+                "RefJob",
+                "Text",
+                "urn:ngsi_ld:Job:202200045",
+                "[]",
+            ]
+            df.sort_values(by=["recvtimets"], inplace=True)
+            return df
+
         # the current Job start time should be 9h if we insert
         # the following
-        dt_at_9h = datetime(2022, 4, 4, 9, 0, 0)
-        ts_at_9h = self.oee.datetimeToMilliseconds(dt_at_9h)
-        ws_df.loc[len(ws_df)] = [
-            int(ts_at_9h),
-            self.oee.msToDateTimeString(ts_at_9h),
-            "/",
-            "urn:ngsi_ld:Workstation:1",
-            "Workstation",
-            "RefJob",
-            "Text",
-            "urn:ngsi_ld:Job:202200045",
-            "[]",
-        ]
-        ws_df.sort_values(by=["recvtimets"], inplace=True)
-
+        dt_at_9h00 = datetime(2022, 4, 4, 9, 0, 0)
+        ws_df = insert_RefJob_entry_at(ws_df, dt_at_9h00)
         self.oee.ws["df"] = ws_df.copy()
-        self.assertEqual(self.oee.get_current_job_start_time_today(), dt_at_9h)
+        self.assertEqual(self.oee.get_current_job_start_time_today(), dt_at_9h00)
+
+        # if we insert the same RefJob many times,
+        # we should get the first record's timestamp
+        dt_at_9h30 = datetime(2022, 4, 4, 9, 30, 0)
+        ws_df = insert_RefJob_entry_at(ws_df, dt_at_9h30)
+        self.oee.ws["df"] = ws_df.copy()
+        self.assertEqual(self.oee.get_current_job_start_time_today(), dt_at_9h00)
 
         # the following should cause
         # an error because of a Job id mismatch
