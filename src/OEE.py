@@ -481,17 +481,21 @@ class OEECalculator:
                 and the last job according to the Cygnus logs differ
         """
         df = self.ws["df"]
-        job_changes = df[df["attrname"] == "RefJob"]
+        refJob_entries = df[df["attrname"] == "RefJob"]
 
-        if len(job_changes) == 0:
+        if len(refJob_entries) == 0:
             # today's queried ws df does not contain a job change
+            # we assume that the Job was started in a previous shift
+            # so the job's today part started at the schedule start time today
             return self.today["OperatorWorkingScheduleStartsAt"]
-        last_job = job_changes.iloc[-1]["attrvalue"]
+
+        last_job = refJob_entries.iloc[-1]["attrvalue"]
         if last_job != self.job["id"]:
             raise ValueError(
                 f"The last job in the Workstation object and the Workstation's PostgreSQL historic logs differ.\nWorkstation:\n{self.ws}\Last job in Workstation_logs:\n{last_job}"
             )
-        last_job_change = job_changes.iloc[-1]["recvtimets"]
+        current_Jobs_RefJob_entries = refJob_entries[refJob_entries["attrvalue"] == self.job["id"]]
+        last_job_change = current_Jobs_RefJob_entries["recvtimets"].min()
         return self.msToDateTime(last_job_change)
 
     def set_RefStartTime(self):
