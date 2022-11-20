@@ -685,13 +685,13 @@ class test_OEECalculator(unittest.TestCase):
             self.oee.calc_availability_if_no_availability_record_after_RefStartTime(df),
             1,
         )
-        total_time_so_far_in_shift = self.oee.datetimeToMilliseconds(
+        total_time_so_far_since_RefStartTime = self.oee.datetimeToMilliseconds(
             _9h
         ) - self.oee.datetimeToMilliseconds(_8h40)
         self.assertEqual(
-            self.oee.total_time_so_far_in_shift, total_time_so_far_in_shift
+            self.oee.total_time_so_far_since_RefStartTime, total_time_so_far_since_RefStartTime
         )
-        self.assertEqual(self.oee.total_available_time, total_time_so_far_in_shift)
+        self.assertEqual(self.oee.total_available_time, total_time_so_far_since_RefStartTime)
         # the RefStartTime is 8:40, the last entry (as of 9h) is 8:30 turn off, so availability = 0
         df.at[-1, "attrvalue"] = "false"
         self.assertEqual(
@@ -699,7 +699,7 @@ class test_OEECalculator(unittest.TestCase):
             0,
         )
         self.assertEqual(
-            self.oee.total_time_so_far_in_shift, total_time_so_far_in_shift
+            self.oee.total_time_so_far_since_RefStartTime, total_time_so_far_since_RefStartTime
         )
         self.assertEqual(self.oee.total_available_time, 0)
         df.at[-1, "attrvalue"] = "False"
@@ -713,10 +713,11 @@ class test_OEECalculator(unittest.TestCase):
         self.oee.prepare(self.con)
         df = self.oee.ws["df"].copy()
         df_av = df[df["attrname"] == "Available"]
+        df_before = self.oee.filter_in_relation_to_RefStartTime(df_av, how="before")
         df_after = self.oee.filter_in_relation_to_RefStartTime(df_av, how="after")
         # self.logger.debug("calc_availability_if_exists_record_after_RefStartTime, df_av: {df_av}")
         self.assertEqual(
-            self.oee.calc_availability_if_exists_record_after_RefStartTime(df_after),
+            self.oee.calc_availability_if_exists_record_after_RefStartTime(df_before, df_after),
             50 / 60,
         )
 

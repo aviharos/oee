@@ -38,8 +38,6 @@ The OEE microservice is designed to be able to handle manufacturing systems that
 
 The OEE microservice does not support different CycleTimes for different Workstations.
 
-Currently, the microservice is not intended to be fully automatic. Whenever a new operation is started, human intervention is needed. A human must update a few attributes as outlined below.
-
 ## Usage
 The microservice is designed to run inside a docker-compose project. See a minimal [docker-compose.yml](docker-compose.yml) file. The Robo4Toys TTE's project solution repository, MOMAMS also provides a more compley [docker-compose.yml](https://github.com/aviharos/momams/blob/main/docker-compose.yml) file. However, since the microservice does not depend on any microservice besides the Orion Context Broker, Cygnus, MongoDB and PostgreSQL; it can be used without the Robo4Toys TTE's other microservices.
 
@@ -103,6 +101,8 @@ Attributes:
 - RefOEE (Relationship): refers to the Workstation's OEE object.
 - RefThroughput (Relationship): refers to the Workstation's Throughput object.
 - RefOperatorSchedule (Relationship): refers to the OperatorSchedule object that provides information about when the Workstation should be on or off. Since the OperatorSchedule objects are not universal, each Workstation can refer to a different OperatorSchedule.
+
+The Workstation cannot be turned on any day before the OperatorSchedule's OperatorWorkingScheduleStartsAt attribute. The reason for this is that if the Workstation is turned off after the Schedule's start time, the OEE microservice will find at least one entry in the Postgres logs and will not need to guess about the Workstation's availability.
 
 #### Job
 

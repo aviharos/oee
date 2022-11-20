@@ -623,7 +623,7 @@ class OEECalculator:
         The only possible explanation is that the Workstation was turned on or off
         before the RefStartTime and nothing changed since then.
 
-        Also sets the total_available_time and total_time_so_far_in_shift attributes.
+        Also sets the total_available_time and total_time_so_far_since_RefStartTime attributes.
 
         Args:
             df_before (pd.DataFrame): today's queried Workstation Cygnus logs before RefStartTime
@@ -637,7 +637,7 @@ class OEECalculator:
                 if the Cygnus log contains an invalid Availability value
         """
         self.logger.debug(f"df_before:\n{df_before}")
-        self.total_time_so_far_in_shift = self.now_unix - self.datetimeToMilliseconds(
+        self.total_time_so_far_since_RefStartTime = self.now_unix - self.datetimeToMilliseconds(
             self.today["RefStartTime"]
         )
         df_before.sort_values(by=["recvtimets"], inplace=True)
@@ -647,7 +647,7 @@ class OEECalculator:
         last_availability = df_before.iloc[-1]["attrvalue"]
         if last_availability == "true":
             # the Workstation is on since before RefStartTime
-            self.total_available_time = self.total_time_so_far_in_shift
+            self.total_available_time = self.total_time_so_far_since_RefStartTime
             return 1
         elif (
             last_availability == "false"
@@ -661,7 +661,7 @@ class OEECalculator:
             )
 
     def calc_availability_if_exists_record_after_RefStartTime(
-        self, df_after: pd.DataFrame
+        self, df_before, df_after: pd.DataFrame
     ):
         """Calculate availability if there is at least one Availability record in the Cygnus logs since RefStartTime
 
@@ -673,18 +673,37 @@ class OEECalculator:
 
         Raises:
             ZeroDivisionError:
-                if the total_time_so_far_in_shift happens to be 0
+                if the total_time_so_far_since_RefStartTime happens to be 0
         """
         df_after.sort_values(by=["recvtimets"], inplace=True)
         time_on = 0
         time_off = 0
+        # the first interval starts at RefStartTime
         previous_timestamp = self.datetimeToMilliseconds(self.today["RefStartTime"])
+        # see if we can determine the Workstation's Available attribute 
+        # from RefStartTime to the first entry
+        if len(df_before) == 0:
+            # assume not turned on 
+            # the OEE microservice's specification declares that 
+            # the Workstation cannot be turned on before the schedule start!
+            available = False
+        else:
+            # there is at least one Available attribute entry today before RefStartTime
+            # use the last of those to see if the Workstation was on at RefStartTime
+            df_before.sort_values(by=["recvtimets"], inplace=True)
+            last_availability = df_before.iloc[-1]["attrvalue"]
+            available = True if last_availability == "true" else False
+
         for _, row in df_after.iterrows():
             """
             Interate all rows
-            Every 2 rows defines an interval during which the Workstation was on
+            Every 2 subsequent rows defines an interval during which the Workstation was on
             Or off without interruption
+            The first row shows the Workstation's Available attribute during that interval
             Check which interval is on and off, and increase times accordingly
+
+            Caution: Cygnus logs in a way that more subsequent rows can have the same
+            Available value, so we cannot assume that they alternate
 
             The first and last intervals are special.
             The first interval starts at RefStartTime, ends at the first entry
@@ -695,28 +714,30 @@ class OEECalculator:
             """
             current_timestamp = row["recvtimets"]
             interval_duration = current_timestamp - previous_timestamp
-            if row["attrvalue"] == "true":
-                # the Workstation was turned on, so it was off in the previous interval
-                time_off += interval_duration
-            else:  # row["attrvalue"] == "false"
-                # the Workstation was turned off, so it was on in the previous interval
+            if available:
+                # the previous entry stated that the Workstation was on
                 time_on += interval_duration
+            else:
+                # the previous entry stated that the Workstation was off
+                time_off += interval_duration
+            # set available attribute for next interval
+            available = row["attrvalue"] == "true"
             previous_timestamp = current_timestamp
 
         # last interval
         interval_duration = self.now_unix - previous_timestamp
-        if row["attrvalue"] == "true":
-            # the Workstation is currently on
+        if available:
+            # the previous entry stated that the Workstation was on
             time_on += interval_duration
-        else:  # row["attrvalue"] == "false"
-            # the Workstation is currently off
+        else:
+            # the previous entry stated that the Workstation was off
             time_off += interval_duration
 
         self.total_available_time = time_on
-        self.total_time_so_far_in_shift = time_on + time_off
-        if self.total_time_so_far_in_shift == 0:
+        self.total_time_so_far_since_RefStartTime = time_on + time_off
+        if self.total_time_so_far_since_RefStartTime == 0:
             raise ZeroDivisionError("Total time so far in the shift is 0, no OEE data")
-        return self.total_available_time / self.total_time_so_far_in_shift
+        return self.total_available_time / self.total_time_so_far_since_RefStartTime
 
     def calc_availability(self, df_av: pd.DataFrame):
         """Calculate the availability of the Workstation
@@ -735,18 +756,18 @@ class OEECalculator:
         Returns:
             Availability KPI (float)
         """
+        df_before = self.filter_in_relation_to_RefStartTime(df_av, how="before")
         df_after = self.filter_in_relation_to_RefStartTime(df_av, how="after")
         if df_after.size == 0:
             self.logger.info(
                 "No Availability record found after RefStartTime: {self.today['RefStartTime']}, using today's previous availability records"
             )
-            df_before = self.filter_in_relation_to_RefStartTime(df_av, how="before")
             return self.calc_availability_if_no_availability_record_after_RefStartTime(
                 df_before
             )
         else:
             # now it is sure that the df_after is not emtpy, at least one row
-            return self.calc_availability_if_exists_record_after_RefStartTime(df_after)
+            return self.calc_availability_if_exists_record_after_RefStartTime(df_before, df_after)
 
     def handle_availability(self):
         """Handle everything related to the Availability KPI
