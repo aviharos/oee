@@ -322,7 +322,7 @@ class OEECalculator:
         self.get_part_id()
         self.logger.debug(f'Part id: {self.part["id"]}')
         self.part["orion"] = Orion.get(self.part["id"])
-        # self.logger.debug(f'Part: {self.part}')
+        self.logger.debug(f'Part: {self.part}')
 
     def get_operation(self):
         """Get Operation, store in self.operation["orion"]
@@ -487,6 +487,7 @@ class OEECalculator:
             # today's queried ws df does not contain a job change
             # we assume that the Job was started in a previous shift
             # so the job's today part started at the schedule start time today
+            self.logger.debug(f"Today's job start time: {self.today['OperatorWorkingScheduleStartsAt']}")
             return self.today["OperatorWorkingScheduleStartsAt"]
 
         last_job = refJob_entries.iloc[-1]["attrvalue"]
@@ -496,6 +497,7 @@ class OEECalculator:
             )
         current_Jobs_RefJob_entries = refJob_entries[refJob_entries["attrvalue"] == self.job["id"]]
         last_job_change = current_Jobs_RefJob_entries["recvtimets"].min()
+        self.logger.debug(f"Today's job start time: {last_job_change}")
         return self.msToDateTime(last_job_change)
 
     def set_RefStartTime(self):
@@ -518,7 +520,7 @@ class OEECalculator:
             # the Job started in this shift, update RefStartTime
             self.today["RefStartTime"] = current_job_start_time
             self.logger.info(
-                f'The current job started in this shift, updated RefStartTime: {self.today["RefStartTime"]}'
+                f'The current job started in this shift, RefStartTime: {self.today["RefStartTime"]}'
             )
         else:
             self.today["RefStartTime"] = self.today["OperatorWorkingScheduleStartsAt"]
@@ -714,6 +716,7 @@ class OEECalculator:
             """
             current_timestamp = row["recvtimets"]
             interval_duration = current_timestamp - previous_timestamp
+            self.logger.debug(f"Processing availability interval: previous timestamp: {previous_timestamp}, interval_duration: {interval_duration}, available: {available}")
             if available:
                 # the previous entry stated that the Workstation was on
                 time_on += interval_duration
@@ -726,6 +729,7 @@ class OEECalculator:
 
         # last interval
         interval_duration = self.now_unix - previous_timestamp
+        self.logger.debug(f"Processing availability interval: previous timestamp: {previous_timestamp}, interval_duration: {interval_duration}, available: {available}")
         if available:
             # the previous entry stated that the Workstation was on
             time_on += interval_duration
@@ -734,7 +738,9 @@ class OEECalculator:
             time_off += interval_duration
 
         self.total_available_time = time_on
+        self.logger.info(f"Total available time: {self.total_available_time}")
         self.total_time_so_far_since_RefStartTime = time_on + time_off
+        self.logger.info(f"Total time so far since RefStartTime: {self.total_time_so_far_since_RefStartTime}")
         if self.total_time_so_far_since_RefStartTime == 0:
             raise ZeroDivisionError("Total time so far in the shift is 0, no OEE data")
         return self.total_available_time / self.total_time_so_far_since_RefStartTime
@@ -760,13 +766,16 @@ class OEECalculator:
         df_after = self.filter_in_relation_to_RefStartTime(df_av, how="after")
         if df_after.size == 0:
             self.logger.info(
-                "No Availability record found after RefStartTime: {self.today['RefStartTime']}, using today's previous availability records"
+                f"No Availability record found after RefStartTime: {self.today['RefStartTime']}, using today's previous availability records"
             )
             return self.calc_availability_if_no_availability_record_after_RefStartTime(
                 df_before
             )
         else:
             # now it is sure that the df_after is not emtpy, at least one row
+            self.logger.info(
+                f"Found Availability record after RefStartTime: {self.today['RefStartTime']}"
+            )
             return self.calc_availability_if_exists_record_after_RefStartTime(df_before, df_after)
 
     def handle_availability(self):
@@ -795,6 +804,7 @@ class OEECalculator:
                 f'The Workstation {self.ws["id"]} was not turned Available by {self.now_datetime} since midnight, no OEE data'
             )
         self.oee["Availability"]["value"] = self.calc_availability(df_av)
+        self.logger.info(f"Availability: {self.oee['Availability']['value']}")
 
     def count_nonzero_unique(self, unique_values: np.array):
         """Count nonzero unique values of an iterable
@@ -814,8 +824,10 @@ class OEECalculator:
         """
         if "0" in unique_values:
             # need to substract 1, because '0' does not represent a successful cycle
+            self.logger.debug("Count nonzero unique values: 0 included")
             return unique_values.shape[0] - 1
         else:
+            self.logger.debug("Count nonzero unique values: 0 not included")
             return unique_values.shape[0]
 
     def count_cycles(self):
@@ -840,8 +852,11 @@ class OEECalculator:
         self.logger.debug(f"good_unique values: {good_unique_values}")
         self.logger.debug(f"reject_unique values: {reject_unique_values}")
         self.n_successful_cycles = self.count_nonzero_unique(good_unique_values)
+        self.logger.debug(f"Number of successful cycles: {self.n_successful_cycles}")
         self.n_failed_cycles = self.count_nonzero_unique(reject_unique_values)
+        self.logger.debug(f"Number of failed cycles: {self.n_failed_cycles}")
         self.n_total_cycles = self.n_successful_cycles + self.n_failed_cycles
+        self.logger.debug(f"Number of total cycles: {self.n_total_cycles}")
 
     def handle_quality(self):
         """Handle everything related to quality KPI
@@ -861,6 +876,7 @@ class OEECalculator:
         self.oee["Quality"]["value"] = (
             self.n_successful_cycles / self.n_total_cycles
         )
+        self.logger.info(f"Quality: {self.oee['Quality']['value']}")
 
     def handle_performance(self):
         """Handle everythin related to the Performance KPI
@@ -872,6 +888,7 @@ class OEECalculator:
             * 1e3  # we count in milliseconds
             / self.total_available_time
         )
+        self.logger.info(f"Performance: {self.oee['Performance']['value']}")
 
     def calculate_OEE(self):
         """Calculate the OEE
