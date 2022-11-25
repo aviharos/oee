@@ -585,6 +585,11 @@ class OEECalculator:
 
         self.set_RefStartTime()
 
+        # make sure that no job record is before RefStartTime
+        # for example if someone turns on the Workstation before OperatorWorkingScheduleStartsAt 
+        # despite the documentation's clear statement about not to do that
+        self.job["df"] = self.filter_in_relation_to_RefStartTime(self.job["df"], how="after")
+
     def filter_in_relation_to_RefStartTime(self, df: pd.DataFrame, how: str):
         """Filter Cygnus logs in relation to RefStartTime
 
