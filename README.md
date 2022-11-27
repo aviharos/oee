@@ -39,14 +39,14 @@ The OEE microservice is designed to be able to handle manufacturing systems that
 The OEE microservice does not support different CycleTimes for different Workstations.
 
 ## Usage
-The microservice is designed to run inside a docker-compose project. See a minimal [docker-compose.yml](docker-compose.yml) file. The Robo4Toys TTE's project solution repository, MOMAMS also provides a more compley [docker-compose.yml](https://github.com/aviharos/momams/blob/main/docker-compose.yml) file. However, since the microservice does not depend on any microservice besides the Orion Context Broker, Cygnus, MongoDB and PostgreSQL; it can be used without the Robo4Toys TTE's other microservices.
+The microservice is designed to run inside a docker-compose project. See a minimal [docker-compose.yml](docker-compose.yml) file. The Robo4Toys TTE's project solution repository, MOMAMS also provides a more complete [docker-compose.yml](https://github.com/aviharos/momams/blob/main/docker-compose.yml) file. However, since the microservice does not depend on any microservice besides the Orion Context Broker, Cygnus, MongoDB and PostgreSQL; it can be used without the Robo4Toys TTE's other microservices.
 
 The microservice does not store data or have any kind of memory. It just periodically performs a calculation. If the container crashes, it is safe to restart it automatically.
 
 ### Notifying Cygnus of all context changes
 After running the docker-compose project, you need to set Orion to notify Cygnus of all context changes using the script:
 
-	curl --location --request POST 'http://localhost:1026/v2/subscriptions' \
+	$ curl --location --request POST 'http://localhost:1026/v2/subscriptions' \
 	--header 'Content-Type: application/json' \
 	--data-raw '{
 	  "description": "Notify Cygnus Postgres of all context changes",
@@ -70,14 +70,14 @@ In the docker-compose file, Cygnus is configured to store all historic data into
 You need to create and keep these objects up-to-date in the Orion Context Broker according to the data model in [json](json). You cannot change the attribute names, but you can change their content. You cannot change the object types. The manufacturing system and the processes are also defined in these json files. You can arbitratily extend the data model with additional attributes.
 
 You need to configure and constantly update:
-- One Workstation object for each Workstation. In our case, there is one: "urn:ngsi_ld:Workstation:1".
+- One Workstation object for each Workstation. In the example, there is one: "urn:ngsi_ld:Workstation:1".
 - One Job object for each Job.
 - One OperatorSchedule object containing the Workstation's schedule data.
 - One object for each produced Part in the system. Each part contains the manufacturing data of the parts, including all operations.
 
-You need to create each object each object upon startup in the Orion Context Broker. During the short term, only the number of Jobs is not known in advance, so you need to create as many as you need. The microservice does not have a function for creating these objects.
+You need to create each object upon startup in the Orion Context Broker. During the short term, only the number of Jobs is not known in advance, so you need to create as many as you need. The microservice does not have a function for creating these objects.
 
-The OEE microservice never updates the Workstation, Job, OperatorSchedule and Part objects. Your manufacturing system or employeer need to keep them up to date.
+The OEE microservice never updates the Workstation, Job, OperatorSchedule and Part objects. Your manufacturing system or employees need to keep them up to date.
 
 The OEE microservice creates and updates 2 objects for each Workstation with the ids contained in the Workstation object: an OEE and a Throughput object for each Workstation.
 
@@ -135,7 +135,7 @@ Attributes:
                     "type": "Operation",
                     "OperationNumber": {"type": "Number", "value": 10},
                     "OperationType": {"type": "Text", "value": "Core001_injection_moulding"},
-                    "CycleTime": {"type": "Number", "value": 46},
+                    "CycleTime": {"type": "Number", "value": 36},
                     "PartsPerCycle": {"type": "Number", "value": 8}
                 }
             ]
@@ -215,29 +215,29 @@ WARNING: the tests set environment variables, change the Orion Context Broker an
 
 For testing, you need to create an environment and install necessary packages. Example with conda:
 
-    conda create -n oee python=3.8
-    conda activate oee
-    conda install pandas psycopg2 requests sqlalchemy
+    $ conda create -n oee python=3.8
+    $ conda activate oee
+    $ conda install pandas psycopg2 requests sqlalchemy
 
 Then start the *test* [docker-compose](test/docker-compose.yml) project, that is not identical to the minimal [docker-compose.yml](docker-compose.yml) mentioned in Usage:
 
-    cd test
-    docker-compose up -d
+    $ cd test
+    $ docker-compose up -d
 
 Then run the tests as follows.
 
-    source env 
-    python test_object_to_template.py
-    python test_Orion.py
-    python test_OEE.py
-    python test_LoopHandler.py
-    python test_main.py
+    $ source env
+    $ python test_object_to_template.py
+    $ python test_Orion.py
+    $ python test_OEE.py
+    $ python test_LoopHandler.py
+    $ python test_main.py
 
 Now you can stop the test docker-compose project:
 
-    docker-compose down
+    $ docker-compose down
 
-Please note that the tests were originally written in the GMT+2 time zone. The tests have not been executed in any other timezone yet.
+Please note that the tests were originally written in the GMT+2 time zone, so they might fail in other time zones.
 
 ## Limitations
 The OEE microservice currently cannot handle HTTPS and Fiware’s authentication system.
