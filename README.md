@@ -2,7 +2,7 @@
 
 [![License: MIT](https://img.shields.io/github/license/ramp-eu/TTE.project1.svg)](https://opensource.org/licenses/MIT)
 
-An OEE calculator microservice to be used with Fiware Cygnus time series data. For more information, see the relevant [Fiware Cygnus tutorial](https://github.com/FIWARE/tutorials.Historic-Context-Flume).
+An OEE calculator microservice to be used with Fiware Cygnus time series data. A microservice of [MOMAMS](https://github.com/aviharos/momams). For more information, see the relevant [Fiware Cygnus tutorial](https://github.com/FIWARE/tutorials.Historic-Context-Flume).
 
 ## Contents
 
@@ -195,7 +195,6 @@ Attributes:
 
 The OEE microservice deletes the Availability, Performance, Quality and OEE attributes' value if the Workstation should not be on according to its OperatorSchedule or if the calculation fails for some reason.
 
-
 #### Throughput
 
     {
@@ -210,6 +209,10 @@ Attributes:
 - RefWorkstation (Relationship): the Workstation object the Throughput object belongs to.
 - RefJob (Relationship): the Job object the Throughput object belongs to. The OEE microservice does not consider multiple Jobs, only the current one.
 - ThroughputPerShift (Number): the predicted throughput of the Workstation for the amount of time it should be turned on according to its OperatorSchedule.
+
+## Try it (live demo)
+
+You can try the OEE microservice as described [here](https://github.com/aviharos/momams#try-momams-live-demo).
 
 ## API
 
