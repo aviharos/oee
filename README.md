@@ -12,6 +12,7 @@ An OEE calculator microservice to be used with Fiware Cygnus time series data. A
   - [Build](#build)
   - [Usage](#usage)
   - [API](#api)
+  - [Demo](#demo)
   - [Testing](#testing)
   - [Limitations](#limitations)
   - [License](#license)
@@ -210,13 +211,13 @@ Attributes:
 - RefJob (Relationship): the Job object the Throughput object belongs to. The OEE microservice does not consider multiple Jobs, only the current one.
 - ThroughputPerShift (Number): the predicted throughput of the Workstation for the amount of time it should be turned on according to its OperatorSchedule.
 
-## Try it (live demo)
-
-You can try the OEE microservice as described [here](https://github.com/aviharos/momams#try-momams-live-demo).
-
 ## API
 
 The microservice does not contain an API.
+
+## Demo
+
+You can try the OEE microservice as described [here](https://github.com/aviharos/momams#try-momams-live-demo).
 
 ## Testing
 
