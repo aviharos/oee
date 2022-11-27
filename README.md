@@ -67,7 +67,13 @@ After running the docker-compose project, you need to set Orion to notify Cygnus
 In the docker-compose file, Cygnus is configured to store all historic data into PostgreSQL.
 
 ### Objects in the Orion Context Broker
-You need to create and keep these objects up-to-date in the Orion Context Broker according to the data model in [json](json). You cannot change the attribute names, but you can change their content. You cannot change the object types. The manufacturing system and the processes are also defined in these json files. You can arbitratily extend the data model with additional attributes.
+You need to investigate your manufacturing system and determine what events influence the OEE. Then you need to translate your manufacturing system to the data model outlined in [json](json) and keep it in sync with the physical system.
+
+You need to design your objects as outlined below. When the Orion Context Broker is started, you need to post these objects into the broker.
+
+As the manufacturing process is working, you need to keep these objects up-to-date in the Orion Context Broker according to the data model. You can use any method you like: PLC HTTP connection, industrial PC, Raspberry Pi, etc. The point is that you need to take care that the Orion Context Broker's contents match the reality. The OEE microservice does not modify production data at all except for the OEE and Throughput objects.
+
+Below you can find the design of the crucial objects. You cannot change the attribute names, but you can change their content. You cannot change the object types. The manufacturing system and the processes are also defined in these json files. You can arbitratily extend the data model with additional attributes and other types of objects. Make sure that if you have other Orion objects, their types do not overlap with the ones below.
 
 You need to configure and constantly update:
 - One Workstation object for each Workstation. In the example, there is one: "urn:ngsi_ld:Workstation:1".
