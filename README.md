@@ -2,7 +2,7 @@
 
 [![License: MIT](https://img.shields.io/github/license/ramp-eu/TTE.project1.svg)](https://opensource.org/licenses/MIT)
 
-An OEE calculator microservice to be used with Fiware Cygnus time series data. A microservice of [MOMAMS](https://github.com/aviharos/momams). For more information, see the relevant [Fiware Cygnus tutorial](https://github.com/FIWARE/tutorials.Historic-Context-Flume).
+An OEE calculator microservice to be used with Fiware Cygnus time series data. A microservice of [MOMAMS](https://github.com/aviharos/momams).
 
 ## Contents
 
@@ -19,7 +19,7 @@ An OEE calculator microservice to be used with Fiware Cygnus time series data. A
 
 ## Background
 
-The [Fiware Orion Context Broker](https://github.com/Fiware/tutorials.Getting-Started) can be configured to send notifications to Fiware Cygnus whenever an object changes. Cygnus can be configured to log all historical data into a time series database (in our case, PostgreSQL).
+The [Fiware Orion Context Broker](https://github.com/Fiware/tutorials.Getting-Started) can be configured to send notifications to Fiware Cygnus whenever an object changes. Cygnus can be configured to log all historical data into a time series database (in our case, PostgreSQL), as you can see [here](https://github.com/FIWARE/tutorials.Historic-Context-Flume).
 
 The OEE microservice can handle systems matching the manufacturing system [requirements](#requirements). The objects stored in the Orion Context Broker must match the data model (see an example configuration in [jsons](jsons)). If we configure the manufacturing system according to the way described in [Usage](#usage), we can calculate the OEE and Throughput of each Workstation object, and also upload them as objects to Orion.
 
