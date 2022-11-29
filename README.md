@@ -155,7 +155,7 @@ Attributes:
 The Operations are not separate Orion objects. Their attributes are as follows:
 - OperationNumber (Number): the Operation's number. Currently it is not used by the microservice, but you can provide this information.
 - OperationType (Number): this is the id of the Operation that the Job refers to. The Job's CurrentOperationType must always refer to the current operation's OperationType.
-- CycleTime (Number): the cycle time of the operation in seconds. Every cycle, the Workstation produces a set of parts.
+- CycleTime (Number): the cycle time of the operation in seconds. Every cycle, the Workstation produces a set of parts. Important: the OEE microservice currently does not support sets of parts that contain good and bad parts too. Each cycle, the resulting set is considered to have 100% good or 100% reject parts.
 - PartsPerCycle (Number): each cycle produces this many parts.
 
 If you cannot trace the Workstation through the Job object to the Part object's Operation, something is missing.
