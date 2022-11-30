@@ -811,29 +811,52 @@ class OEECalculator:
         self.oee["Availability"]["value"] = self.calc_availability(df_av)
         self.logger.info(f"Availability: {self.oee['Availability']['value']}")
 
-    def count_nonzero_unique(self, unique_values: np.array):
-        """Count nonzero unique values of an iterable
+    def count_cycles_based_on_counter_values(self, values: np.array):
+        """Count number of injection moulding cycles based on a np.array of GoodPartCounter values
 
         Used for counting the number of successful and failed cycles
-        "0" does not count for a successful or failed cycles, so it is discarded.
-        for example: ['0', '8', '16', '24'] contains 4 unique values
-        but these mean only 3 successful cycles
+        Example:
+            8 pcs of parts per cycle
+            ['16', '24', '40', '56'] contains 4 unique values
+            values '32' and '48' are missing,
+            but since it is known that the 8 is added to the counter each cycle
+            there must have been 6 cycles,
+                including the one that made the counter 16
+
+        The module cannot handle if the min. or max. value is missing,
+            for example in the previous case, '16' or '48' is missing from the logs
+
+        The way this function counts is as follows:
+            Converts the np.array to integer array
+                raises ValueError if one item cannot be converted
+            gets min and max values of the array
+            gets PartsPerCycle value
+            if 0 in np.array of counter values:
+                result = (max-min)/PartsPerCycle
+            if 0 not in np.array of counter values:
+                result = (max-min)/PartsPerCycle + 1
 
         Args:
-            unique_values (iterable): iterable object, containing numbers in string format
+            values (iterable): iterable object, containing numbers in string format
 
         Returns:
             Integer:
                 The number of unique values that are not 0
                 This is the number of successful or failed cycles
         """
-        if "0" in unique_values:
-            # need to substract 1, because '0' does not represent a successful cycle
+        values = np.unique(np.array(values))
+        try:
+            values = values.astype(int)
+        except ValueError as error:
+            raise ValueError("At least one GoodPartCounter or RejectPartCounter value cannot be converted to int") from error
+        min = values.min()
+        max = values.max()
+        if 0 in values:
             self.logger.debug("Count nonzero unique values: 0 included")
-            return unique_values.shape[0] - 1
-        else:
+            return (max - min) / self.operation["orion"]["PartsPerCycle"]["value"]
+        if 0 not in values:
             self.logger.debug("Count nonzero unique values: 0 not included")
-            return unique_values.shape[0]
+            return (max - min) / self.operation["orion"]["PartsPerCycle"]["value"] + 1
 
     def count_cycles(self):
         """Count the number of successful and failed production cycles 
@@ -856,9 +879,9 @@ class OEECalculator:
         ]["attrvalue"].unique()
         self.logger.debug(f"good_unique values: {good_unique_values}")
         self.logger.debug(f"reject_unique values: {reject_unique_values}")
-        self.n_successful_cycles = self.count_nonzero_unique(good_unique_values)
+        self.n_successful_cycles = self.count_cycles_based_on_counter_values(good_unique_values)
         self.logger.debug(f"Number of successful cycles: {self.n_successful_cycles}")
-        self.n_failed_cycles = self.count_nonzero_unique(reject_unique_values)
+        self.n_failed_cycles = self.count_cycles_based_on_counter_values(reject_unique_values)
         self.logger.debug(f"Number of failed cycles: {self.n_failed_cycles}")
         self.n_total_cycles = self.n_successful_cycles + self.n_failed_cycles
         self.logger.debug(f"Number of total cycles: {self.n_total_cycles}")

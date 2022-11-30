@@ -28,7 +28,7 @@ WS_FILE = f"{WS_TABLE}.csv"
 JOB_ID = "urn:ngsi_ld:Job:202200045"
 JOB_TABLE = "urn_ngsi_ld_job_202200045_job"
 JOB_FILE = f"{JOB_TABLE}.csv"
-PLACES = 4
+PLACES = 5
 
 # Load environment variables
 POSTGRES_HOST = os.environ.get("POSTGRES_HOST")
@@ -742,18 +742,46 @@ class test_OEECalculator(unittest.TestCase):
         with self.assertRaises(ValueError):
             self.oee.handle_availability()
 
-    def test_count_nonzero_unique(self):
-        uniques = np.array(["1", "2", "3", "6"])
-        self.assertEqual(self.oee.count_nonzero_unique(uniques), 4)
-        uniques = np.array(["1", "2", "0", "3", "6"])
-        self.assertEqual(self.oee.count_nonzero_unique(uniques), 4)
+    def test_count_cycles_based_on_counter_values(self):
+        self.oee.operation["orion"] = {
+                        "type": "Operation",
+                        "OperationNumber": {"type": "Number", "value": 10},
+                        "OperationType": {
+                            "type": "Text",
+                            "value": "Core001_injection_moulding",
+                        },
+                        "CycleTime": {"type": "Number", "value": 46},
+                        "PartsPerCycle": {"type": "Number", "value": 8},
+                    }
+        # 16, 24, ... 56 --> 6 injection mouldings
+        values = np.array(["16", "24", "40", "56"])
+        self.assertEqual(self.oee.count_cycles_based_on_counter_values(values), 6)
+        # 0, 8, 16, 24, ... 56 --> 7 injection mouldings
+        values = np.array(["0", "16", "40", "56"])
+        self.assertEqual(self.oee.count_cycles_based_on_counter_values(values), 7)
 
     def test_count_cycles(self):
+        self.oee.operation["orion"] = {
+                        "type": "Operation",
+                        "OperationNumber": {"type": "Number", "value": 10},
+                        "OperationType": {
+                            "type": "Text",
+                            "value": "Core001_injection_moulding",
+                        },
+                        "CycleTime": {"type": "Number", "value": 46},
+                        "PartsPerCycle": {"type": "Number", "value": 8},
+                    }
         now = datetime(2022, 4, 4, 9, 0, 0)
         _8h = datetime(2022, 4, 4, 8, 0, 0)
         job_df = self.prepare_df_between(self.job_df.copy(), _8h, now)
         self.oee.job["df"] = job_df
         self.oee.count_cycles()
+        # missing data packet: 1649053098500,2022-04-04 06:18:18.500: GoodPartCounter: 288
+        # missing data packet: 1649053147800,2022-04-04 06:19:07.800: GoodPartCounter: 296
+        # see commit d8a4e2d4739db5a75cc8919a4421839583ddd288
+        # GoodPartCounter values: 112, 120, 128, ..., 272, 280, 304, 312,... 664
+        # resulting 70 successful cycles, but only 68 of these are covered in the logs
+        # RejectPartCounter values: 0, 8 -> 1 failed cycle
         n_successful_cycles = 70
         n_failed_cycles = 1
         n_total_cycles = n_successful_cycles + n_failed_cycles
