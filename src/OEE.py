@@ -416,6 +416,7 @@ class OEECalculator:
                 if the SQL query fails
         """
         start_timestamp = self.get_query_start_timestamp(how)
+        self.logger.debug(f"query_todays_data: start_timestamp: {start_timestamp}")
         try:
             df = pd.read_sql_query(
                 f"""select * from {self.POSTGRES_SCHEMA}.{table_name}
@@ -655,12 +656,14 @@ class OEECalculator:
         if last_availability == "true":
             # the Workstation is on since before RefStartTime
             self.total_available_time = self.total_time_so_far_since_RefStartTime
+            self.logger.info(f"The Workstation is on since RefStartTime. Total available time: {self.total_available_time}")
             return 1
         elif (
             last_availability == "false"
         ):  # df_before.iloc[-1]["attrvalue"] == "false":
             # the Workstation is off since before RefStartTime
             self.total_available_time = 0
+            self.logger.info(f"The Workstation is off since RefStartTime. Total available time: {self.total_available_time}")
             return 0
         else:
             raise ValueError(
@@ -814,14 +817,14 @@ class OEECalculator:
     def count_cycles_based_on_counter_values(self, values: np.array):
         """Count number of injection moulding cycles based on a np.array of GoodPartCounter values
 
-        Used for counting the number of successful and failed cycles
+        Used for counting the number of successful or failed cycles
         Example:
             8 pcs of parts per cycle
-            ['16', '24', '40', '56'] contains 4 unique values
+            ['16', '24', '40', '56'] contains 4 values
             values '32' and '48' are missing,
             but since it is known that the 8 is added to the counter each cycle
             there must have been 6 cycles,
-                including the one that made the counter 16
+                including the one that made the counter 16 at first
 
         The module cannot handle if the min. or max. value is missing,
             for example in the previous case, '16' or '48' is missing from the logs
@@ -841,9 +844,9 @@ class OEECalculator:
 
         Returns:
             Integer:
-                The number of unique values that are not 0
-                This is the number of successful or failed cycles
+                The number of successful or failed cycles
         """
+        self.logger.debug(f"Count Workstation cycles based on counter values: {values}")
         values = np.unique(np.array(values))
         try:
             values = values.astype(int)
@@ -852,10 +855,10 @@ class OEECalculator:
         min = values.min()
         max = values.max()
         if 0 in values:
-            self.logger.debug("Count nonzero unique values: 0 included")
+            self.logger.debug("0 in values")
             return (max - min) / self.operation["orion"]["PartsPerCycle"]["value"]
         if 0 not in values:
-            self.logger.debug("Count nonzero unique values: 0 not included")
+            self.logger.debug("0 not in values")
             return (max - min) / self.operation["orion"]["PartsPerCycle"]["value"] + 1
 
     def count_cycles(self):
@@ -871,17 +874,17 @@ class OEECalculator:
             n_total_cycles"""
         df = self.job["df"]
         attr_name_val = df[["attrname", "attrvalue"]]
-        good_unique_values = attr_name_val[
+        goodPartCounter_values = attr_name_val[
             attr_name_val["attrname"] == "GoodPartCounter"
         ]["attrvalue"].unique()
-        reject_unique_values = attr_name_val[
+        rejectPartCounter_values = attr_name_val[
             attr_name_val["attrname"] == "RejectPartCounter"
         ]["attrvalue"].unique()
-        self.logger.debug(f"good_unique values: {good_unique_values}")
-        self.logger.debug(f"reject_unique values: {reject_unique_values}")
-        self.n_successful_cycles = self.count_cycles_based_on_counter_values(good_unique_values)
+        self.logger.debug(f"GoodPartCounter values: {goodPartCounter_values}")
+        self.logger.debug(f"RejectPartCounter values: {rejectPartCounter_values}")
+        self.n_successful_cycles = self.count_cycles_based_on_counter_values(goodPartCounter_values)
         self.logger.debug(f"Number of successful cycles: {self.n_successful_cycles}")
-        self.n_failed_cycles = self.count_cycles_based_on_counter_values(reject_unique_values)
+        self.n_failed_cycles = self.count_cycles_based_on_counter_values(rejectPartCounter_values)
         self.logger.debug(f"Number of failed cycles: {self.n_failed_cycles}")
         self.n_total_cycles = self.n_successful_cycles + self.n_failed_cycles
         self.logger.debug(f"Number of total cycles: {self.n_total_cycles}")

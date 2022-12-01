@@ -32,7 +32,7 @@ ORION_PORT = os.environ.get("ORION_PORT")
 if ORION_PORT is None:
     default_port = 1026
     logger_Orion.warning(
-        f"ORION_PORT environment variable not set, using default value: {default_port}"
+        f"Warning: ORION_PORT environment variable not set, using default value: {default_port}"
     )
     ORION_PORT = default_port
 
@@ -81,7 +81,7 @@ def get(object_id: str, host: str=ORION_HOST, port: int =ORION_PORT):
         RuntimeError: if the get request's status code is not 200
     """
     url = f"http://{host}:{port}/v2/entities/{object_id}"
-    logger_Orion.debug(url)
+    logger_Orion.debug(f"Get: {url}")
     status_code, json_ = getRequest(url)
     if status_code != 200:
         raise RuntimeError(

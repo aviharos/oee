@@ -147,10 +147,10 @@ class LoopHandler:
         try:
             orion_object = object_to_template(os.path.join("..", "json", file))
         except FileNotFoundError as error:
-            self.logger.critical(f"{file} not found.\n{error}")
+            self.logger.critical(f"Critical: {file} not found.\n{error}")
             raise
         except json.decoder.JSONDecodeError as error:
-            self.logger.critical(f"{file} is invalid.\n{error}")
+            self.logger.critical(f"Critical: {file} is invalid.\n{error}")
             raise
         else:
             orion_object["id"] = self.ids[object_.lower()]
@@ -184,8 +184,9 @@ class LoopHandler:
                 self.workstations = Orion.getWorkstations()
                 if len(self.workstations) == 0:
                     self.logger.critical(
-                        "No Workstation is found in the Orion broker, no OEE data"
+                        "Critical: no Workstation is found in the Orion broker, no OEE data"
                     )
+                self.logger.info(f"Workstation objects found in Orion: {self.workstations}")
                 for ws in self.workstations:
                     self.handle_ws(ws)
 
@@ -205,11 +206,11 @@ class LoopHandler:
             self.logger.error(error)
             if None in self.ids.values():
                 self.logger.critical(
-                    "A critical error occured, not even the ids of the objects could be determined. No OEE data. An OEE and a Throughput object should be cleared, but it cannot be determined, which ones."
+                    "Critical: an error occured, not even the ids of the objects could be determined. No OEE data. An OEE and a Throughput object should be cleared, but it cannot be determined, which ones."
                 )
             else:
                 self.logger.error(
-                    "An error happened, trying to clear all attributes of the OEE and Throughput objects."
+                    "Error: an error happened, trying to clear all attributes of the OEE and Throughput objects."
                 )
                 for object_ in ("OEE", "Throughput"):
                     self.delete_attributes(object_)
