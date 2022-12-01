@@ -44,6 +44,8 @@ The microservice is designed to run inside a docker-compose project. See a minim
 
 The microservice does not store data or have any kind of memory. It just periodically performs a calculation. If the container crashes, it is safe to restart it automatically.
 
+You do not need to activate the oee microservice. If you add it to your docker-compose file, realise your manufacturing system according to the data model and keep all data up-to-date in the Orion Context Broker, the microservice will automatically and periodically perform the OEE calculation for each Workstation object.
+
 ### Notifying Cygnus of all context changes
 After running the docker-compose project, you need to set Orion to notify Cygnus of all context changes using the script:
 
