@@ -1,9 +1,24 @@
 {
-	"type": "Job",
-	"id": "urn:ngsiv2:Job:202200047",
-	"RefPart": {"type": "Relationship", "value": "urn:ngsiv2:Part:Cube001"},
-	"RefOperation": {"type": "Relationship", "value": "urn:ngsiv2:Operation:Cube001_injection_moulding"},
-	"JobTargetNumber": {"type": "Number", "value": 4000},
-	"GoodPartCounter": {"type": "Number", "value": 0},
-	"RejectPartCounter": {"type": "Number", "value": 0}
+    "type": "Job",
+    "id": "urn:ngsiv2:Job:202200047",
+    "RefPart": {
+        "type": "Relationship",
+        "value": "urn:ngsiv2:Part:Cube001"
+    },
+    "RefOperation": {
+        "type": "Relationship",
+        "value": "urn:ngsiv2:Operation:Cube001_injection_moulding"
+    },
+    "JobTargetNumber": {
+        "type": "Number",
+        "value": 4000
+    },
+    "GoodPartCounter": {
+        "type": "Number",
+        "value": 0
+    },
+    "RejectPartCounter": {
+        "type": "Number",
+        "value": 0
+    }
 }

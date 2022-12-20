@@ -1,7 +1,16 @@
 {
-	"type": "Throughput",
-	"id": "urn:ngsiv2:Throughput:1",
-	"RefWorkstation": {"type": "Relationship", "value": "urn:ngsiv2:Workstation:1"},
-	"RefJob": {"type": "Relationship", "value": "urn:ngsiv2:Job:202200045"},
-	"ThroughputPerShift": {"type": "Number", "value": 4100}
+    "type": "Throughput",
+    "id": "urn:ngsiv2:Throughput:1",
+    "RefWorkstation": {
+        "type": "Relationship",
+        "value": "urn:ngsiv2:Workstation:1"
+    },
+    "RefJob": {
+        "type": "Relationship",
+        "value": "urn:ngsiv2:Job:202200045"
+    },
+    "ThroughputPerShift": {
+        "type": "Number",
+        "value": 4100
+    }
 }

@@ -1,10 +1,28 @@
 {
-	"type": "OEE",
-	"id": "urn:ngsiv2:OEE:1",
-	"RefWorkstation": {"type": "Relationship", "value": "urn:ngsiv2:Workstation:1"},
-	"RefJob": {"type": "Relationship", "value": "urn:ngsiv2:Job:202200045"},
-	"Availability": {"type": "Number", "value": 0.9},
-	"Performance": {"type": "Number", "value": 0.9},
-	"Quality": {"type": "Number", "value": 0.9},
-	"OEE": {"type": "Number", "value": 0.729}
+    "type": "OEE",
+    "id": "urn:ngsiv2:OEE:1",
+    "RefWorkstation": {
+        "type": "Relationship",
+        "value": "urn:ngsiv2:Workstation:1"
+    },
+    "RefJob": {
+        "type": "Relationship",
+        "value": "urn:ngsiv2:Job:202200045"
+    },
+    "Availability": {
+        "type": "Number",
+        "value": 0.9
+    },
+    "Performance": {
+        "type": "Number",
+        "value": 0.9
+    },
+    "Quality": {
+        "type": "Number",
+        "value": 0.9
+    },
+    "OEE": {
+        "type": "Number",
+        "value": 0.729
+    }
 }

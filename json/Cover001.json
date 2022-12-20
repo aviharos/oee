@@ -1,10 +1,8 @@
 {
     "type": "Part",
     "id": "urn:ngsiv2:Part:Cover001",
-    "Operations": {
-        "type": "List",
-        "value": [
-            "urn:ngsiv2:Operation:Cover001_injection_moulding"
-        ]
+    "RefSequenceOfOperations": {
+        "type": "Relationship",
+        "value": "urn:ngsiv2:SequenceOfOperations:Cover001"
     }
 }
