@@ -1,0 +1,14 @@
+{
+    "type": "SequenceOfOperations",
+    "id": "urn:ngsiv2:SequenceOfOperations:Core001",
+    "RefPart": {
+        "type": "Relationship",
+        "value": "urn:ngsiv2:Part:Core001"
+    }
+    "Operations": {
+        "type": "List",
+        "value": [
+            "urn:ngsiv2:Operation:Core001_injection_moulding"
+        ]
+    }
+}

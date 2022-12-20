@@ -1,6 +1,16 @@
 {
     "type": "Operation",
     "id": "urn:ngsiv2:Operation:Cover001_injection_moulding",
-    "CycleTime": {"type": "Number", "value": 46},
-    "PartsPerCycle": {"type": "Number", "value": 8}
+    "RefSequenceOfOperations": {
+        "type": "Relationship",
+        "value": "urn:ngsiv2:SequenceOfOperations:Cover001"
+    },
+    "CycleTime": {
+        "type": "Number",
+        "value": 46
+    },
+    "PartsPerCycle": {
+        "type": "Number",
+        "value": 8
+    }
 }

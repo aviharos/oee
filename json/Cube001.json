@@ -1,10 +1,8 @@
 {
     "type": "Part",
     "id": "urn:ngsiv2:Part:Cube001",
-    "Operations": {
-        "type": "List",
-        "value": [
-            "urn:ngsiv2:Operation:Cube001_injection_moulding"
-        ]
+    "RefSequenceOfOperations": {
+        "type": "Relationship",
+        "value": "urn:ngsiv2:SequenceOfOperations:Cube001"
     }
 }
