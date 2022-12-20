@@ -1,8 +1,8 @@
 {
 	"type": "Job",
-	"id": "urn:ngsi_ld:Job:202200046",
-	"RefPart": {"type": "Relationship", "value": "urn:ngsi_ld:Part:Cover001"},
-	"CurrentOperationType": {"type": "Text", "value": "Cover001_injection_moulding"},
+	"id": "urn:ngsiv2:Job:202200046",
+	"RefPart": {"type": "Relationship", "value": "urn:ngsiv2:Part:Cover001"},
+	"RefOperation": {"type": "Relationship", "value": "urn:ngsiv2:Operation:Cover001_injection_moulding"},
 	"JobTargetNumber": {"type": "Number", "value": 8000},
 	"GoodPartCounter": {"type": "Number", "value": 0},
 	"RejectPartCounter": {"type": "Number", "value": 0}

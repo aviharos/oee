@@ -1,16 +1,10 @@
 {
-	"type": "Part",
-	"id": "urn:ngsi_ld:Part:Core001",
-	"Operations": {
-		"type": "List",
-		"value": [
-			{
-				"type": "Operation",
-				"OperationNumber": {"type": "Number", "value": 10},
-				"OperationType": {"type": "Text", "value": "Core001_injection_moulding"},
-				"CycleTime": {"type": "Number", "value": 46},
-				"PartsPerCycle": {"type": "Number", "value": 8}
-			}
-		]
-	}
+    "type": "Part",
+    "id": "urn:ngsiv2:Part:Core001",
+    "Operations": {
+        "type": "List",
+        "value": [
+            "urn:ngsiv2:Operation:Core001_injection_moulding"
+        ]
+    }
 }

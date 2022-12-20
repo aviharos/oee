@@ -1,0 +1,6 @@
+{
+    "type": "Operation",
+    "id": "urn:ngsiv2:Operation:Cover001_injection_moulding",
+    "CycleTime": {"type": "Number", "value": 46},
+    "PartsPerCycle": {"type": "Number", "value": 8}
+}
