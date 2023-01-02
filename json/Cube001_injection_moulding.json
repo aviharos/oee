@@ -1,9 +1,10 @@
 {
-    "type": "Operation",
-    "id": "urn:ngsiv2:Operation:Cube001_injection_moulding",
+    "id": "urn:ngsiv2:i40Recipe:Operation_Cube001_injectionMoulding",
+    "type": "i40Recipe",
+    "i40RecipeType": {"type": "Text", "value": "Operation"},
     "RefSequenceOfOperations": {
         "type": "Relationship",
-        "value": "urn:ngsiv2:SequenceOfOperations:Cube001"
+        "value": "urn:ngsiv2:i40Recipe:SequenceOfOperations_Cube001"
     },
     "CycleTime": {
         "type": "Number",

@@ -1,13 +1,14 @@
 {
+    "id": "urn:ngsiv2:i40Asset:Throughput1",
     "type": "Throughput",
-    "id": "urn:ngsiv2:Throughput:1",
+    "i40AssetType": {"type": "Text", "value": "Throughput"},
     "RefWorkstation": {
         "type": "Relationship",
-        "value": "urn:ngsiv2:Workstation:1"
+        "value": "urn:ngsiv2:i40Asset:Workstation1"
     },
     "RefJob": {
         "type": "Relationship",
-        "value": "urn:ngsiv2:Job:202200045"
+        "value": "urn:ngsiv2:i40Process:Job202200045"
     },
     "ThroughputPerShift": {
         "type": "Number",

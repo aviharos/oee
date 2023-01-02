@@ -1,13 +1,14 @@
 {
-    "type": "Job",
-    "id": "urn:ngsiv2:Job:202200047",
+    "id": "urn:ngsiv2:i40Process:Job202200047",
+    "type": "i40Process",
+    "i40ProcessType": {"type": "Text", "value": "Job"},
     "RefPart": {
         "type": "Relationship",
-        "value": "urn:ngsiv2:Part:Cube001"
+        "value": "urn:ngsiv2:i40Asset:Part_Cube001"
     },
     "RefOperation": {
         "type": "Relationship",
-        "value": "urn:ngsiv2:Operation:Cube001_injection_moulding"
+        "value": "urn:ngsiv2:i40Recipe:Operation_Cube001_injectionMoulding"
     },
     "JobTargetNumber": {
         "type": "Number",

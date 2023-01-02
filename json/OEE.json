@@ -1,13 +1,14 @@
 {
+    "id": "urn:ngsiv2:i40Asset:OEE1",
     "type": "OEE",
-    "id": "urn:ngsiv2:OEE:1",
+    "i40AssetType": {"type": "Text", "value": "OEE"},
     "RefWorkstation": {
         "type": "Relationship",
-        "value": "urn:ngsiv2:Workstation:1"
+        "value": "urn:ngsiv2:i40Asset:Workstation1"
     },
     "RefJob": {
         "type": "Relationship",
-        "value": "urn:ngsiv2:Job:202200045"
+        "value": "urn:ngsiv2:i40Process:Job202200045"
     },
     "Availability": {
         "type": "Number",

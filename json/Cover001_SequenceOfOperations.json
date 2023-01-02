@@ -1,14 +1,15 @@
 {
-    "type": "SequenceOfOperations",
-    "id": "urn:ngsiv2:SequenceOfOperations:Cover001",
+    "id": "urn:ngsiv2:i40Recipe:SequenceOfOperations_Cover001",
+    "type": "i40Recipe",
+    "i40RecipeType": {"type": "Text", "value": "SequenceOfOperations"},
     "RefPart": {
         "type": "Relationship",
-        "value": "urn:ngsiv2:Part:Cover001"
+        "value": "urn:ngsiv2:i40Asset:Part_Cover001"
     }
     "Operations": {
         "type": "List",
         "value": [
-            "urn:ngsiv2:Operation:Cover001_injection_moulding"
+            "urn:ngsiv2:i40Recipe:Operation_Cover001_injectionMoulding"
         ]
     }
 }

@@ -1,6 +1,7 @@
 {
-    "type": "Part",
-    "id": "urn:ngsiv2:Part:Cover001",
+    "id": "urn:ngsiv2:i40Asset:Part_Cover001",
+    "type": "i40Asset",
+    "i40AssetType": {"type": "Text", "value": "Part"},
     "RefSequenceOfOperations": {
         "type": "Relationship",
         "value": "urn:ngsiv2:SequenceOfOperations:Cover001"
