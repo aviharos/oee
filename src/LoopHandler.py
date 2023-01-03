@@ -39,7 +39,7 @@ class LoopHandler:
     It also catches the OEECalculator object's exceptions and logs them
     """
     logger = getLogger(__name__)
-    blank_ids = {"ws": None, "job": None, "oee": None, "throughput": None}
+    blank_ids = {"workstation": None, "job": None, "oee": None, "throughput": None}
     # Load environment variables
     POSTGRES_USER = os.environ.get("POSTGRES_USER")
     if POSTGRES_USER is None:
@@ -65,7 +65,7 @@ class LoopHandler:
     def __init__(self):
         self.ids = copy.deepcopy(self.blank_ids)
 
-    def get_ids(self, ws: dict):
+    def get_ids(self, workstation: dict):
         """Get the Id of the necessary Orion objects
 
         Ids:
@@ -75,19 +75,19 @@ class LoopHandler:
             Throughput
 
         Args:
-            ws (dict): Orion workstation object
+            workstation (dict): Orion workstation object
 
         Raises:
             ValueError: if the Workstation's Job does not exist in Orion
         """
-        self.ids["ws"] = ws["id"]
-        self.ids["job"] = ws["RefJob"]["value"]
+        self.ids["workstation"] = workstation["id"]
+        self.ids["job"] = workstation["RefJob"]["value"]
         if not Orion.exists(self.ids["job"]):
             raise ValueError(
                 f'Critical: object does not exist in Orion: {self.ids["job"]}'
             )
-        self.ids["oee"] = ws["RefOEE"]["value"]
-        self.ids["throughput"] = ws["RefThroughput"]["value"]
+        self.ids["oee"] = workstation["RefOEE"]["value"]
+        self.ids["throughput"] = workstation["RefThroughput"]["value"]
 
     def calculate_KPIs(self):
         """Calculate the OEE and the Throughput of the current Workstation
@@ -101,23 +101,23 @@ class LoopHandler:
                 throughput:
                     the Throughput object to be uploaded to Orion
         """
-        oeeCalculator = OEECalculator(self.ids["ws"])
+        oeeCalculator = OEECalculator(self.ids["workstation"])
         oeeCalculator.prepare(self.con)
         oee = oeeCalculator.calculate_OEE()
         throughput = oeeCalculator.calculate_throughput()
         return oee, throughput
 
-    def handle_ws(self, ws: dict):
+    def handle_workstation(self, workstation: dict):
         """Handle everything related to calculating and updating the OEE and Throughput of a Workstation
 
         After calculating the OEE and the Throughput, these are alo updated in the Orion broker
 
         Args:
-            ws (dict): Orion Workstation
+            workstation (dict): Orion Workstation
         """ 
         self.ids = copy.deepcopy(self.blank_ids)
-        self.get_ids(ws)
-        self.logger.info(f'Calculating KPIs for {ws["id"]}')
+        self.get_ids(workstation)
+        self.logger.info(f'Calculating KPIs for {workstation["id"]}')
         oee, throughput = self.calculate_KPIs()
         Orion.update([oee, throughput])
 
@@ -154,7 +154,7 @@ class LoopHandler:
             raise
         else:
             orion_object["id"] = self.ids[object_.lower()]
-            orion_object["RefWorkstation"]["value"] = self.ids["ws"]
+            orion_object["RefWorkstation"]["value"] = self.ids["workstation"]
             orion_object["RefJob"]["value"] = self.ids["job"]
             if object_ == "OEE":
                 orion_object["Availability"]["value"] = None
@@ -171,9 +171,9 @@ class LoopHandler:
 
         This function creates the Postgres engine and the connection,
         and also disposes and closes them respectively.
-        It wraps the handle_ws function
+        It wraps the handle_workstation function
 
-        If the OEECalculator throws any exception,
+        If the OEECalculator throworkstation any exception,
         this function tries to delete all KPI values using the function delete_attributes
         """
         self.engine = create_engine(
@@ -187,8 +187,8 @@ class LoopHandler:
                         "Critical: no Workstation is found in the Orion broker, no OEE data"
                     )
                 self.logger.info(f"Workstation objects found in Orion: {self.workstations}")
-                for ws in self.workstations:
-                    self.handle_ws(ws)
+                for workstation in self.workstations:
+                    self.handle_workstation(workstation)
 
         except (
             AttributeError,

@@ -19,11 +19,11 @@ import OEE
 from modules import reupload_jsons_to_Orion
 
 # Constants
-WS_ID = "urn:ngsiv2:i40Asset:Workstation1"
-WS_TABLE = WS_ID.lower().replace(":", "_") + "_i40asset"
+WORKSTATION_ID = "urn:ngsiv2:i40Asset:Workstation1"
+WORKSTATION_TABLE = WORKSTATION_ID.lower().replace(":", "_") + "_i40asset"
 OEE_ID = "urn:ngsiv2:i40Asset:OEE1"
 OEE_TABLE = OEE_ID.lower().replace(":", "_") + "_i40asset"
-WS_FILE = f"{WS_TABLE}.csv"
+WORKSTATION_FILE = f"{WORKSTATION_TABLE}.csv"
 JOB_ID = "urn:ngsiv2:i40Process:Job202200045"
 JOB_TABLE = JOB_ID.lower().replace(":", "_") + "_i40process"
 JOB_FILE = f"{JOB_TABLE}.csv"
@@ -54,7 +54,7 @@ def setupClass_common(cls: unittest.TestCase):
     if not cls.engine.dialect.has_schema(cls.engine, POSTGRES_SCHEMA):
         cls.engine.execute(sqlalchemy.schema.CreateSchema(POSTGRES_SCHEMA))
 
-    cls.oee_template = OEE.OEECalculator(WS_ID)
+    cls.oee_template = OEE.OEECalculator(WORKSTATION_ID)
 
 
     """
@@ -63,13 +63,13 @@ def setupClass_common(cls: unittest.TestCase):
     Match those the data types under real time conditions
     """
     # read test logs
-    cls.ws_df = pd.read_csv(os.path.join("csv", WS_FILE))
+    cls.workstation_df = pd.read_csv(os.path.join("csv", WORKSTATION_FILE))
 
     # map to int, because the test data has ".0"s appended
-    cls.ws_df["recvtimets"] = cls.ws_df["recvtimets"].map(int)
-    # upload ws logs
-    cls.ws_df.to_sql(
-        name=WS_TABLE,
+    cls.workstation_df["recvtimets"] = cls.workstation_df["recvtimets"].map(int)
+    # upload workstation logs
+    cls.workstation_df.to_sql(
+        name=WORKSTATION_TABLE,
         con=cls.con,
         schema=POSTGRES_SCHEMA,
         index=False,
@@ -78,8 +78,8 @@ def setupClass_common(cls: unittest.TestCase):
         if_exists="replace",
     )
     # download test logs
-    cls.ws_df = pd.read_sql_query(
-        f"select * from {POSTGRES_SCHEMA}.{WS_TABLE}", con=cls.con
+    cls.workstation_df = pd.read_sql_query(
+        f"select * from {POSTGRES_SCHEMA}.{WORKSTATION_TABLE}", con=cls.con
     )
 
     # the same with the Job logs

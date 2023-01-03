@@ -27,11 +27,11 @@ class test_Orion(unittest.TestCase):
             cls.obj = json.load(f)
         requests.post(url=orion_entities, json=cls.obj)
         with open(os.path.join("..", "json", "Workstation.json"), "r") as f:
-            cls.ws1 = json.load(f)
+            cls.workstation1 = json.load(f)
         # make a second Workstation
-        cls.ws2 = copy.deepcopy(cls.ws1)
-        cls.ws2["id"] = "urn:ngsiv2:i40Asset:Workstation2"
-        cls.ws2["RefJob"]["value"] = "urn:ngsiv2:i40Process:Job202200045_mod"
+        cls.workstation2 = copy.deepcopy(cls.workstation1)
+        cls.workstation2["id"] = "urn:ngsiv2:i40Asset:Workstation2"
+        cls.workstation2["RefJob"]["value"] = "urn:ngsiv2:i40Process:Job202200045_mod"
 
     @classmethod
     def tearDownClass(cls):
@@ -72,51 +72,51 @@ class test_Orion(unittest.TestCase):
 
     def test_getWorkstations(self):
         # delete uploaded Workstation objects
-        requests.delete(url=f'{orion_entities}/{self.ws1["id"]}')
-        requests.delete(url=f'{orion_entities}/{self.ws2["id"]}')
+        requests.delete(url=f'{orion_entities}/{self.workstation1["id"]}')
+        requests.delete(url=f'{orion_entities}/{self.workstation2["id"]}')
 
         # there are no Workstation objects in Orion
         self.assertEqual(len(Orion.getWorkstations()), 0)
 
         # post 2 Workstation objects
-        requests.post(url=orion_entities, json=self.ws1)
-        requests.post(url=orion_entities, json=self.ws2)
+        requests.post(url=orion_entities, json=self.workstation1)
+        requests.post(url=orion_entities, json=self.workstation2)
         downloaded_workstations = [
-            remove_orion_metadata(ws) for ws in Orion.getWorkstations()
+            remove_orion_metadata(workstation) for workstation in Orion.getWorkstations()
         ]
         self.assertEqual(len(downloaded_workstations), 2)
 
         # check if the 2 downloaded Workstation objects match the uploaded ones
-        if downloaded_workstations[0]["id"] == self.ws1["id"]:
-            self.assertEqual(downloaded_workstations[0], self.ws1)
-            self.assertEqual(downloaded_workstations[1], self.ws2)
+        if downloaded_workstations[0]["id"] == self.workstation1["id"]:
+            self.assertEqual(downloaded_workstations[0], self.workstation1)
+            self.assertEqual(downloaded_workstations[1], self.workstation2)
         else:
-            self.assertEqual(downloaded_workstations[0], self.ws2)
-            self.assertEqual(downloaded_workstations[1], self.ws1)
+            self.assertEqual(downloaded_workstations[0], self.workstation2)
+            self.assertEqual(downloaded_workstations[1], self.workstation1)
 
     def test_update(self):
         # create copies of Workstation objects to be used in the test's scope
-        ws1m = self.ws1.copy()
-        ws1m["RefJob"]["value"] = "urn:ngsiv2:i40Process:Job202200045_mod"
-        ws2m = self.ws2.copy()
-        ws2m["RefOEE"]["value"] = "urn:ngsiv2:i40Asset:OEE3"
+        workstation1m = self.workstation1.copy()
+        workstation1m["RefJob"]["value"] = "urn:ngsiv2:i40Process:Job202200045_mod"
+        workstation2m = self.workstation2.copy()
+        workstation2m["RefOEE"]["value"] = "urn:ngsiv2:i40Asset:OEE3"
 
         # update both Workstations in Orion
-        requests.post(url=orion_entities, json=ws1m)
-        requests.post(url=orion_entities, json=ws2m)
-        Orion.update([ws1m, ws2m])
+        requests.post(url=orion_entities, json=workstation1m)
+        requests.post(url=orion_entities, json=workstation2m)
+        Orion.update([workstation1m, workstation2m])
 
         # check if update was successful
         downloaded_workstations = [
-            remove_orion_metadata(ws) for ws in Orion.getWorkstations()
+            remove_orion_metadata(workstation) for workstation in Orion.getWorkstations()
         ]
         self.assertEqual(len(downloaded_workstations), 2)
-        if downloaded_workstations[0]["id"] == ws1m["id"]:
-            self.assertEqual(downloaded_workstations[0], ws1m)
-            self.assertEqual(downloaded_workstations[1], ws2m)
+        if downloaded_workstations[0]["id"] == workstation1m["id"]:
+            self.assertEqual(downloaded_workstations[0], workstation1m)
+            self.assertEqual(downloaded_workstations[1], workstation2m)
         else:
-            self.assertEqual(downloaded_workstations[0], ws2m)
-            self.assertEqual(downloaded_workstations[1], ws1m)
+            self.assertEqual(downloaded_workstations[0], workstation2m)
+            self.assertEqual(downloaded_workstations[1], workstation1m)
 
 
 def main():

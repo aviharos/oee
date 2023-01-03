@@ -17,7 +17,7 @@ class test_object_to_template(unittest.TestCase):
         with open(os.path.join("..", "json", "Shift.json")) as f:
             cls.shift = json.load(f)
         with open(os.path.join("..", "json", "Workstation.json")) as f:
-            cls.ws = json.load(f)
+            cls.workstation = json.load(f)
 
     @classmethod
     def tearDownClass(cls):
@@ -38,15 +38,15 @@ class test_object_to_template(unittest.TestCase):
             shift,
             object_to_template(os.path.join("..", "json", "Shift.json")),
         )
-        ws = copy.deepcopy(self.ws)
-        ws["id"] = None
-        ws["Available"]["value"] = None
-        ws["RefJob"]["value"] = None
-        ws["RefOEE"]["value"] = None
-        ws["RefThroughput"]["value"] = None
-        ws["RefShift"]["value"] = None
+        workstation = copy.deepcopy(self.workstation)
+        workstation["id"] = None
+        workstation["Available"]["value"] = None
+        workstation["RefJob"]["value"] = None
+        workstation["RefOEE"]["value"] = None
+        workstation["RefThroughput"]["value"] = None
+        workstation["RefShift"]["value"] = None
         self.assertEqual(
-            ws, object_to_template(os.path.join("..", "json", "Workstation.json"))
+            workstation, object_to_template(os.path.join("..", "json", "Workstation.json"))
         )
 
 

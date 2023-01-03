@@ -98,18 +98,18 @@ class OEECalculator:
 
         self.shift = self.object_.copy()
 
-        self.ws = self.object_.copy()
-        self.ws["id"] = workstation_id
+        self.workstation = self.object_.copy()
+        self.workstation["id"] = workstation_id
 
         self.job = self.object_.copy()
 
         self.operation = self.object_.copy()
 
     def __repr__(self):
-        return f'OEECalculator({self.ws["id"]})'
+        return f'OEECalculator({self.workstation["id"]})'
 
     def __str__(self):
-        return f'OEECalculator object for workstation: {self.ws["id"]}'
+        return f'OEECalculator object for workstation: {self.workstation["id"]}'
 
     def set_now(self):
         """A module for setting and freezing the OEECalculator's timestamp
@@ -210,11 +210,11 @@ class OEECalculator:
             orion_obj["id"].replace(":", "_").lower() + "_" + orion_obj["type"].lower()
         )
 
-    def get_ws(self):
+    def get_workstation(self):
         """Download the Workstation object from Orion, get the table name of PostgreSQL logs"""
-        self.ws["orion"] = Orion.get(self.ws["id"])
-        self.ws["postgres_table"] = self.get_cygnus_postgres_table(self.ws["orion"])
-        self.logger.debug(f"Workstation: {self.ws}")
+        self.workstation["orion"] = Orion.get(self.workstation["id"])
+        self.workstation["postgres_table"] = self.get_cygnus_postgres_table(self.workstation["orion"])
+        self.logger.debug(f"Workstation: {self.workstation}")
 
     def get_shift(self):
         """Get the Shift object of the Workstation from orion
@@ -223,12 +223,12 @@ class OEECalculator:
             KeyError or TypeError if the id cannot be read from the Workstation Orion object
         """
         try:
-            self.shift["id"] = self.ws["orion"]["RefShift"][
+            self.shift["id"] = self.workstation["orion"]["RefShift"][
                 "value"
             ]
         except (KeyError, TypeError) as error:
             raise error.__class__(
-                f'Critical: RefShift not found in Workstation object :\n{self.ws["orion"]}.'
+                f'Critical: RefShift not found in Workstation object :\n{self.workstation["orion"]}.'
             ) from error
         self.shift["orion"] = Orion.get(self.shift["id"])
         self.logger.debug(f"Shift: {self.shift}")
@@ -283,10 +283,10 @@ class OEECalculator:
             KeyError or TypeError if getting the value from the dict fails
         """
         try:
-            return self.ws["orion"]["RefJob"]["value"]
+            return self.workstation["orion"]["RefJob"]["value"]
         except (KeyError, TypeError) as error:
             raise error.__class__(
-                f'The workstation object {self.ws["id"]} has no valid RefJob attribute:\nObject:\n{self.ws["orion"]}'
+                f'The workstation object {self.workstation["id"]} has no valid RefJob attribute:\nObject:\n{self.workstation["orion"]}'
             ) from error
 
     def get_job(self):
@@ -330,11 +330,11 @@ class OEECalculator:
         Operation
 
         Fills the following dicts:
-            self.ws
+            self.workstation
             self.job
             self.operation
         """
-        self.get_ws()
+        self.get_workstation()
         self.get_shift()
         self.get_todays_shift_limits()
         self.get_job()
@@ -448,11 +448,11 @@ class OEECalculator:
                 if the Workstation's RefJob attribute
                 and the last job according to the Cygnus logs differ
         """
-        df = self.ws["df"]
+        df = self.workstation["df"]
         refJob_entries = df[df["attrname"] == "RefJob"]
 
         if len(refJob_entries) == 0:
-            # today's queried ws df does not contain a job change
+            # today's queried workstation df does not contain a job change
             # we assume that the Job was started in a previous shift
             # so the job's today part started at the schedule start time today
             self.logger.debug(f"Today's job start time: {self.today['Start']}")
@@ -461,7 +461,7 @@ class OEECalculator:
         last_job = refJob_entries.iloc[-1]["attrvalue"]
         if last_job != self.job["id"]:
             raise ValueError(
-                f"The last job in the Workstation object and the Workstation's PostgreSQL historic logs differ.\nWorkstation:\n{self.ws}\Last job in Workstation_logs:\n{last_job}"
+                f"The last job in the Workstation object and the Workstation's PostgreSQL historic logs differ.\nWorkstation:\n{self.workstation}\Last job in Workstation_logs:\n{last_job}"
             )
         current_Jobs_RefJob_entries = refJob_entries[refJob_entries["attrvalue"] == self.job["id"]]
         last_job_change = current_Jobs_RefJob_entries["recvtimets"].min()
@@ -529,12 +529,12 @@ class OEECalculator:
                 f"The current time: {self.now_datetime} is outside today's shift, no OEE data"
             )
 
-        self.ws["df"] = self.query_todays_data(
-            con=con, table_name=self.ws["postgres_table"], how="from_midnight"
+        self.workstation["df"] = self.query_todays_data(
+            con=con, table_name=self.workstation["postgres_table"], how="from_midnight"
         )
-        self.ws["df"] = self.convert_dataframe_to_str(self.ws["df"])
-        self.convertRecvtimetsToInt(self.ws["df"])
-        self.ws["df"] = self.sort_df_by_time(self.ws["df"])
+        self.workstation["df"] = self.convert_dataframe_to_str(self.workstation["df"])
+        self.convertRecvtimetsToInt(self.workstation["df"])
+        self.workstation["df"] = self.sort_df_by_time(self.workstation["df"])
 
         self.job["df"] = self.query_todays_data(
             con=con, table_name=self.job["postgres_table"], how="from_schedule_start"
@@ -543,12 +543,12 @@ class OEECalculator:
         self.convertRecvtimetsToInt(self.job["df"])
         self.job["df"] = self.sort_df_by_time(self.job["df"])
 
-        self.oee["id"] = self.ws["orion"]["RefOEE"]["value"]
-        self.oee["RefWorkstation"]["value"] = self.ws["id"]
+        self.oee["id"] = self.workstation["orion"]["RefOEE"]["value"]
+        self.oee["RefWorkstation"]["value"] = self.workstation["id"]
         self.oee["RefJob"]["value"] = self.job["id"]
 
-        self.throughput["id"] = self.ws["orion"]["RefThroughput"]["value"]
-        self.throughput["RefWorkstation"]["value"] = self.ws["id"]
+        self.throughput["id"] = self.workstation["orion"]["RefThroughput"]["value"]
+        self.throughput["RefWorkstation"]["value"] = self.workstation["id"]
         self.throughput["RefJob"]["value"] = self.job["id"]
 
         self.set_RefStartTime()
@@ -634,7 +634,7 @@ class OEECalculator:
             return 0
         else:
             raise ValueError(
-                f"Invalid Availability value: {last_availability} in postgres_table: {self.ws['postgres_table']} at recvtimets: {df_before.iloc[-1]['recvtimets']}"
+                f"Invalid Availability value: {last_availability} in postgres_table: {self.workstation['postgres_table']} at recvtimets: {df_before.iloc[-1]['recvtimets']}"
             )
 
     def calc_availability_if_exists_record_after_RefStartTime(
@@ -771,12 +771,12 @@ class OEECalculator:
             ValueError:
                 if the Workstation was not turned on since midnight
         """
-        df = self.ws["df"]
+        df = self.workstation["df"]
         df_av = df[df["attrname"] == "Available"]
         available_true = df_av[df_av["attrvalue"] == "true"]
         if available_true.size == 0:
             raise ValueError(
-                f'The Workstation {self.ws["id"]} was not turned Available by {self.now_datetime} since midnight, no OEE data'
+                f'The Workstation {self.workstation["id"]} was not turned Available by {self.now_datetime} since midnight, no OEE data'
             )
         self.oee["Availability"]["value"] = self.calc_availability(df_av)
         self.logger.info(f"Availability: {self.oee['Availability']['value']}")

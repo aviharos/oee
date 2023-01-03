@@ -38,9 +38,9 @@ POSTGRES_SCHEMA = os.environ.get("POSTGRES_SCHEMA")
 
 # Constants
 PLACES = 5
-WS_ID = "urn:ngsiv2:i40Asset:Workstation1"
-WS_TABLE = WS_ID.lower().replace(":", "_") + "_i40asset"
-WS_FILE = f"{WS_TABLE}.csv"
+WORKSTATION_ID = "urn:ngsiv2:i40Asset:Workstation1"
+WORKSTATION_TABLE = WORKSTATION_ID.lower().replace(":", "_") + "_i40asset"
+WORKSTATION_FILE = f"{WORKSTATION_TABLE}.csv"
 JOB_ID = "urn:ngsiv2:i40Process:Job202200045"
 JOB_TABLE = JOB_ID.lower().replace(":", "_") + "_i40process"
 JOB_FILE = f"{JOB_TABLE}.csv"
@@ -80,18 +80,18 @@ class test_object_to_template(unittest.TestCase):
         cls.con = cls.engine.connect()
         if not cls.engine.dialect.has_schema(cls.engine, POSTGRES_SCHEMA):
             cls.engine.execute(sqlalchemy.schema.CreateSchema(POSTGRES_SCHEMA))
-        cls.ws_df = pd.read_csv(os.path.join("csv", WS_FILE))
-        cls.ws_df["recvtimets"] = cls.ws_df["recvtimets"].map(int)
-        cls.ws_df.to_sql(
-            name=WS_TABLE,
+        cls.workstation_df = pd.read_csv(os.path.join("csv", WORKSTATION_FILE))
+        cls.workstation_df["recvtimets"] = cls.workstation_df["recvtimets"].map(int)
+        cls.workstation_df.to_sql(
+            name=WORKSTATION_TABLE,
             con=cls.con,
             schema=POSTGRES_SCHEMA,
             index=False,
             dtype=Text,
             if_exists="replace",
         )
-        cls.ws_df = pd.read_sql_query(
-            f"select * from {POSTGRES_SCHEMA}.{WS_TABLE}", con=cls.con
+        cls.workstation_df = pd.read_sql_query(
+            f"select * from {POSTGRES_SCHEMA}.{WORKSTATION_TABLE}", con=cls.con
         )
 
         cls.job_df = pd.read_csv(os.path.join("csv", JOB_FILE))

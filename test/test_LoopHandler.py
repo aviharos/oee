@@ -40,9 +40,9 @@ POSTGRES_SCHEMA = os.environ.get("POSTGRES_SCHEMA")
 
 # Constants
 PLACES = 5
-WS_ID = "urn:ngsiv2:i40Asset:Workstation1"
-WS_TABLE = WS_ID.lower().replace(":", "_") + "_i40asset"
-WS_FILE = f"{WS_TABLE}.csv"
+WORKSTATION_ID = "urn:ngsiv2:i40Asset:Workstation1"
+WORKSTATION_TABLE = WORKSTATION_ID.lower().replace(":", "_") + "_i40asset"
+WORKSTATION_FILE = f"{WORKSTATION_TABLE}.csv"
 JOB_ID = "urn:ngsiv2:i40Process:Job202200045"
 JOB_TABLE = JOB_ID.lower().replace(":", "_") + "_i40process"
 JOB_FILE = f"{JOB_TABLE}.csv"
@@ -91,18 +91,18 @@ class test_LoopHandler(unittest.TestCase):
         cls.con = cls.engine.connect()
         if not cls.engine.dialect.has_schema(cls.engine, POSTGRES_SCHEMA):
             cls.engine.execute(sqlalchemy.schema.CreateSchema(POSTGRES_SCHEMA))
-        cls.ws_df = pd.read_csv(os.path.join("csv", WS_FILE))
-        cls.ws_df["recvtimets"] = cls.ws_df["recvtimets"].map(int)
-        cls.ws_df.to_sql(
-            name=WS_TABLE,
+        cls.workstation_df = pd.read_csv(os.path.join("csv", WORKSTATION_FILE))
+        cls.workstation_df["recvtimets"] = cls.workstation_df["recvtimets"].map(int)
+        cls.workstation_df.to_sql(
+            name=WORKSTATION_TABLE,
             con=cls.con,
             schema=POSTGRES_SCHEMA,
             index=False,
             dtype=Text,
             if_exists="replace",
         )
-        cls.ws_df = pd.read_sql_query(
-            f"select * from {POSTGRES_SCHEMA}.{WS_TABLE}", con=cls.con
+        cls.workstation_df = pd.read_sql_query(
+            f"select * from {POSTGRES_SCHEMA}.{WORKSTATION_TABLE}", con=cls.con
         )
 
         cls.job_df = pd.read_csv(os.path.join("csv", JOB_FILE))
@@ -132,7 +132,7 @@ class test_LoopHandler(unittest.TestCase):
         cls.throughput["RefJob"] = {"type": "Relationship", "value": "urn:ngsiv2:i40Process:Job202200045"}
         cls.throughput["ThroughputPerShift"]["value"] = (8 * 3600e3 / 46e3) * 8 * cls.oee["OEE"]["value"]
         with open(os.path.join("..", "json", "Workstation.json")) as f:
-            cls.ws = json.load(f)
+            cls.workstation = json.load(f)
 
     @classmethod
     def tearDownClass(cls):
@@ -146,46 +146,46 @@ class test_LoopHandler(unittest.TestCase):
 
     def test_get_ids(self):
         self.loopHandler.ids = copy.deepcopy(self.loopHandler.blank_ids)
-        self.loopHandler.get_ids(self.ws)
-        self.assertEqual(self.loopHandler.ids["ws"], self.ws["id"])
-        self.assertEqual(self.loopHandler.ids["job"], self.ws["RefJob"]["value"])
-        self.assertEqual(self.loopHandler.ids["oee"], self.ws["RefOEE"]["value"])
-        self.assertEqual(self.loopHandler.ids["throughput"], self.ws["RefThroughput"]["value"])
+        self.loopHandler.get_ids(self.workstation)
+        self.assertEqual(self.loopHandler.ids["workstation"], self.workstation["id"])
+        self.assertEqual(self.loopHandler.ids["job"], self.workstation["RefJob"]["value"])
+        self.assertEqual(self.loopHandler.ids["oee"], self.workstation["RefOEE"]["value"])
+        self.assertEqual(self.loopHandler.ids["throughput"], self.workstation["RefThroughput"]["value"])
 
         with patch("Orion.exists") as mock_Orion_exist:
             mock_Orion_exist.return_value = False
             with self.assertRaises(ValueError):
-                self.loopHandler.get_ids(self.ws)
+                self.loopHandler.get_ids(self.workstation)
 
     @patch(f"{OEE.__name__}.datetime", wraps=datetime)
     def test_calculate_KPIs(self, mock_datetime):
         now = datetime(2022, 4, 4, 9, 0, 0)
         mock_datetime.now.return_value = now
-        self.loopHandler.get_ids(self.ws)
+        self.loopHandler.get_ids(self.workstation)
         self.loopHandler.con = self.con
         c_oee, c_throughput = self.loopHandler.calculate_KPIs()
         assertDeepAlmostEqual(self, self.oee, c_oee, places=PLACES)
         assertDeepAlmostEqual(self, self.throughput, c_throughput, places=PLACES)
 
     @patch(f"{OEE.__name__}.datetime", wraps=datetime)
-    def test_handle_ws(self, mock_datetime):
+    def test_handle_workstation(self, mock_datetime):
         now = datetime(2022, 4, 4, 9, 0, 0)
         mock_datetime.now.return_value = now
         # write false data, LoopHandler should clean it
-        self.loopHandler.ids = {"ws": "invalid", "job": "nonexisting", "oee": "urn:ngsiv2:i40Asset:Throughput1", "throughput": "urn:ngsiv2:i40Asset:Throughput11"}
+        self.loopHandler.ids = {"workstation": "invalid", "job": "nonexisting", "oee": "urn:ngsiv2:i40Asset:Throughput1", "throughput": "urn:ngsiv2:i40Asset:Throughput11"}
         workstations = Orion.getWorkstations()
         for item in workstations:
             if item["id"] == "urn:ngsiv2:i40Asset:Workstation1":
-                ws = item
+                workstation = item
         self.loopHandler.con = self.con
-        self.loopHandler.handle_ws(ws)
+        self.loopHandler.handle_workstation(workstation)
         c_oee = remove_orion_metadata(Orion.get("urn:ngsiv2:i40Asset:OEE1"))
         c_throughput = remove_orion_metadata(Orion.get("urn:ngsiv2:i40Asset:Throughput1"))
         assertDeepAlmostEqual(self, self.oee, c_oee, places=PLACES)
         assertDeepAlmostEqual(self, self.throughput, c_throughput, places=PLACES)
 
     def test_delete_attributes(self):
-        self.loopHandler.get_ids(self.ws)
+        self.loopHandler.get_ids(self.workstation)
         self.loopHandler.delete_attributes("OEE")
         downloaded_oee = remove_orion_metadata(Orion.get("urn:ngsiv2:i40Asset:OEE1"))
         self.logger.debug(f"delete_attributes: downloaded_oee: {downloaded_oee}")
@@ -242,7 +242,7 @@ class test_LoopHandler(unittest.TestCase):
             with patch("LoopHandler.LoopHandler.calculate_KPIs") as mock_calculate_KPIs:
                 # see if the KPIs get deleted in the case of an error
                 mock_calculate_KPIs.side_effect = exception
-                self.loopHandler.get_ids(self.ws)
+                self.loopHandler.get_ids(self.workstation)
                 self.loopHandler.handle()
                 downloaded_oee = remove_orion_metadata(Orion.get("urn:ngsiv2:i40Asset:OEE1"))
                 self.assertEqual(downloaded_oee, self.blank_oee)
