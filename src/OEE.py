@@ -37,10 +37,8 @@ class OEECalculator:
         The Workstation refers to the Job (RefJob),
             the OEE object (RefOEE),
             the Throughput object (RefThroughput),
-            the OperatorSchedule (RefOperatorSchedule).
-        The Job refers to the Part (RefPart),
-            and the Operation inside the Part (CurrentOperationType).
-        The operatorSchedule contains the schedule of the Workstation.
+            the Shift (RefShift).
+        The Job refers to the Operation (RefOperation),
 
     Common usage:
         oeeCalculator = OEECalculator(workstation_id)
@@ -98,14 +96,12 @@ class OEECalculator:
         self.throughput = self.Throughput_template
         self.today = {}
 
-        self.operatorSchedule = self.object_.copy()
+        self.shift = self.object_.copy()
 
         self.ws = self.object_.copy()
         self.ws["id"] = workstation_id
 
         self.job = self.object_.copy()
-
-        self.part = self.object_.copy()
 
         self.operation = self.object_.copy()
 
@@ -220,22 +216,22 @@ class OEECalculator:
         self.ws["postgres_table"] = self.get_cygnus_postgres_table(self.ws["orion"])
         self.logger.debug(f"Workstation: {self.ws}")
 
-    def get_operatorSchedule(self):
-        """Get the OperatorSchedule object of the Workstation from orion
+    def get_shift(self):
+        """Get the Shift object of the Workstation from orion
 
         Raises:
             KeyError or TypeError if the id cannot be read from the Workstation Orion object
         """
         try:
-            self.operatorSchedule["id"] = self.ws["orion"]["RefOperatorSchedule"][
+            self.shift["id"] = self.ws["orion"]["RefShift"][
                 "value"
             ]
         except (KeyError, TypeError) as error:
             raise error.__class__(
-                f'Critical: RefOperatorSchedule not found in Workstation object :\n{self.ws["orion"]}.'
+                f'Critical: RefShift not found in Workstation object :\n{self.ws["orion"]}.'
             ) from error
-        self.operatorSchedule["orion"] = Orion.get(self.operatorSchedule["id"])
-        self.logger.debug(f"OperatorSchedule: {self.operatorSchedule}")
+        self.shift["orion"] = Orion.get(self.shift["id"])
+        self.logger.debug(f"Shift: {self.shift}")
 
     def is_datetime_in_todays_shift(self, datetime_: datetime):
         """Check if datetime is in todays shift
@@ -247,16 +243,16 @@ class OEECalculator:
             True if the datetime is within the shift of the Workstation
             False otherwise
         """
-        if datetime_ < self.today["OperatorWorkingScheduleStartsAt"]:
+        if datetime_ < self.today["Start"]:
             return False
-        if datetime_ > self.today["OperatorWorkingScheduleStopsAt"]:
+        if datetime_ > self.today["End"]:
             return False
         return True
 
     def get_todays_shift_limits(self):
         """Get the limits of today's schedule
 
-        Extract the schedule's start and end OperatorSchedule object
+        Extract the schedule's start and end Shift object
         Store the date in self.today
 
         Raises:
@@ -265,15 +261,15 @@ class OEECalculator:
         """
         try:
             for time_ in (
-                "OperatorWorkingScheduleStartsAt",
-                "OperatorWorkingScheduleStopsAt",
+                "Start",
+                "End",
             ):
                 self.today[time_] = self.timeToDatetime(
-                    self.operatorSchedule["orion"][time_]["value"]
+                    self.shift["orion"][time_]["value"]
                 )
         except (ValueError, KeyError, TypeError) as error:
             raise error.__class__(
-                f"Critical: could not convert time: {time_} in {self.operatorSchedule}."
+                f"Critical: could not convert time: {time_} in {self.shift}."
             ) from error
         self.logger.debug(f"Today: {self.today}")
 
@@ -300,77 +296,48 @@ class OEECalculator:
         self.job["postgres_table"] = self.get_cygnus_postgres_table(self.job["orion"])
         self.logger.debug(f"Job: {self.job}")
 
-    def get_part_id(self):
-        """Get the referenced Part's Orion id from the Job Orion object
+    def get_operation_id(self):
+        """Get the referenced Operation's Orion id from the Job Orion object
 
         Returns:
-            the Part's Orion id (str)
+            the Operation's Orion id (str)
 
         Raises:
             KeyError or TypeError if getting the value from the dict fails
         """
         try:
-            part_id = self.job["orion"]["RefPart"]["value"]
+            operation_id = self.job["orion"]["RefOperation"]["value"]
         except (KeyError, TypeError) as error:
             raise KeyError(
-                f'Critical: RefPart not found in the Job {self.job["id"]}.\nObject:\n{self.job["orion"]}'
+                f'Critical: RefOperation not found in the Job {self.job["id"]}.\nObject:\n{self.job["orion"]}'
             ) from error
-        self.part["id"] = part_id
-
-    def get_part(self):
-        """Get Part from Orion, store in self.part dict"""
-        self.get_part_id()
-        self.logger.debug(f'Part id: {self.part["id"]}')
-        self.part["orion"] = Orion.get(self.part["id"])
-        self.logger.debug(f'Part: {self.part}')
+        self.operation["id"] = operation_id
 
     def get_operation(self):
-        """Get Operation, store in self.operation["orion"]
-
-        The operations are stored in the Part object's Operations list
-
-        Raises:
-            KeyError:
-                if the Part does not contain the the operation with the same OperationType
-                    as the Job's CurrentOperationType
-            AttributeError, KeyError or TypeError:
-                if the reading the Job's CurrentOperationType fails
-        """
-        found = False
-        try:
-            for operation in self.part["orion"]["Operations"]["value"]:
-                if (
-                    operation["OperationType"]["value"]
-                    == self.job["orion"]["CurrentOperationType"]["value"]
-                ):
-                    found = True
-                    self.operation["orion"] = operation
-                    break
-            if not found:
-                raise KeyError(
-                    f'The part {self.part["orion"]} has no operation with type {self.job["orion"]["CurrentOperationType"]}'
-                )
-        except (AttributeError, KeyError, TypeError) as error:
-            raise error.__class__(
-                f'Invalid part or job specification. The current operation could not be resolved. See the JSON objects for reference.\nJob:\n{self.job["orion"]}\nPart:\n{self.part["orion"]}'
-            ) from error
-        # self.operation['id'] = self.operation['orion']['id']
-        self.logger.debug(f"Operation: {self.operation}")
+        """Get Operation from Orion, store in self.operation dict"""
+        self.get_operation_id()
+        self.logger.debug(f'operation id: {self.operation["id"]}')
+        self.operation["orion"] = Orion.get(self.operation["id"])
+        self.logger.debug(f'operation: {self.operation}')
 
     def get_objects_shift_limits(self):
         """Get objects from Orion
 
+        Workstation
+        Shift
+        Today's shift limits
+        Job
+        Operation
+
         Fills the following dicts:
             self.ws
             self.job
-            self.part
             self.operation
         """
         self.get_ws()
-        self.get_operatorSchedule()
+        self.get_shift()
         self.get_todays_shift_limits()
         self.get_job()
-        self.get_part()
         self.get_operation()
 
     def get_query_start_timestamp(self, how: str):
@@ -393,7 +360,7 @@ class OEECalculator:
             )
         elif how == "from_schedule_start":
             return self.datetimeToMilliseconds(
-                self.today["OperatorWorkingScheduleStartsAt"]
+                self.today["Start"]
             )
         else:
             raise NotImplementedError(
@@ -488,8 +455,8 @@ class OEECalculator:
             # today's queried ws df does not contain a job change
             # we assume that the Job was started in a previous shift
             # so the job's today part started at the schedule start time today
-            self.logger.debug(f"Today's job start time: {self.today['OperatorWorkingScheduleStartsAt']}")
-            return self.today["OperatorWorkingScheduleStartsAt"]
+            self.logger.debug(f"Today's job start time: {self.today['Start']}")
+            return self.today["Start"]
 
         last_job = refJob_entries.iloc[-1]["attrvalue"]
         if last_job != self.job["id"]:
@@ -524,7 +491,7 @@ class OEECalculator:
                 f'The current job started in this shift, RefStartTime: {self.today["RefStartTime"]}'
             )
         else:
-            self.today["RefStartTime"] = self.today["OperatorWorkingScheduleStartsAt"]
+            self.today["RefStartTime"] = self.today["Start"]
             self.logger.info(
                 f'The current job started before this shift, RefStartTime: {self.today["RefStartTime"]}'
             )
@@ -545,7 +512,7 @@ class OEECalculator:
                 if getting the Orion objects or reading their attributes fails
             ValueError:
                 if the Workstation is currently not operational according to the
-                    referenced OperatorSchedule
+                    referenced Shift
 
         """
         self.set_now()
@@ -587,7 +554,7 @@ class OEECalculator:
         self.set_RefStartTime()
 
         # make sure that no job record is before RefStartTime
-        # for example if someone turns on the Workstation before OperatorWorkingScheduleStartsAt 
+        # for example if someone turns on the Workstation before Start 
         # despite the documentation's clear statement about not to do that
         self.job["df"] = self.filter_in_relation_to_RefStartTime(self.job["df"], how="after")
 
@@ -945,7 +912,7 @@ class OEECalculator:
             self.throughput: Throughput Object that will eventually be uploaded to Orion
         """
         self.shiftLengthInMilliseconds = self.datetimeToMilliseconds(
-            self.today["OperatorWorkingScheduleStopsAt"]
+            self.today["End"]
         ) - self.datetimeToMilliseconds(self.today["RefStartTime"])
         self.throughput["ThroughputPerShift"]["value"] = (
             # use milliseconds

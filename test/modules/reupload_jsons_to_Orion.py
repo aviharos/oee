@@ -19,6 +19,7 @@ def main():
     jsons = glob.glob('../json/*.json')
     objects = []
     for json_ in jsons:
+        print(json_)
         with open(json_, 'r') as f:
             obj = json.load(f)
         objects.append(obj)

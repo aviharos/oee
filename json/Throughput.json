@@ -1,6 +1,6 @@
 {
     "id": "urn:ngsiv2:i40Asset:Throughput1",
-    "type": "Throughput",
+    "type": "i40Asset",
     "i40AssetType": {"type": "Text", "value": "Throughput"},
     "RefWorkstation": {
         "type": "Relationship",

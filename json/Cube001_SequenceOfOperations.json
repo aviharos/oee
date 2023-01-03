@@ -5,7 +5,7 @@
     "RefPart": {
         "type": "Relationship",
         "value": "urn:ngsiv2:i40Asset:Part_Cube001"
-    }
+    },
     "Operations": {
         "type": "List",
         "value": [

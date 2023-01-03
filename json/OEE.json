@@ -1,6 +1,6 @@
 {
     "id": "urn:ngsiv2:i40Asset:OEE1",
-    "type": "OEE",
+    "type": "i40Asset",
     "i40AssetType": {"type": "Text", "value": "OEE"},
     "RefWorkstation": {
         "type": "Relationship",

@@ -37,11 +37,13 @@ POSTGRES_USER = os.environ.get("POSTGRES_USER")
 POSTGRES_SCHEMA = os.environ.get("POSTGRES_SCHEMA")
 
 # Constants
-PLACES = 4
-WS_FILE = "urn_ngsi_ld_workstation_1_workstation.csv"
-WS_TABLE = "urn_ngsi_ld_workstation_1_workstation"
-JOB_FILE = "urn_ngsi_ld_job_202200045_job.csv"
-JOB_TABLE = "urn_ngsi_ld_job_202200045_job"
+PLACES = 5
+WS_ID = "urn:ngsiv2:i40Asset:Workstation1"
+WS_TABLE = WS_ID.lower().replace(":", "_") + "_i40asset"
+WS_FILE = f"{WS_TABLE}.csv"
+JOB_ID = "urn:ngsiv2:i40Process:Job202200045"
+JOB_TABLE = JOB_ID.lower().replace(":", "_") + "_i40process"
+JOB_FILE = f"{JOB_TABLE}.csv"
 
 
 class test_object_to_template(unittest.TestCase):
@@ -53,20 +55,22 @@ class test_object_to_template(unittest.TestCase):
         cls.scheduler = sched.scheduler(time.time, time.sleep)
         cls.logger = getLogger(__name__)
         cls.blank_oee = {
-            "type": "OEE",
-            "id": "urn:ngsi_ld:OEE:1",
-            "RefWorkstation": {"type": "Relationship", "value": "urn:ngsi_ld:Workstation:1"},
-            "RefJob": {"type": "Relationship", "value": "urn:ngsi_ld:Job:202200045"},
+            "id": "urn:ngsiv2:i40Asset:OEE1",
+            "type": "i40Asset",
+            "i40AssetType": {"type": "Text", "value": "OEE"},
+            "RefWorkstation": {"type": "Relationship", "value": "urn:ngsiv2:i40Asset:Workstation1"},
+            "RefJob": {"type": "Relationship", "value": "urn:ngsiv2:i40Process:Job202200045"},
             "Availability": {"type": "Number", "value": None},
             "Performance": {"type": "Number", "value": None},
             "Quality": {"type": "Number", "value": None},
             "OEE": {"type": "Number", "value": None}
         }
         cls.blank_throughput = {
-            "type": "Throughput",
-            "id": "urn:ngsi_ld:Throughput:1",
-            "RefWorkstation": {"type": "Relationship", "value": "urn:ngsi_ld:Workstation:1"},
-            "RefJob": {"type": "Relationship", "value": "urn:ngsi_ld:Job:202200045"},
+            "id": "urn:ngsiv2:i40Asset:Throughput1",
+            "type": "i40Asset",
+            "i40AssetType": {"type": "Text", "value": "Throughput"},
+            "RefWorkstation": {"type": "Relationship", "value": "urn:ngsiv2:i40Asset:Workstation1"},
+            "RefJob": {"type": "Relationship", "value": "urn:ngsiv2:i40Process:Job202200045"},
             "ThroughputPerShift": {"type": "Number", "value": None}
         }
         reupload_jsons_to_Orion.main()
@@ -104,17 +108,17 @@ class test_object_to_template(unittest.TestCase):
             f"select * from {POSTGRES_SCHEMA}.{JOB_TABLE}", con=cls.con
         )
         cls.oee = object_to_template(os.path.join("..", "json", "OEE.json"))
-        cls.oee["id"] = "urn:ngsi_ld:OEE:1"
-        cls.oee["RefWorkstation"] = {"type": "Relationship", "value": "urn:ngsi_ld:Workstation:1"}
-        cls.oee["RefJob"] = {"type": "Relationship", "value": "urn:ngsi_ld:Job:202200045"}
+        cls.oee["id"] = "urn:ngsiv2:i40Asset:OEE1"
+        cls.oee["RefWorkstation"] = {"type": "Relationship", "value": "urn:ngsiv2:i40Asset:Workstation1"}
+        cls.oee["RefJob"] = {"type": "Relationship", "value": "urn:ngsiv2:i40Process:Job202200045"}
         cls.oee["Availability"]["value"] = 50 / 60
         cls.oee["Quality"]["value"] = 70 / 71
         cls.oee["Performance"]["value"] = (71 * 46) / (50 * 60)
         cls.oee["OEE"]["value"] = cls.oee["Availability"]["value"] * cls.oee["Performance"]["value"] * cls.oee["Quality"]["value"]
         cls.throughput = object_to_template(os.path.join("..", "json", "Throughput.json"))
-        cls.throughput["id"] = "urn:ngsi_ld:Throughput:1"
-        cls.throughput["RefWorkstation"] = {"type": "Relationship", "value": "urn:ngsi_ld:Workstation:1"}
-        cls.throughput["RefJob"] = {"type": "Relationship", "value": "urn:ngsi_ld:Job:202200045"}
+        cls.throughput["id"] = "urn:ngsiv2:i40Asset:Throughput1"
+        cls.throughput["RefWorkstation"] = {"type": "Relationship", "value": "urn:ngsiv2:i40Asset:Workstation1"}
+        cls.throughput["RefJob"] = {"type": "Relationship", "value": "urn:ngsiv2:i40Process:Job202200045"}
         cls.throughput["ThroughputPerShift"]["value"] = (8 * 3600e3 / 46e3) * 8 * cls.oee["OEE"]["value"]
 
     @classmethod
@@ -166,12 +170,12 @@ class test_object_to_template(unittest.TestCase):
         # check calculated KPIs
         ORION_HOST = os.environ.get('ORION_HOST')
         ORION_PORT = os.environ.get('ORION_PORT')
-        url = f"http://{ORION_HOST}:{ORION_PORT}/v2/entities?type=OEE"
+        url = f"http://{ORION_HOST}:{ORION_PORT}/v2/entities?type=i40Asset&q=i40AssetType==OEE"
         _, oees = Orion.getRequest(url)
         self.assertEqual(len(oees), 1)
         c_oee = remove_orion_metadata(oees[0])
         assertDeepAlmostEqual(self, self.oee, c_oee, places=PLACES)
-        url = f"http://{ORION_HOST}:{ORION_PORT}/v2/entities?type=Throughput"
+        url = f"http://{ORION_HOST}:{ORION_PORT}/v2/entities?type=i40Asset&q=i40AssetType==Throughput"
         _, throughputs = Orion.getRequest(url)
         self.assertEqual(len(throughputs), 1)
         c_throughput = remove_orion_metadata(throughputs[0])

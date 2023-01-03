@@ -1,6 +1,6 @@
 {
     "id": "urn:ngsiv2:i40Asset:Workstation1",
-    "type": "Workstation",
+    "type": "i40Asset",
     "i40AssetType": {"type": "Text", "value": "Workstation"},
     "Available": {
         "type": "Boolean",

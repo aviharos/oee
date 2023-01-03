@@ -116,7 +116,7 @@ def getWorkstations():
     Raises:
         RuntimeError: if the get request's status_code is not 200
     """
-    url = f"http://{ORION_HOST}:{ORION_PORT}/v2/entities?type=Workstation"
+    url = f"http://{ORION_HOST}:{ORION_PORT}/v2/entities?type=i40Asset&q=i40AssetType==Workstation"
     status_code, workstations = getRequest(url)
     if status_code != 200:
         raise RuntimeError(

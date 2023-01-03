@@ -25,7 +25,7 @@ def object_to_template(file_: str):
     for key in obj.keys():
         if key == "id":
             obj[key] = None
-        elif key == "type":
+        elif key in ["type", "i40AssetType", "i40ProcessType", "i40RecipeType"]:
             pass
         else:
             obj[key]["value"] = None

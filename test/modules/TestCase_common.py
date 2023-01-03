@@ -19,14 +19,15 @@ import OEE
 from modules import reupload_jsons_to_Orion
 
 # Constants
-WS_ID = "urn:ngsi_ld:Workstation:1"
-WS_TABLE = "urn_ngsi_ld_workstation_1_workstation"
-OEE_TABLE = f"{WS_TABLE}_oee"
+WS_ID = "urn:ngsiv2:i40Asset:Workstation1"
+WS_TABLE = WS_ID.lower().replace(":", "_") + "_i40asset"
+OEE_ID = "urn:ngsiv2:i40Asset:OEE1"
+OEE_TABLE = OEE_ID.lower().replace(":", "_") + "_i40asset"
 WS_FILE = f"{WS_TABLE}.csv"
-JOB_ID = "urn:ngsi_ld:Job:202200045"
-JOB_TABLE = "urn_ngsi_ld_job_202200045_job"
+JOB_ID = "urn:ngsiv2:i40Process:Job202200045"
+JOB_TABLE = JOB_ID.lower().replace(":", "_") + "_i40process"
 JOB_FILE = f"{JOB_TABLE}.csv"
-PLACES = 4
+PLACES = 5
 
 # Load environment variables
 POSTGRES_HOST = os.environ.get("POSTGRES_HOST")

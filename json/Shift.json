@@ -1,6 +1,6 @@
 {
     "id": "urn:ngsiv2:i40Recipe:Shift1",
-    "type": "Shift",
+    "type": "i40Recipe",
     "i40RecipeType": {"type": "Text", "value": "Shift"},
     "Start": {
         "type": "Time",

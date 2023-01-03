@@ -14,8 +14,8 @@ from object_to_template import object_to_template
 class test_object_to_template(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        with open(os.path.join("..", "json", "OperatorSchedule.json")) as f:
-            cls.op_sch = json.load(f)
+        with open(os.path.join("..", "json", "Shift.json")) as f:
+            cls.shift = json.load(f)
         with open(os.path.join("..", "json", "Workstation.json")) as f:
             cls.ws = json.load(f)
 
@@ -30,13 +30,13 @@ class test_object_to_template(unittest.TestCase):
         pass
 
     def test_object_to_template(self):
-        op_sch = copy.deepcopy(self.op_sch)
-        op_sch["id"] = None
-        op_sch["OperatorWorkingScheduleStartsAt"]["value"] = None
-        op_sch["OperatorWorkingScheduleStopsAt"]["value"] = None
+        shift = copy.deepcopy(self.shift)
+        shift["id"] = None
+        shift["Start"]["value"] = None
+        shift["End"]["value"] = None
         self.assertEqual(
-            op_sch,
-            object_to_template(os.path.join("..", "json", "OperatorSchedule.json")),
+            shift,
+            object_to_template(os.path.join("..", "json", "Shift.json")),
         )
         ws = copy.deepcopy(self.ws)
         ws["id"] = None
@@ -44,7 +44,7 @@ class test_object_to_template(unittest.TestCase):
         ws["RefJob"]["value"] = None
         ws["RefOEE"]["value"] = None
         ws["RefThroughput"]["value"] = None
-        ws["RefOperatorSchedule"]["value"] = None
+        ws["RefShift"]["value"] = None
         self.assertEqual(
             ws, object_to_template(os.path.join("..", "json", "Workstation.json"))
         )

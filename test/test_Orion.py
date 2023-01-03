@@ -30,8 +30,8 @@ class test_Orion(unittest.TestCase):
             cls.ws1 = json.load(f)
         # make a second Workstation
         cls.ws2 = copy.deepcopy(cls.ws1)
-        cls.ws2["id"] = "urn:ngsi_ld:Workstation:2"
-        cls.ws2["RefJob"]["value"] = "urn:ngsi_ld:Job:2000000"
+        cls.ws2["id"] = "urn:ngsiv2:i40Asset:Workstation2"
+        cls.ws2["RefJob"]["value"] = "urn:ngsiv2:i40Process:Job202200045_mod"
 
     @classmethod
     def tearDownClass(cls):
@@ -59,16 +59,16 @@ class test_Orion(unittest.TestCase):
 
     def test_get(self):
         self.assertEqual(
-            remove_orion_metadata(Orion.get("urn:ngsi_ld:Part:Core001")), self.obj
+            remove_orion_metadata(Orion.get("urn:ngsiv2:i40Asset:Part_Core001")), self.obj
         )
         with patch("requests.get") as mocked_get:
             mocked_get.status_code = 201
             with self.assertRaises(RuntimeError):
-                Orion.get("urn:ngsi_ld:Part:Core001")
+                Orion.get("urn:ngsiv2:i40Asset:Part_Core001")
 
     def test_exists(self):
-        self.assertTrue(Orion.exists("urn:ngsi_ld:Part:Core001"))
-        self.assertFalse(Orion.exists("urn:ngsi_ld:Part:Core123"))
+        self.assertTrue(Orion.exists("urn:ngsiv2:i40Asset:Part_Core001"))
+        self.assertFalse(Orion.exists("urn:ngsiv2:i40Asset:Part_Core002"))
 
     def test_getWorkstations(self):
         # delete uploaded Workstation objects
@@ -97,9 +97,9 @@ class test_Orion(unittest.TestCase):
     def test_update(self):
         # create copies of Workstation objects to be used in the test's scope
         ws1m = self.ws1.copy()
-        ws1m["RefJob"]["value"] = "urn:ngsi_ld:Job:12"
+        ws1m["RefJob"]["value"] = "urn:ngsiv2:i40Process:Job202200045_mod"
         ws2m = self.ws2.copy()
-        ws2m["RefOEE"]["value"] = "urn:ngsi_ld:OEE:3"
+        ws2m["RefOEE"]["value"] = "urn:ngsiv2:i40Asset:OEE3"
 
         # update both Workstations in Orion
         requests.post(url=orion_entities, json=ws1m)
