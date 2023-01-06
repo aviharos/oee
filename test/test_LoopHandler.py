@@ -139,6 +139,31 @@ class test_LoopHandler(unittest.TestCase):
         self.logger.debug(f"test_clear_all_KPIs: downloaded_workstation: {downloaded_workstation}")
         self.assertEqual(downloaded_workstation["OEEObject"]["value"], self.blank_oee)
         self.assertEqual(downloaded_workstation["ThroughputPerShift"]["value"], None)
+        self.assertEqual(downloaded_workstation["OEEAvailability"]["value"], None)
+        self.assertEqual(downloaded_workstation["OEEPerformance"]["value"], None)
+        self.assertEqual(downloaded_workstation["OEEQuality"]["value"], None)
+        self.assertEqual(downloaded_workstation["OEE"]["value"], None)
+
+    def assert_KPIs_are_correct(self):
+        downloaded_workstation = remove_orion_metadata(Orion.get(self.workstation["id"]))
+        calculated_oee = downloaded_workstation["OEEObject"]["value"]
+        calculated_throughputPerShift = downloaded_workstation["ThroughputPerShift"]["value"]
+        assertDeepAlmostEqual(self, self.correctOEEObject, calculated_oee, places=PLACES)
+        self.assertAlmostEqual(self.correctOEEObject["Availability"], downloaded_workstation["OEEAvailability"]["value"], places=PLACES)
+        self.assertAlmostEqual(self.correctOEEObject["Performance"], downloaded_workstation["OEEPerformance"]["value"], places=PLACES)
+        self.assertAlmostEqual(self.correctOEEObject["Quality"], downloaded_workstation["OEEQuality"]["value"], places=PLACES)
+        self.assertAlmostEqual(self.correctOEEObject["OEE"], downloaded_workstation["OEE"]["value"], places=PLACES)
+        assertDeepAlmostEqual(self, self.correctThroughPutPerShift, calculated_throughputPerShift, places=PLACES)
+
+    def write_values_into_KPIs(self):
+        workstation = copy.deepcopy(self.workstation)
+        workstation["OEEObject"]["value"] = self.correctOEEObject
+        workstation["OEEAvailability"]["value"] = self.correctOEEObject["Availability"]
+        workstation["OEEPerformance"]["value"] = self.correctOEEObject["Performance"]
+        workstation["OEEQuality"]["value"] = self.correctOEEObject["Quality"]
+        workstation["OEE"]["value"] = self.correctOEEObject["OEE"]
+        workstation["ThroughputPerShift"]["value"] = self.correctThroughPutPerShift
+        Orion.update([workstation])
 
     @patch(f"{OEE.__name__}.datetime", wraps=datetime)
     def test_handle_workstation(self, mock_datetime):
@@ -146,15 +171,7 @@ class test_LoopHandler(unittest.TestCase):
         mock_datetime.now.return_value = now
         self.loopHandler.con = self.con
         self.loopHandler.handle_workstation(self.workstation["id"])
-        # assert KPIs are correct
-        downloaded_workstation = remove_orion_metadata(Orion.get(self.workstation["id"]))
-        calculated_oee = downloaded_workstation["OEEObject"]["value"]
-        calculated_throughputPerShift = downloaded_workstation["ThroughputPerShift"]["value"]
-        self.logger.debug(f"""assert_KPIs_are_correct:
-calculated_oee: {calculated_oee}
-calculated_throughput: {calculated_throughputPerShift}""")
-        assertDeepAlmostEqual(self, self.correctOEEObject, calculated_oee, places=PLACES)
-        assertDeepAlmostEqual(self, self.correctThroughPutPerShift, calculated_throughputPerShift, places=PLACES)
+        self.assert_KPIs_are_correct()
 
         for exception in (
             AttributeError,
@@ -168,34 +185,16 @@ calculated_throughput: {calculated_throughputPerShift}""")
             ):
             with patch("LoopHandler.LoopHandler.calculate_KPIs") as mock_calculate_KPIs:
                 self.logger.debug(f"test_clear_all_KPIs: exception: {exception}")
-                # write values into the KPIs
-                workstation = copy.deepcopy(self.workstation)
-                workstation["OEEObject"]["value"] = self.correctOEEObject
-                workstation["ThroughputPerShift"]["value"] = self.correctThroughPutPerShift
-                Orion.update([workstation])
-                # assert KPIs are correct
-                downloaded_workstation = remove_orion_metadata(Orion.get(self.workstation["id"]))
-                calculated_oee = downloaded_workstation["OEEObject"]["value"]
-                calculated_throughputPerShift = downloaded_workstation["ThroughputPerShift"]["value"]
-                assertDeepAlmostEqual(self, self.correctOEEObject, calculated_oee, places=PLACES)
-                assertDeepAlmostEqual(self, self.correctThroughPutPerShift, calculated_throughputPerShift, places=PLACES)
+                self.write_values_into_KPIs()
+                self.assert_KPIs_are_correct()
                 mock_calculate_KPIs.side_effect = exception
                 self.loopHandler.handle()
                 self.assert_KPIs_are_cleared()
                 self.logger.debug(f"handle: {exception}: KPIs cleared")
 
     def test_clear_all_KPIs(self):
-        # write values into the KPIs
-        workstation = copy.deepcopy(self.workstation)
-        workstation["OEEObject"]["value"] = self.correctOEEObject
-        workstation["ThroughputPerShift"]["value"] = self.correctThroughPutPerShift
-        Orion.update([workstation])
-        # assert KPIs are correct
-        downloaded_workstation = remove_orion_metadata(Orion.get(self.workstation["id"]))
-        calculated_oee = downloaded_workstation["OEEObject"]["value"]
-        calculated_throughputPerShift = downloaded_workstation["ThroughputPerShift"]["value"]
-        assertDeepAlmostEqual(self, self.correctOEEObject, calculated_oee, places=PLACES)
-        assertDeepAlmostEqual(self, self.correctThroughPutPerShift, calculated_throughputPerShift, places=PLACES)
+        self.write_values_into_KPIs()
+        self.assert_KPIs_are_correct()
         self.loopHandler.workstations = [copy.deepcopy(self.workstation)]
         self.loopHandler.clear_all_KPIs()
         self.assert_KPIs_are_cleared()
@@ -208,33 +207,7 @@ calculated_throughput: {calculated_throughputPerShift}""")
         self.loopHandler.handle()
         workstations = Orion.getWorkstations()
         self.assertEqual(len(workstations), 1)
-        workstation = remove_orion_metadata(workstations.pop())
-        calculated_oee = workstation["OEEObject"]["value"]
-        assertDeepAlmostEqual(self, self.correctOEEObject, calculated_oee, places=PLACES)
-        calculated_throughput = workstation["ThroughputPerShift"]["value"]
-        assertDeepAlmostEqual(self, self.correctThroughPutPerShift, calculated_throughput, places=PLACES)
-
-#     @classmethod
-#     def write_values_into_the_KPIs(cls):
-#         # write values into the KPIs
-#         workstation = copy.deepcopy(cls.workstation)
-#         workstation["OEEObject"]["value"] = cls.correctOEEObject
-#         workstation["ThroughputPerShift"]["value"] = cls.correctThroughPutPerShift
-#         Orion.update([workstation])
-#         # assert KPIs are correct
-#         downloaded_workstation = remove_orion_metadata(Orion.get(cls.workstation["id"]))
-#         calculated_oee = downloaded_workstation["OEEObject"]["value"]
-#         calculated_throughputPerShift = downloaded_workstation["ThroughputPerShift"]["value"]
-#         cls.logger.debug(f"""assert_KPIs_are_correct:
-# calculated_oee: {calculated_oee}
-# calculated_throughput: {calculated_throughputPerShift}""")
-#         assertDeepAlmostEqual(cls, cls.correctOEEObject, calculated_oee, places=PLACES)
-#         assertDeepAlmostEqual(cls, cls.correctThroughPutPerShift, calculated_throughputPerShift, places=PLACES)
-#         # cls.assertAlmostEqual(cls.correctOEEObject["Availability"], calculated_oee["Availability"], places=PLACES)
-#         # cls.assertAlmostEqual(cls.correctOEEObject["Performance"], calculated_oee["Performance"], places=PLACES)
-#         # cls.assertAlmostEqual(cls.correctOEEObject["Quality"], calculated_oee["Quality"], places=PLACES)
-#         # cls.assertAlmostEqual(cls.correctOEEObject["OEE"], calculated_oee["OEE"], places=PLACES)
-#         # cls.assertAlmostEqual(cls.correctThroughPutPerShift, calculated_throughputPerShift, places=PLACES)
+        self.assert_KPIs_are_correct()
 
 
 def main():

@@ -177,6 +177,10 @@ class test_object_to_template(unittest.TestCase):
 calculated_oee: {calculated_oee}
 calculated_throughput: {calculated_throughputPerShift}""")
         assertDeepAlmostEqual(self, self.correctOEEObject, calculated_oee, places=PLACES)
+        self.assertAlmostEqual(self.correctOEEObject["Availability"], downloaded_workstation["OEEAvailability"]["value"], places=PLACES)
+        self.assertAlmostEqual(self.correctOEEObject["Performance"], downloaded_workstation["OEEPerformance"]["value"], places=PLACES)
+        self.assertAlmostEqual(self.correctOEEObject["Quality"], downloaded_workstation["OEEQuality"]["value"], places=PLACES)
+        self.assertAlmostEqual(self.correctOEEObject["OEE"], downloaded_workstation["OEE"]["value"], places=PLACES)
         assertDeepAlmostEqual(self, self.correctThroughPutPerShift, calculated_throughputPerShift, places=PLACES)
 
     def test_main(self):
