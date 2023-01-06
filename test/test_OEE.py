@@ -570,15 +570,6 @@ class test_OEECalculator(unittest.TestCase):
         # self.write_df_with_dtypes(self.oee.job["df"].sort_values(by=["recvtimets", "attrname"]), "job_oee")
         self.assertTrue(self.are_dfs_equal(self.oee.job["df"], job_df))
 
-        self.assertEqual(
-            self.oee.oee["id"], self.jsons["Workstation"]["RefOEE"]["value"]
-        )
-        self.assertEqual(
-            self.oee.oee["RefWorkstation"]["value"], self.jsons["Workstation"]["id"]
-        )
-        self.assertEqual(
-            self.oee.oee["RefJob"]["value"], self.jsons["Job202200045"]["id"]
-        )
         self.assertEqual(self.oee.today["RefStartTime"], _8h)
 
         # with patch("datetime.datetime.now") as mock_now:
@@ -694,7 +685,7 @@ class test_OEECalculator(unittest.TestCase):
         mock_datetime.now.return_value = now
         self.oee.prepare(self.con)
         self.oee.handle_availability()
-        self.assertEqual(self.oee.oee["Availability"]["value"], 50 / 60)
+        self.assertEqual(self.oee.oee["Availability"], 50 / 60)
         # empty df
         self.oee.workstation["df"] = self.oee.workstation["df"].drop(self.oee.workstation["df"].index)
         with self.assertRaises(ValueError):
@@ -739,7 +730,7 @@ class test_OEECalculator(unittest.TestCase):
         n_failed_cycles = 1
         n_total_cycles = n_successful_cycles + n_failed_cycles
         self.assertEqual(
-            self.oee.oee["Quality"]["value"], n_successful_cycles / n_total_cycles
+            self.oee.oee["Quality"], n_successful_cycles / n_total_cycles
         )
         self.oee.job["df"] = self.oee.job["df"].drop(self.oee.job["df"].index)
         with self.assertRaises(ValueError):
@@ -765,7 +756,7 @@ class test_OEECalculator(unittest.TestCase):
         log is present in the job logs, this is why the performance is so high
         """
         performance = (n_total_cycles * 46) / (50 * 60)
-        self.assertEqual(self.oee.oee["Performance"]["value"], performance)
+        self.assertEqual(self.oee.oee["Performance"], performance)
         # self.oee['Performance']['value'] = self.n_total_cycles * self.operation['orion']['CycleTime']['value'] / self.total_available_time
 
     @patch(f"{OEE.__name__}.datetime", wraps=datetime)
@@ -774,48 +765,53 @@ class test_OEECalculator(unittest.TestCase):
         mock_datetime.now.return_value = now
         self.oee.prepare(self.con)
         oeeCalculator_oee = self.oee.calculate_OEE()
-        oee = copy.deepcopy(self.jsons["OEE"])
-        oee["Availability"]["value"] = 50 / 60
-        oee["Quality"]["value"] = 70 / 71
-        oee["Performance"]["value"] = (71 * 46) / (50 * 60)
-        oee["OEE"]["value"] = (
-            oee["Availability"]["value"]
-            * oee["Quality"]["value"]
-            * oee["Performance"]["value"]
+        oee = {
+        "OEE": None,
+        "Availability": None,
+        "Performance": None,
+        "Quality": None
+        }
+        oee["Availability"] = 50 / 60
+        oee["Quality"] = 70 / 71
+        oee["Performance"] = (71 * 46) / (50 * 60)
+        oee["OEE"] = (
+            oee["Availability"]
+            * oee["Quality"]
+            * oee["Performance"]
         )
         self.assertAlmostEqual(
-            self.oee.oee["Availability"]["value"],
-            oee["Availability"]["value"],
+            self.oee.oee["Availability"],
+            oee["Availability"],
             places=PLACES,
         )
         self.assertAlmostEqual(
-            self.oee.oee["Quality"]["value"], oee["Quality"]["value"], places=PLACES
+            self.oee.oee["Quality"], oee["Quality"], places=PLACES
         )
         self.assertAlmostEqual(
-            self.oee.oee["Performance"]["value"],
-            oee["Performance"]["value"],
+            self.oee.oee["Performance"],
+            oee["Performance"],
             places=PLACES,
         )
         self.assertAlmostEqual(
-            self.oee.oee["OEE"]["value"], oee["OEE"]["value"], places=PLACES
+            self.oee.oee["OEE"], oee["OEE"], places=PLACES
         )
         self.assertAlmostEqual(
-            oeeCalculator_oee["Availability"]["value"],
-            oee["Availability"]["value"],
+            oeeCalculator_oee["Availability"],
+            oee["Availability"],
             places=PLACES,
         )
         self.assertAlmostEqual(
-            oeeCalculator_oee["Quality"]["value"],
-            oee["Quality"]["value"],
+            oeeCalculator_oee["Quality"],
+            oee["Quality"],
             places=PLACES,
         )
         self.assertAlmostEqual(
-            oeeCalculator_oee["Performance"]["value"],
-            oee["Performance"]["value"],
+            oeeCalculator_oee["Performance"],
+            oee["Performance"],
             places=PLACES,
         )
         self.assertAlmostEqual(
-            oeeCalculator_oee["OEE"]["value"], oee["OEE"]["value"], places=PLACES
+            oeeCalculator_oee["OEE"], oee["OEE"], places=PLACES
         )
 
     @patch(f"{OEE.__name__}.datetime", wraps=datetime)
@@ -825,9 +821,9 @@ class test_OEECalculator(unittest.TestCase):
         self.oee.prepare(self.con)
         self.oee.calculate_OEE()
         oeeCalculator_throughput = self.oee.calculate_throughput()
-        throughput = (8 * 3600e3 / 46e3) * 8 * self.oee.oee["OEE"]["value"]
+        throughput = (8 * 3600e3 / 46e3) * 8 * self.oee.oee["OEE"]
         self.assertAlmostEqual(
-            oeeCalculator_throughput["ThroughputPerShift"]["value"],
+            oeeCalculator_throughput,
             throughput,
             places=PLACES,
         )

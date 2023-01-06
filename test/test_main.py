@@ -2,6 +2,7 @@
 # Standard Library imports
 from datetime import datetime
 import copy
+import json
 from logging import getLoggerClass
 import os
 import sched
@@ -11,9 +12,9 @@ import unittest
 from unittest.mock import patch, Mock
 
 # PyPI imports
-import numpy as np
+# import numpy as np
 import pandas as pd
-import psycopg2
+# import psycopg2
 import sqlalchemy
 from sqlalchemy import create_engine
 from sqlalchemy.types import Text
@@ -23,10 +24,8 @@ sys.path.insert(0, os.path.join("..", "src"))
 from modules.remove_orion_metadata import remove_orion_metadata
 from modules import reupload_jsons_to_Orion
 from modules.assertDeepAlmostEqual import assertDeepAlmostEqual
-from object_to_template import object_to_template
 from Logger import getLogger
 import main
-from LoopHandler import LoopHandler
 import OEE
 import Orion
 
@@ -107,19 +106,22 @@ class test_object_to_template(unittest.TestCase):
         cls.job_df = pd.read_sql_query(
             f"select * from {POSTGRES_SCHEMA}.{JOB_TABLE}", con=cls.con
         )
-        cls.oee = object_to_template(os.path.join("..", "json", "OEE.json"))
-        cls.oee["id"] = "urn:ngsiv2:i40Asset:OEE1"
-        cls.oee["RefWorkstation"] = {"type": "Relationship", "value": "urn:ngsiv2:i40Asset:Workstation1"}
-        cls.oee["RefJob"] = {"type": "Relationship", "value": "urn:ngsiv2:i40Process:Job202200045"}
-        cls.oee["Availability"]["value"] = 50 / 60
-        cls.oee["Quality"]["value"] = 70 / 71
-        cls.oee["Performance"]["value"] = (71 * 46) / (50 * 60)
-        cls.oee["OEE"]["value"] = cls.oee["Availability"]["value"] * cls.oee["Performance"]["value"] * cls.oee["Quality"]["value"]
-        cls.throughput = object_to_template(os.path.join("..", "json", "Throughput.json"))
-        cls.throughput["id"] = "urn:ngsiv2:i40Asset:Throughput1"
-        cls.throughput["RefWorkstation"] = {"type": "Relationship", "value": "urn:ngsiv2:i40Asset:Workstation1"}
-        cls.throughput["RefJob"] = {"type": "Relationship", "value": "urn:ngsiv2:i40Process:Job202200045"}
-        cls.throughput["ThroughputPerShift"]["value"] = (8 * 3600e3 / 46e3) * 8 * cls.oee["OEE"]["value"]
+        cls.blank_oee = {
+                "Availability": None,
+                "Performance": None,
+                "Quality": None,
+                "OEE": None
+                }
+        cls.correctOEEObject =  copy.deepcopy(cls.blank_oee)
+        cls.correctOEEObject["Availability"] = 50 / 60
+        cls.correctOEEObject["Performance"] = (71 * 46) / (50 * 60)
+        cls.correctOEEObject["Quality"] = 70 / 71
+        cls.correctOEEObject["OEE"] = (cls.correctOEEObject["Availability"] *
+                cls.correctOEEObject["Performance"] *
+                cls.correctOEEObject["Quality"])
+        cls.correctThroughPutPerShift = (8 * 3600e3 / 46e3) * 8 * cls.correctOEEObject["OEE"]
+        with open(os.path.join("..", "json", "Workstation.json")) as f:
+            cls.workstation = json.load(f)
 
     @classmethod
     def tearDownClass(cls):
@@ -168,18 +170,14 @@ class test_object_to_template(unittest.TestCase):
         self.assertEqual(entry.kwargs, {})
 
         # check calculated KPIs
-        ORION_HOST = os.environ.get('ORION_HOST')
-        ORION_PORT = os.environ.get('ORION_PORT')
-        url = f"http://{ORION_HOST}:{ORION_PORT}/v2/entities?type=i40Asset&q=i40AssetType==OEE"
-        _, oees = Orion.getRequest(url)
-        self.assertEqual(len(oees), 1)
-        c_oee = remove_orion_metadata(oees[0])
-        assertDeepAlmostEqual(self, self.oee, c_oee, places=PLACES)
-        url = f"http://{ORION_HOST}:{ORION_PORT}/v2/entities?type=i40Asset&q=i40AssetType==Throughput"
-        _, throughputs = Orion.getRequest(url)
-        self.assertEqual(len(throughputs), 1)
-        c_throughput = remove_orion_metadata(throughputs[0])
-        assertDeepAlmostEqual(self, self.throughput, c_throughput, places=PLACES)
+        downloaded_workstation = remove_orion_metadata(Orion.get(self.workstation["id"]))
+        calculated_oee = downloaded_workstation["OEEObject"]["value"]
+        calculated_throughputPerShift = downloaded_workstation["ThroughputPerShift"]["value"]
+        self.logger.debug(f"""assert_KPIs_are_correct:
+calculated_oee: {calculated_oee}
+calculated_throughput: {calculated_throughputPerShift}""")
+        assertDeepAlmostEqual(self, self.correctOEEObject, calculated_oee, places=PLACES)
+        assertDeepAlmostEqual(self, self.correctThroughPutPerShift, calculated_throughputPerShift, places=PLACES)
 
     def test_main(self):
         with patch("sched.scheduler") as mock_scheduler:

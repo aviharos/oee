@@ -12,8 +12,6 @@ If any of the previous environment variables (except the port)
 is missing, a RuntimeError is raised
 """
 # Standard Library imports
-import copy
-import json
 import os
 
 # PyPI packages
@@ -23,7 +21,6 @@ import psycopg2
 
 # Custom imports
 from Logger import getLogger
-from object_to_template import object_to_template
 from OEE import OEECalculator
 import Orion
 
@@ -39,7 +36,6 @@ class LoopHandler:
     It also catches the OEECalculator object's exceptions and logs them
     """
     logger = getLogger(__name__)
-    blank_ids = {"workstation": None, "job": None, "oee": None, "throughput": None}
     # Load environment variables
     POSTGRES_USER = os.environ.get("POSTGRES_USER")
     if POSTGRES_USER is None:
@@ -63,133 +59,45 @@ class LoopHandler:
         )
 
     def __init__(self):
-        self.ids = copy.deepcopy(self.blank_ids)
+        pass
 
-    def get_ids(self, workstation: dict):
-        """Get the Id of the necessary Orion objects
-
-        Ids:
-            Workstation
-            Job
-            OEE
-            Throughput
-
-        Args:
-            workstation (dict): Orion workstation object
-
-        Raises:
-            ValueError: if the Workstation's Job does not exist in Orion
-        """
-        self.ids["workstation"] = workstation["id"]
-        self.ids["job"] = workstation["RefJob"]["value"]
-        if not Orion.exists(self.ids["job"]):
-            raise ValueError(
-                f'Critical: object does not exist in Orion: {self.ids["job"]}'
-            )
-        self.ids["oee"] = workstation["RefOEE"]["value"]
-        self.ids["throughput"] = workstation["RefThroughput"]["value"]
-
-    def calculate_KPIs(self):
+    def calculate_KPIs(self, workstation_id: str):
         """Calculate the OEE and the Throughput of the current Workstation
 
         Wraps the OEECalculator class
+
+        Args:
+            workstation_id:
+                The Orion Workstation object's id
 
         Returns:
             Tuple: (oee, throughput):
                 oee:
                     the OEE object to be uploaded to Orion
+                    format in self.OEE_template
                 throughput:
                     the Throughput object to be uploaded to Orion
         """
-        oeeCalculator = OEECalculator(self.ids["workstation"])
+        oeeCalculator = OEECalculator(workstation_id)
         oeeCalculator.prepare(self.con)
         oee = oeeCalculator.calculate_OEE()
         throughput = oeeCalculator.calculate_throughput()
         return oee, throughput
 
-    def handle_workstation(self, workstation: dict):
+    def handle_workstation(self, workstation_id: str):
         """Handle everything related to calculating and updating the OEE and Throughput of a Workstation
 
         After calculating the OEE and the Throughput, these are alo updated in the Orion broker
 
         Args:
-            workstation (dict): Orion Workstation
+            workstation_id:
+                The Orion Workstation object's id
         """ 
-        self.ids = copy.deepcopy(self.blank_ids)
-        self.get_ids(workstation)
-        self.logger.info(f'Calculating KPIs for {workstation["id"]}')
-        oee, throughput = self.calculate_KPIs()
-        Orion.update([oee, throughput])
-
-    def delete_attributes(self, object_: str):
-        """Delete all attributes of the OEE or Throughput object in Orion
-
-        This is needed only if calculating the OEE and Throughput
-        fails for some reason or they are not cannot be calculated. 
-
-        If the OEECalculator fails, or
-        if there is no shift for a specific Workstation, the OEE and Throughput values
-        are also cleared.
-
-        The method is called for the OEE and the Throughput both.
-
-        Args:
-            object_ (str): either "OEE" or "Throughput"
-
-        Raises:
-            NotImplementedError: if the arg object_ is not supported
-            FileNotFoundError: if the OEE.json or the Throughput.json is not found
-            json.decoder.JSONDecodeError: if the OEE.json of the Throughput.json file cannot be decoded
-        """
-        if object_ not in ("OEE", "Throughput"):
-            raise NotImplementedError(f"Delete attributes: unsupported object: {object_}")
-        file = f"{object_}.json"
         try:
-            orion_object = object_to_template(os.path.join("..", "json", file))
-        except FileNotFoundError as error:
-            self.logger.critical(f"Critical: {file} not found.\n{error}")
-            raise
-        except json.decoder.JSONDecodeError as error:
-            self.logger.critical(f"Critical: {file} is invalid.\n{error}")
-            raise
-        else:
-            orion_object["id"] = self.ids[object_.lower()]
-            orion_object["RefWorkstation"]["value"] = self.ids["workstation"]
-            orion_object["RefJob"]["value"] = self.ids["job"]
-            if object_ == "OEE":
-                orion_object["Availability"]["value"] = None
-                orion_object["Performance"]["value"] = None
-                orion_object["Quality"]["value"] = None
-                orion_object["OEE"]["value"] = None
-            if object_ == "Throughput":
-                orion_object["ThroughputPerShift"]["value"] = None
-            Orion.update([orion_object])
-            self.logger.info(f"Object cleared successfully: {orion_object}")
-
-    def handle(self):
-        """A function for handling all the Workstations
-
-        This function creates the Postgres engine and the connection,
-        and also disposes and closes them respectively.
-        It wraps the handle_workstation function
-
-        If the OEECalculator throworkstation any exception,
-        this function tries to delete all KPI values using the function delete_attributes
-        """
-        self.engine = create_engine(
-            f"postgresql://{self.POSTGRES_USER}:{self.POSTGRES_PASSWORD}@{self.POSTGRES_HOST}:{self.POSTGRES_PORT}"
-        )
-        try:
-            with self.engine.connect() as self.con:
-                self.workstations = Orion.getWorkstations()
-                if len(self.workstations) == 0:
-                    self.logger.critical(
-                        "Critical: no Workstation is found in the Orion broker, no OEE data"
-                    )
-                self.logger.info(f"Workstation objects found in Orion: {self.workstations}")
-                for workstation in self.workstations:
-                    self.handle_workstation(workstation)
-
+            self.logger.info(f'Calculating KPIs for {workstation_id}')
+            oee, throughput = self.calculate_KPIs(workstation_id)
+            Orion.update_attribute(workstation_id, "OEEObject", "OEE", oee)
+            Orion.update_attribute(workstation_id, "ThroughputPerShift", "Number", throughput)
         except (
             AttributeError,
             KeyError,
@@ -201,21 +109,79 @@ class LoopHandler:
             psycopg2.OperationalError,
             sqlalchemy.exc.OperationalError
         ) as error:
-            # could not calculate OEE or Throughput
-            # try to delete the OEE and Throughput values, if we have enough data
             self.logger.error(error)
-            if None in self.ids.values():
-                self.logger.critical(
-                    "Critical: an error occured, not even the ids of the objects could be determined. No OEE data. An OEE and a Throughput object should be cleared, but it cannot be determined, which ones."
-                )
-            else:
-                self.logger.error(
-                    "Error: an error happened, trying to clear all attributes of the OEE and Throughput objects."
-                )
-                for object_ in ("OEE", "Throughput"):
-                    self.delete_attributes(object_)
-                self.logger.info(
-                    "Cleared OEE and Throughput."
-                )
+            self.clear_KPIs(workstation_id)
+
+    def clear_oee(self, workstation_id: str):
+        """Clear OEE of a Workstation in case of an error 
+
+        Args:
+            workstation_id (str): the Workstation's Orion id 
+        """
+        Orion.update_attribute(workstation_id, "OEEObject", "OEE", OEECalculator.OEE_template.copy())
+        self.logger.info(f"OEE cleared successfully for workstation: {workstation_id}")
+
+    def clear_throughputPerShift(self, workstation_id: str):
+        """Clear ThroughputPerShift of a Workstation in case of an error 
+
+        Args:
+            workstation_id (str): the Workstation's Orion id 
+        """
+        Orion.update_attribute(workstation_id, "ThroughputPerShift", "Number", None)
+        self.logger.info(f"ThroughputPerShift cleared successfully for workstation: {workstation_id}")
+
+    def clear_KPIs(self, workstation_id: str):
+        """Clear OEE and ThroughputPerShift of a Workstation in case of an error 
+
+        Args:
+            workstation_id (str): the Workstation's Orion id 
+        """
+        self.logger.error(f"Trying to clear KPIs of workstation: {workstation_id}")
+        self.clear_oee(workstation_id)
+        self.clear_throughputPerShift(workstation_id)
+
+    def clear_all_KPIs(self):
+        """Clear OEE and ThroughputPerShift attributes of all Workstations in case of an error 
+        """
+        self.logger.error("Error: an error happened, trying to clear all KPIs.")
+        for workstation in self.workstations:
+            self.clear_KPIs(workstation["id"])
+
+    def handle(self):
+        """A function for handling the OEE and Throughput calculations of all Workstations
+
+        This function creates the Postgres engine and the connection,
+        and also disposes and closes them respectively.
+        It wraps the handle_workstation function
+
+        If the OEECalculator throws any exception,
+        this function tries to delete all KPI values using the function delete_attributes
+        """
+        try:
+            self.workstations = Orion.getWorkstations()
+        except (RuntimeError, ValueError) as error:
+            self.logger.error(f"Error: HTTP request to get all Workstation objects failed.\n{error}")
+            return
+        self.logger.info(f"Workstation objects found in Orion: {self.workstations}")
+        if len(self.workstations) == 0:
+            self.logger.critical(
+                "Critical: no Workstation is found in the Orion broker, no OEE data"
+            )
+            return
+        self.engine = create_engine(
+            f"postgresql://{self.POSTGRES_USER}:{self.POSTGRES_PASSWORD}@{self.POSTGRES_HOST}:{self.POSTGRES_PORT}"
+        )
+        try:
+            with self.engine.connect() as self.con:
+                for workstation in self.workstations:
+                    self.handle_workstation(workstation["id"])
+
+        except (
+            psycopg2.OperationalError,
+            sqlalchemy.exc.OperationalError
+        ) as error:
+            self.logger.error(error)
+            self.clear_all_KPIs()
         finally:
             self.engine.dispose()
+

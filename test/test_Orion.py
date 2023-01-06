@@ -18,11 +18,14 @@ ORION_PORT = os.environ.get("ORION_PORT")
 
 orion_entities = f"http://{ORION_HOST}:{ORION_PORT}/v2/entities"
 
+PLACES = 5
+
 
 class test_Orion(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         """ Upload Core001 and Workstation to Orion """
+        cls.maxDiff = None
         with open(os.path.join("..", "json", "Core001.json"), "r") as f:
             cls.obj = json.load(f)
         requests.post(url=orion_entities, json=cls.obj)
@@ -35,7 +38,9 @@ class test_Orion(unittest.TestCase):
 
     @classmethod
     def tearDownClass(cls):
-        pass
+        # delete uploaded Workstation objects
+        requests.delete(url=f'{orion_entities}/{cls.workstation1["id"]}')
+        requests.delete(url=f'{orion_entities}/{cls.workstation2["id"]}')
 
     def setUp(self):
         pass
@@ -117,6 +122,41 @@ class test_Orion(unittest.TestCase):
         else:
             self.assertEqual(downloaded_workstations[0], workstation2m)
             self.assertEqual(downloaded_workstations[1], workstation1m)
+
+    def test_update_attribute(self):
+        id = self.workstation1["id"]
+        # Boolean
+        workstation = self.workstation1.copy()
+        requests.post(url=orion_entities, json=workstation)
+        workstation["Available"]["value"] = False
+        Orion.update_attribute(id, "Available", "Boolean", False)
+        downloaded = remove_orion_metadata(Orion.get(id))
+        self.assertEqual(downloaded, workstation)
+
+        # Number
+        workstation = self.workstation1.copy()
+        requests.post(url=orion_entities, json=workstation)
+        workstation["ThroughputPerShift"]["value"] = 8
+        Orion.update_attribute(id, "ThroughputPerShift", "Number", 8)
+        downloaded = remove_orion_metadata(Orion.get(id))
+        self.assertEqual(downloaded, workstation)
+        
+        # json
+        workstation = self.workstation1.copy()
+        requests.post(url=orion_entities, json=workstation)
+        payload = {
+            "OEE": 0.9 * 0.9 * 0.9,
+            "Availability": 0.9,
+            "Performance": 0.9,
+            "Quality": 0.9 
+        }
+        workstation["OEEObject"]["value"] = payload
+        Orion.update_attribute(id, "OEEObject", "OEE", payload)
+        downloaded = remove_orion_metadata(Orion.get(id))
+        self.assertAlmostEqual(downloaded["OEEObject"]["value"]["Availability"], workstation["OEEObject"]["value"]["Availability"], places=PLACES)
+        self.assertAlmostEqual(downloaded["OEEObject"]["value"]["Performance"], workstation["OEEObject"]["value"]["Performance"], places=PLACES)
+        self.assertAlmostEqual(downloaded["OEEObject"]["value"]["Quality"], workstation["OEEObject"]["value"]["Quality"], places=PLACES)
+        self.assertAlmostEqual(downloaded["OEEObject"]["value"]["OEE"], workstation["OEEObject"]["value"]["OEE"], places=PLACES)
 
 
 def main():

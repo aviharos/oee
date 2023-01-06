@@ -2,6 +2,7 @@
 """This file contains the OEE and Throughput calculator class
 """
 # Standard Library imports
+import copy
 from datetime import datetime
 import os
 
@@ -13,7 +14,6 @@ import sqlalchemy
 
 # custom imports
 from Logger import getLogger
-from object_to_template import object_to_template
 import Orion
 
 
@@ -52,10 +52,17 @@ class OEECalculator:
             The sqlalchemy module's engine's connection object to PostgreSQL
 
     Returns:
-        oee:
+        oee (dict):
             the Workstation's OEE object (that will eventually be uploaded to Orion)
-        throughput:
-            the Workstation's throughput object (that will eventually be uploaded to Orion)
+            format:
+                {
+                "OEE": None,
+                "Availability": None,
+                "Performance": None,
+                "Quality": None
+                }
+        throughput (float):
+            the Workstation's estimated throughput per shift (that will eventually be uploaded to Orion)
 
     Raises various errors if the calculation fails
     """
@@ -74,10 +81,12 @@ class OEECalculator:
     """
     object_ = {"id": None, "orion": None, "postgres_table": None, "df": None}
     logger = getLogger(__name__)
-    OEE_template = object_to_template(os.path.join("..", "json", "OEE.json"))
-    Throughput_template = object_to_template(
-        os.path.join("..", "json", "Throughput.json")
-    )
+    OEE_template = {
+        "OEE": None,
+        "Availability": None,
+        "Performance": None,
+        "Quality": None
+        }
     # get environment variables
     POSTGRES_SCHEMA = os.environ.get("POSTGRES_SCHEMA")
     if POSTGRES_SCHEMA is None:
@@ -92,8 +101,8 @@ class OEECalculator:
         Args:
             workstation_id (str): the Workstation's id in Orion
         """
-        self.oee = self.OEE_template
-        self.throughput = self.Throughput_template
+        self.oee = copy.deepcopy(self.OEE_template)
+        self.throughput = None
         self.today = {}
 
         self.shift = self.object_.copy()
@@ -543,14 +552,6 @@ class OEECalculator:
         self.convertRecvtimetsToInt(self.job["df"])
         self.job["df"] = self.sort_df_by_time(self.job["df"])
 
-        self.oee["id"] = self.workstation["orion"]["RefOEE"]["value"]
-        self.oee["RefWorkstation"]["value"] = self.workstation["id"]
-        self.oee["RefJob"]["value"] = self.job["id"]
-
-        self.throughput["id"] = self.workstation["orion"]["RefThroughput"]["value"]
-        self.throughput["RefWorkstation"]["value"] = self.workstation["id"]
-        self.throughput["RefJob"]["value"] = self.job["id"]
-
         self.set_RefStartTime()
 
         # make sure that no job record is before RefStartTime
@@ -778,8 +779,8 @@ class OEECalculator:
             raise ValueError(
                 f'The Workstation {self.workstation["id"]} was not turned Available by {self.now_datetime} since midnight, no OEE data'
             )
-        self.oee["Availability"]["value"] = self.calc_availability(df_av)
-        self.logger.info(f"Availability: {self.oee['Availability']['value']}")
+        self.oee["Availability"] = self.calc_availability(df_av)
+        self.logger.info(f"Availability: {self.oee['Availability']}")
 
     def count_cycles_based_on_counter_values(self, values: np.array):
         """Count number of injection moulding cycles based on a np.array of GoodPartCounter values
@@ -871,22 +872,22 @@ class OEECalculator:
         self.count_cycles()
         if self.n_total_cycles == 0:
             raise ValueError("No operation was completed yet, no OEE data")
-        self.oee["Quality"]["value"] = (
+        self.oee["Quality"] = (
             self.n_successful_cycles / self.n_total_cycles
         )
-        self.logger.info(f"Quality: {self.oee['Quality']['value']}")
+        self.logger.info(f"Quality: {self.oee['Quality']}")
 
     def handle_performance(self):
         """Handle everythin related to the Performance KPI
 
         Store the result in self.oee["Performance"]["value"]"""
-        self.oee["Performance"]["value"] = (
+        self.oee["Performance"] = (
             self.n_total_cycles
             * self.operation["orion"]["CycleTime"]["value"]
             * 1e3  # we count in milliseconds
             / self.total_available_time
         )
-        self.logger.info(f"Performance: {self.oee['Performance']['value']}")
+        self.logger.info(f"Performance: {self.oee['Performance']}")
 
     def calculate_OEE(self):
         """Calculate the OEE
@@ -897,10 +898,10 @@ class OEECalculator:
         self.handle_availability()
         self.handle_quality()
         self.handle_performance()
-        self.oee["OEE"]["value"] = (
-            self.oee["Availability"]["value"]
-            * self.oee["Performance"]["value"]
-            * self.oee["Quality"]["value"]
+        self.oee["OEE"] = (
+            self.oee["Availability"]
+            * self.oee["Performance"]
+            * self.oee["Quality"]
         )
         self.logger.info(f"OEE data: {self.oee}")
         return self.oee
@@ -914,14 +915,14 @@ class OEECalculator:
         self.shiftLengthInMilliseconds = self.datetimeToMilliseconds(
             self.today["End"]
         ) - self.datetimeToMilliseconds(self.today["RefStartTime"])
-        self.throughput["ThroughputPerShift"]["value"] = (
+        self.throughput = (
             # use milliseconds
             (
                 self.shiftLengthInMilliseconds
                 / (self.operation["orion"]["CycleTime"]["value"] * 1e3)
             )
             * self.operation["orion"]["PartsPerCycle"]["value"]
-            * self.oee["OEE"]["value"]
+            * self.oee["OEE"]
         )
-        self.logger.info(f"Throughput: {self.throughput}")
+        self.logger.info(f"Throughput per shift (estimated): {self.throughput}")
         return self.throughput

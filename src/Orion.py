@@ -143,16 +143,60 @@ def update(objects: list):
     logger_Orion.debug(f"update: objects: {objects}")
     url = f"http://{ORION_HOST}:{ORION_PORT}/v2/op/update"
     try:
-        json_ = {"actionType": "append", "entities": list(objects)}
-        logger_Orion.debug(f"update: json_: {json_}")
+        data = {"actionType": "append", "entities": list(objects)}
+        logger_Orion.debug(f"update: data: {data}")
     except TypeError as error:
         raise TypeError(
             f"The objects {objects} are not iterable, cannot make a list. Please, provide an iterable object"
         ) from error
-    response = requests.post(url, json=json_)
+    response = requests.post(url, json=data)
     if response.status_code != 204:
         raise RuntimeError(
             f"Failed to update objects in Orion.\nStatus_code: {response.status_code}\nObjects:\n{objects}"
         )
     else:
         return response.status_code
+
+def update_attribute(object_id: str, attribute_name: str, attribute_type: str, attribute_value):
+    """Updates the object's given attribute in Orion
+
+    This method takes an object id and an attribute name and value pair
+    then updates the specified attribute with the given value in Orion.
+    If the attribute already exists, it will be overwritten. More information:
+    https://github.com/FIWARE/tutorials.CRUD-Operations#batch-create-new-data-entities-or-attributes
+
+    Args:
+        object_id (str): the object's id in Orion
+        attribute_name (str): the specified attribute's name
+        attribute_type (str): the specified attribute's type
+        attribute_value (string or dict): the specified attribute's new value
+
+    Raises:
+        RuntimeError: if the POST request's status code is not 204
+    """
+    logger_Orion.debug(f"""update_attribute:
+object_id: {object_id}
+attribute_name: {attribute_name}
+attribute_value: {attribute_value}""")
+    url = f"http://{ORION_HOST}:{ORION_PORT}/v2/op/update"
+    logger_Orion.debug(f"update_attribute: url: {url}")
+    payload = {
+        "id": object_id,
+        attribute_name: {
+            "type": attribute_type,
+            "value": attribute_value
+            }
+        }
+    data = {
+        "actionType": "append",
+        "entities": [payload]
+        }
+    logger_Orion.debug(f"update_attribute: data: {data}")
+    response = requests.post(url, json=data)
+    if response.status_code != 204:
+        raise RuntimeError(
+            f"Failed to update attribute in Orion. Status_code: {response.status_code}"
+        )
+    else:
+        return response.status_code
+

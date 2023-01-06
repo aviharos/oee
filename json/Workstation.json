@@ -1,7 +1,10 @@
 {
     "id": "urn:ngsiv2:i40Asset:Workstation1",
     "type": "i40Asset",
-    "i40AssetType": {"type": "Text", "value": "Workstation"},
+    "i40AssetType": {
+        "type": "Text",
+        "value": "Workstation"
+    },
     "Available": {
         "type": "Boolean",
         "value": true
@@ -21,5 +24,18 @@
     "RefShift": {
         "type": "Relationship",
         "value": "urn:ngsiv2:i40Recipe:Shift1"
+    },
+    "OEEObject": {
+        "type": "OEE",
+        "value": {
+            "OEE": null,
+            "Availability": null,
+            "Performance": null,
+            "Quality": null 
+        }
+    },
+    "ThroughputPerShift": {
+        "type": "Number",
+        "value": null
     }
 }
