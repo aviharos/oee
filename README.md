@@ -182,7 +182,7 @@ Attributes:
         "id": "urn:ngsi_ld:OEE:1",
         "RefWorkstation": {"type": "Relationship", "value": "urn:ngsi_ld:Workstation:1"},
         "RefJob": {"type": "Relationship", "value": "urn:ngsi_ld:Job:202200045"},
-        "Availability": {"type": "Number", "value": 0.9},
+        "availability": {"type": "Number", "value": 0.9},
         "Performance": {"type": "Number", "value": 0.9},
         "Quality": {"type": "Number", "value": 0.9},
         "OEE": {"type": "Number", "value": 0.729}

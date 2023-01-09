@@ -99,18 +99,18 @@ class test_LoopHandler(unittest.TestCase):
             f"select * from {POSTGRES_SCHEMA}.{JOB_TABLE}", con=cls.con
         )
         cls.blank_oee = {
-                "Availability": None,
-                "Performance": None,
-                "Quality": None,
+                "availability": None,
+                "performance": None,
+                "quality": None,
                 "OEE": None
                 }
         cls.correctOEEObject =  copy.deepcopy(cls.blank_oee)
-        cls.correctOEEObject["Availability"] = 50 / 60
-        cls.correctOEEObject["Performance"] = (71 * 46) / (50 * 60)
-        cls.correctOEEObject["Quality"] = 70 / 71
-        cls.correctOEEObject["OEE"] = (cls.correctOEEObject["Availability"] *
-                cls.correctOEEObject["Performance"] *
-                cls.correctOEEObject["Quality"])
+        cls.correctOEEObject["availability"] = 50 / 60
+        cls.correctOEEObject["performance"] = (71 * 46) / (50 * 60)
+        cls.correctOEEObject["quality"] = 70 / 71
+        cls.correctOEEObject["OEE"] = (cls.correctOEEObject["availability"] *
+                cls.correctOEEObject["performance"] *
+                cls.correctOEEObject["quality"])
         cls.correctThroughPutPerShift = (8 * 3600e3 / 46e3) * 8 * cls.correctOEEObject["OEE"]
         with open(os.path.join("..", "json", "Workstation.json")) as f:
             cls.workstation = json.load(f)
@@ -149,18 +149,18 @@ class test_LoopHandler(unittest.TestCase):
         calculated_oee = downloaded_workstation["oeeObject"]["value"]
         calculated_throughputPerShift = downloaded_workstation["ThroughputPerShift"]["value"]
         assertDeepAlmostEqual(self, self.correctOEEObject, calculated_oee, places=PLACES)
-        self.assertAlmostEqual(self.correctOEEObject["Availability"], downloaded_workstation["oeeAvailability"]["value"], places=PLACES)
-        self.assertAlmostEqual(self.correctOEEObject["Performance"], downloaded_workstation["oeePerformance"]["value"], places=PLACES)
-        self.assertAlmostEqual(self.correctOEEObject["Quality"], downloaded_workstation["oeeQuality"]["value"], places=PLACES)
+        self.assertAlmostEqual(self.correctOEEObject["availability"], downloaded_workstation["oeeAvailability"]["value"], places=PLACES)
+        self.assertAlmostEqual(self.correctOEEObject["performance"], downloaded_workstation["oeePerformance"]["value"], places=PLACES)
+        self.assertAlmostEqual(self.correctOEEObject["quality"], downloaded_workstation["oeeQuality"]["value"], places=PLACES)
         self.assertAlmostEqual(self.correctOEEObject["OEE"], downloaded_workstation["OEE"]["value"], places=PLACES)
         assertDeepAlmostEqual(self, self.correctThroughPutPerShift, calculated_throughputPerShift, places=PLACES)
 
     def write_values_into_KPIs(self):
         workstation = copy.deepcopy(self.workstation)
         workstation["oeeObject"]["value"] = self.correctOEEObject
-        workstation["oeeAvailability"]["value"] = self.correctOEEObject["Availability"]
-        workstation["oeePerformance"]["value"] = self.correctOEEObject["Performance"]
-        workstation["oeeQuality"]["value"] = self.correctOEEObject["Quality"]
+        workstation["oeeAvailability"]["value"] = self.correctOEEObject["availability"]
+        workstation["oeePerformance"]["value"] = self.correctOEEObject["performance"]
+        workstation["oeeQuality"]["value"] = self.correctOEEObject["quality"]
         workstation["OEE"]["value"] = self.correctOEEObject["OEE"]
         workstation["ThroughputPerShift"]["value"] = self.correctThroughPutPerShift
         Orion.update([workstation])

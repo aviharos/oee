@@ -57,9 +57,9 @@ class OEECalculator:
             format:
                 {
                 "OEE": None,
-                "Availability": None,
-                "Performance": None,
-                "Quality": None
+                "availability": None,
+                "performance": None,
+                "quality": None
                 }
         throughput (float):
             the Workstation's estimated throughput per shift (that will eventually be uploaded to Orion)
@@ -83,9 +83,9 @@ class OEECalculator:
     logger = getLogger(__name__)
     OEE_template = {
         "OEE": None,
-        "Availability": None,
-        "Performance": None,
-        "Quality": None
+        "availability": None,
+        "performance": None,
+        "quality": None
         }
     # get environment variables
     POSTGRES_SCHEMA = os.environ.get("POSTGRES_SCHEMA")
@@ -610,7 +610,7 @@ class OEECalculator:
 
         Raises:
             ValueError:
-                if the Cygnus log contains an invalid Availability value
+                if the Cygnus log contains an invalid availability value
         """
         self.logger.debug(f"df_before:\n{df_before}")
         self.total_time_so_far_since_RefStartTime = self.now_unix - self.datetimeToMilliseconds(
@@ -635,19 +635,19 @@ class OEECalculator:
             return 0
         else:
             raise ValueError(
-                f"Invalid Availability value: {last_availability} in postgres_table: {self.workstation['postgres_table']} at recvtimets: {df_before.iloc[-1]['recvtimets']}"
+                f"Invalid availability value: {last_availability} in postgres_table: {self.workstation['postgres_table']} at recvtimets: {df_before.iloc[-1]['recvtimets']}"
             )
 
     def calc_availability_if_exists_record_after_RefStartTime(
         self, df_before, df_after: pd.DataFrame
     ):
-        """Calculate availability if there is at least one Availability record in the Cygnus logs since RefStartTime
+        """Calculate availability if there is at least one availability record in the Cygnus logs since RefStartTime
 
         Args:
             df_after (pd.DataFrame): Workstation Cygnus logs after RefStartTime
 
         Returns:
-            Availability: availability KPI (float)
+            availability: availability KPI (float)
 
         Raises:
             ZeroDivisionError:
@@ -733,16 +733,16 @@ class OEECalculator:
             calc_availability_if_no_availability_record_after_RefStartTime
 
         Args:
-            df_av (pd.DataFrame): the Workstation's logs filtered for attrname == "Availability"
+            df_av (pd.DataFrame): the Workstation's logs filtered for attrname == "availability"
 
         Returns:
-            Availability KPI (float)
+            availability KPI (float)
         """
         df_before = self.filter_in_relation_to_RefStartTime(df_av, how="before")
         df_after = self.filter_in_relation_to_RefStartTime(df_av, how="after")
         if df_after.size == 0:
             self.logger.info(
-                f"No Availability record found after RefStartTime: {self.today['RefStartTime']}, using today's previous availability records"
+                f"No availability record found after RefStartTime: {self.today['RefStartTime']}, using today's previous availability records"
             )
             return self.calc_availability_if_no_availability_record_after_RefStartTime(
                 df_before
@@ -750,12 +750,12 @@ class OEECalculator:
         else:
             # now it is sure that the df_after is not emtpy, at least one row
             self.logger.info(
-                f"Found Availability record after RefStartTime: {self.today['RefStartTime']}"
+                f"Found availability record after RefStartTime: {self.today['RefStartTime']}"
             )
             return self.calc_availability_if_exists_record_after_RefStartTime(df_before, df_after)
 
     def handle_availability(self):
-        """Handle everything related to the Availability KPI
+        """Handle everything related to the availability KPI
 
         Important: the OEECalculator queries data from_midnight
         So if a Workstation becomes available before the schedule starts,
@@ -764,9 +764,9 @@ class OEECalculator:
         the schedule starts.
         The OEECalculator treats the Workstation
         as if it became available just when the schedule started.
-        This way, the Availability KPI cannot exceed 1.
+        This way, the availability KPI cannot exceed 1.
 
-        The Availability is stored in self.oee["Availability"]["value"]
+        The availability is stored in self.oee["availability"]["value"]
 
         Raises:
             ValueError:
@@ -779,8 +779,8 @@ class OEECalculator:
             raise ValueError(
                 f'The Workstation {self.workstation["id"]} was not turned available by {self.now_datetime} since midnight, no OEE data'
             )
-        self.oee["Availability"] = self.calc_availability(df_av)
-        self.logger.info(f"Availability: {self.oee['Availability']}")
+        self.oee["availability"] = self.calc_availability(df_av)
+        self.logger.info(f"availability: {self.oee['availability']}")
 
     def count_cycles_based_on_counter_values(self, values: np.array):
         """Count number of injection moulding cycles based on a np.array of goodPartCounter values
@@ -860,7 +860,7 @@ class OEECalculator:
     def handle_quality(self):
         """Handle everything related to quality KPI
 
-        Store the result in self.oee["Quality"]["value"]
+        Store the result in self.oee["quality"]["value"]
 
         Raises:
             ValueError:
@@ -872,22 +872,22 @@ class OEECalculator:
         self.count_cycles()
         if self.n_total_cycles == 0:
             raise ValueError("No operation was completed yet, no OEE data")
-        self.oee["Quality"] = (
+        self.oee["quality"] = (
             self.n_successful_cycles / self.n_total_cycles
         )
-        self.logger.info(f"Quality: {self.oee['Quality']}")
+        self.logger.info(f"quality: {self.oee['quality']}")
 
     def handle_performance(self):
-        """Handle everythin related to the Performance KPI
+        """Handle everythin related to the performance KPI
 
-        Store the result in self.oee["Performance"]["value"]"""
-        self.oee["Performance"] = (
+        Store the result in self.oee["performance"]["value"]"""
+        self.oee["performance"] = (
             self.n_total_cycles
             * self.operation["orion"]["CycleTime"]["value"]
             * 1e3  # we count in milliseconds
             / self.total_available_time
         )
-        self.logger.info(f"Performance: {self.oee['Performance']}")
+        self.logger.info(f"performance: {self.oee['performance']}")
 
     def calculate_OEE(self):
         """Calculate the OEE
@@ -899,9 +899,9 @@ class OEECalculator:
         self.handle_quality()
         self.handle_performance()
         self.oee["OEE"] = (
-            self.oee["Availability"]
-            * self.oee["Performance"]
-            * self.oee["Quality"]
+            self.oee["availability"]
+            * self.oee["performance"]
+            * self.oee["quality"]
         )
         self.logger.info(f"OEE data: {self.oee}")
         return self.oee

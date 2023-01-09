@@ -59,9 +59,9 @@ class test_object_to_template(unittest.TestCase):
             "i40AssetType": {"type": "Text", "value": "OEE"},
             "RefWorkstation": {"type": "Relationship", "value": "urn:ngsiv2:i40Asset:Workstation1"},
             "RefJob": {"type": "Relationship", "value": "urn:ngsiv2:i40Process:Job202200045"},
-            "Availability": {"type": "Number", "value": None},
-            "Performance": {"type": "Number", "value": None},
-            "Quality": {"type": "Number", "value": None},
+            "availability": {"type": "Number", "value": None},
+            "performance": {"type": "Number", "value": None},
+            "quality": {"type": "Number", "value": None},
             "OEE": {"type": "Number", "value": None}
         }
         cls.blank_throughput = {
@@ -107,18 +107,18 @@ class test_object_to_template(unittest.TestCase):
             f"select * from {POSTGRES_SCHEMA}.{JOB_TABLE}", con=cls.con
         )
         cls.blank_oee = {
-                "Availability": None,
-                "Performance": None,
-                "Quality": None,
+                "availability": None,
+                "performance": None,
+                "quality": None,
                 "OEE": None
                 }
         cls.correctOEEObject =  copy.deepcopy(cls.blank_oee)
-        cls.correctOEEObject["Availability"] = 50 / 60
-        cls.correctOEEObject["Performance"] = (71 * 46) / (50 * 60)
-        cls.correctOEEObject["Quality"] = 70 / 71
-        cls.correctOEEObject["OEE"] = (cls.correctOEEObject["Availability"] *
-                cls.correctOEEObject["Performance"] *
-                cls.correctOEEObject["Quality"])
+        cls.correctOEEObject["availability"] = 50 / 60
+        cls.correctOEEObject["performance"] = (71 * 46) / (50 * 60)
+        cls.correctOEEObject["quality"] = 70 / 71
+        cls.correctOEEObject["OEE"] = (cls.correctOEEObject["availability"] *
+                cls.correctOEEObject["performance"] *
+                cls.correctOEEObject["quality"])
         cls.correctThroughPutPerShift = (8 * 3600e3 / 46e3) * 8 * cls.correctOEEObject["OEE"]
         with open(os.path.join("..", "json", "Workstation.json")) as f:
             cls.workstation = json.load(f)
@@ -177,9 +177,9 @@ class test_object_to_template(unittest.TestCase):
 calculated_oee: {calculated_oee}
 calculated_throughput: {calculated_throughputPerShift}""")
         assertDeepAlmostEqual(self, self.correctOEEObject, calculated_oee, places=PLACES)
-        self.assertAlmostEqual(self.correctOEEObject["Availability"], downloaded_workstation["oeeAvailability"]["value"], places=PLACES)
-        self.assertAlmostEqual(self.correctOEEObject["Performance"], downloaded_workstation["oeePerformance"]["value"], places=PLACES)
-        self.assertAlmostEqual(self.correctOEEObject["Quality"], downloaded_workstation["oeeQuality"]["value"], places=PLACES)
+        self.assertAlmostEqual(self.correctOEEObject["availability"], downloaded_workstation["oeeAvailability"]["value"], places=PLACES)
+        self.assertAlmostEqual(self.correctOEEObject["performance"], downloaded_workstation["oeePerformance"]["value"], places=PLACES)
+        self.assertAlmostEqual(self.correctOEEObject["quality"], downloaded_workstation["oeeQuality"]["value"], places=PLACES)
         self.assertAlmostEqual(self.correctOEEObject["OEE"], downloaded_workstation["OEE"]["value"], places=PLACES)
         assertDeepAlmostEqual(self, self.correctThroughPutPerShift, calculated_throughputPerShift, places=PLACES)
 

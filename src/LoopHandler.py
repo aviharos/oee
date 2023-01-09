@@ -97,9 +97,9 @@ class LoopHandler:
             self.logger.info(f'Calculating KPIs for {workstation_id}')
             oee, throughput = self.calculate_KPIs(workstation_id)
             Orion.update_attribute(workstation_id, "oeeObject", "OEE", oee)
-            Orion.update_attribute(workstation_id, "oeeAvailability", "Number", oee["Availability"])
-            Orion.update_attribute(workstation_id, "oeePerformance", "Number", oee["Performance"])
-            Orion.update_attribute(workstation_id, "oeeQuality", "Number", oee["Quality"])
+            Orion.update_attribute(workstation_id, "oeeAvailability", "Number", oee["availability"])
+            Orion.update_attribute(workstation_id, "oeePerformance", "Number", oee["performance"])
+            Orion.update_attribute(workstation_id, "oeeQuality", "Number", oee["quality"])
             Orion.update_attribute(workstation_id, "OEE", "Number", oee["OEE"])
             Orion.update_attribute(workstation_id, "ThroughputPerShift", "Number", throughput)
         except (

@@ -37,7 +37,7 @@
         "type": "OEE",
         "value": {
             "OEE": null,
-            "Availability": null,
+            "availability": null,
             "Performance": null,
             "Quality": null 
         }

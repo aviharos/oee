@@ -685,7 +685,7 @@ class test_OEECalculator(unittest.TestCase):
         mock_datetime.now.return_value = now
         self.oee.prepare(self.con)
         self.oee.handle_availability()
-        self.assertEqual(self.oee.oee["Availability"], 50 / 60)
+        self.assertEqual(self.oee.oee["availability"], 50 / 60)
         # empty df
         self.oee.workstation["df"] = self.oee.workstation["df"].drop(self.oee.workstation["df"].index)
         with self.assertRaises(ValueError):
@@ -730,7 +730,7 @@ class test_OEECalculator(unittest.TestCase):
         n_failed_cycles = 1
         n_total_cycles = n_successful_cycles + n_failed_cycles
         self.assertEqual(
-            self.oee.oee["Quality"], n_successful_cycles / n_total_cycles
+            self.oee.oee["quality"], n_successful_cycles / n_total_cycles
         )
         self.oee.job["df"] = self.oee.job["df"].drop(self.oee.job["df"].index)
         with self.assertRaises(ValueError):
@@ -756,8 +756,8 @@ class test_OEECalculator(unittest.TestCase):
         log is present in the job logs, this is why the performance is so high
         """
         performance = (n_total_cycles * 46) / (50 * 60)
-        self.assertEqual(self.oee.oee["Performance"], performance)
-        # self.oee['Performance']['value'] = self.n_total_cycles * self.operation['orion']['CycleTime']['value'] / self.total_available_time
+        self.assertEqual(self.oee.oee["performance"], performance)
+        # self.oee['performance']['value'] = self.n_total_cycles * self.operation['orion']['CycleTime']['value'] / self.total_available_time
 
     @patch(f"{OEE.__name__}.datetime", wraps=datetime)
     def test_calculate_OEE(self, mock_datetime):
@@ -767,47 +767,47 @@ class test_OEECalculator(unittest.TestCase):
         oeeCalculator_oee = self.oee.calculate_OEE()
         oee = {
         "OEE": None,
-        "Availability": None,
-        "Performance": None,
-        "Quality": None
+        "availability": None,
+        "performance": None,
+        "quality": None
         }
-        oee["Availability"] = 50 / 60
-        oee["Quality"] = 70 / 71
-        oee["Performance"] = (71 * 46) / (50 * 60)
+        oee["availability"] = 50 / 60
+        oee["quality"] = 70 / 71
+        oee["performance"] = (71 * 46) / (50 * 60)
         oee["OEE"] = (
-            oee["Availability"]
-            * oee["Quality"]
-            * oee["Performance"]
+            oee["availability"]
+            * oee["quality"]
+            * oee["performance"]
         )
         self.assertAlmostEqual(
-            self.oee.oee["Availability"],
-            oee["Availability"],
+            self.oee.oee["availability"],
+            oee["availability"],
             places=PLACES,
         )
         self.assertAlmostEqual(
-            self.oee.oee["Quality"], oee["Quality"], places=PLACES
+            self.oee.oee["quality"], oee["quality"], places=PLACES
         )
         self.assertAlmostEqual(
-            self.oee.oee["Performance"],
-            oee["Performance"],
+            self.oee.oee["performance"],
+            oee["performance"],
             places=PLACES,
         )
         self.assertAlmostEqual(
             self.oee.oee["OEE"], oee["OEE"], places=PLACES
         )
         self.assertAlmostEqual(
-            oeeCalculator_oee["Availability"],
-            oee["Availability"],
+            oeeCalculator_oee["availability"],
+            oee["availability"],
             places=PLACES,
         )
         self.assertAlmostEqual(
-            oeeCalculator_oee["Quality"],
-            oee["Quality"],
+            oeeCalculator_oee["quality"],
+            oee["quality"],
             places=PLACES,
         )
         self.assertAlmostEqual(
-            oeeCalculator_oee["Performance"],
-            oee["Performance"],
+            oeeCalculator_oee["performance"],
+            oee["performance"],
             places=PLACES,
         )
         self.assertAlmostEqual(
