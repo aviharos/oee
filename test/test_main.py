@@ -53,25 +53,6 @@ class test_object_to_template(unittest.TestCase):
         """
         cls.scheduler = sched.scheduler(time.time, time.sleep)
         cls.logger = getLogger(__name__)
-        cls.blank_oee = {
-            "id": "urn:ngsiv2:i40Asset:OEE1",
-            "type": "i40Asset",
-            "i40AssetType": {"type": "Text", "value": "OEE"},
-            "RefWorkstation": {"type": "Relationship", "value": "urn:ngsiv2:i40Asset:Workstation1"},
-            "refJob": {"type": "Relationship", "value": "urn:ngsiv2:i40Process:Job202200045"},
-            "availability": {"type": "Number", "value": None},
-            "performance": {"type": "Number", "value": None},
-            "quality": {"type": "Number", "value": None},
-            "OEE": {"type": "Number", "value": None}
-        }
-        cls.blank_throughput = {
-            "id": "urn:ngsiv2:i40Asset:Throughput1",
-            "type": "i40Asset",
-            "i40AssetType": {"type": "Text", "value": "Throughput"},
-            "RefWorkstation": {"type": "Relationship", "value": "urn:ngsiv2:i40Asset:Workstation1"},
-            "refJob": {"type": "Relationship", "value": "urn:ngsiv2:i40Process:Job202200045"},
-            "throughputPerShift": {"type": "Number", "value": None}
-        }
         reupload_jsons_to_Orion.main()
         cls.engine = create_engine(
             f"postgresql://{POSTGRES_USER}:{POSTGRES_PASSWORD}@{POSTGRES_HOST}:{POSTGRES_PORT}"
@@ -110,16 +91,16 @@ class test_object_to_template(unittest.TestCase):
                 "availability": None,
                 "performance": None,
                 "quality": None,
-                "OEE": None
+                "oee": None
                 }
         cls.correctOEEObject =  copy.deepcopy(cls.blank_oee)
         cls.correctOEEObject["availability"] = 50 / 60
         cls.correctOEEObject["performance"] = (71 * 46) / (50 * 60)
         cls.correctOEEObject["quality"] = 70 / 71
-        cls.correctOEEObject["OEE"] = (cls.correctOEEObject["availability"] *
+        cls.correctOEEObject["oee"] = (cls.correctOEEObject["availability"] *
                 cls.correctOEEObject["performance"] *
                 cls.correctOEEObject["quality"])
-        cls.correctThroughPutPerShift = (8 * 3600e3 / 46e3) * 8 * cls.correctOEEObject["OEE"]
+        cls.correctThroughPutPerShift = (8 * 3600e3 / 46e3) * 8 * cls.correctOEEObject["oee"]
         with open(os.path.join("..", "json", "Workstation.json")) as f:
             cls.workstation = json.load(f)
 
@@ -180,7 +161,7 @@ calculated_throughput: {calculated_throughputPerShift}""")
         self.assertAlmostEqual(self.correctOEEObject["availability"], downloaded_workstation["oeeAvailability"]["value"], places=PLACES)
         self.assertAlmostEqual(self.correctOEEObject["performance"], downloaded_workstation["oeePerformance"]["value"], places=PLACES)
         self.assertAlmostEqual(self.correctOEEObject["quality"], downloaded_workstation["oeeQuality"]["value"], places=PLACES)
-        self.assertAlmostEqual(self.correctOEEObject["OEE"], downloaded_workstation["OEE"]["value"], places=PLACES)
+        self.assertAlmostEqual(self.correctOEEObject["oee"], downloaded_workstation["oee"]["value"], places=PLACES)
         assertDeepAlmostEqual(self, self.correctThroughPutPerShift, calculated_throughputPerShift, places=PLACES)
 
     def test_main(self):

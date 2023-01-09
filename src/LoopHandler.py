@@ -100,7 +100,7 @@ class LoopHandler:
             Orion.update_attribute(workstation_id, "oeeAvailability", "Number", oee["availability"])
             Orion.update_attribute(workstation_id, "oeePerformance", "Number", oee["performance"])
             Orion.update_attribute(workstation_id, "oeeQuality", "Number", oee["quality"])
-            Orion.update_attribute(workstation_id, "OEE", "Number", oee["OEE"])
+            Orion.update_attribute(workstation_id, "oee", "Number", oee["oee"])
             Orion.update_attribute(workstation_id, "throughputPerShift", "Number", throughput)
         except (
             AttributeError,
@@ -123,7 +123,7 @@ class LoopHandler:
             workstation_id (str): the Workstation's Orion id 
         """
         Orion.update_attribute(workstation_id, "oeeObject", "OEE", OEECalculator.OEE_template.copy())
-        Orion.update_attribute(workstation_id, "OEE", "Number", None)
+        Orion.update_attribute(workstation_id, "oee", "Number", None)
         Orion.update_attribute(workstation_id, "oeeAvailability", "Number", None)
         Orion.update_attribute(workstation_id, "oeePerformance", "Number", None)
         Orion.update_attribute(workstation_id, "oeeQuality", "Number", None)

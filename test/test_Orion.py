@@ -148,18 +148,18 @@ class test_Orion(unittest.TestCase):
         workstation = self.workstation1.copy()
         requests.post(url=orion_entities, json=workstation)
         payload = {
-            "OEE": 0.9 * 0.9 * 0.9,
+            "oee": 0.9 * 0.9 * 0.9,
             "availability": 0.9,
             "performance": 0.9,
-            "Quality": 0.9 
+            "quality": 0.9 
         }
         workstation["oeeObject"]["value"] = payload
         Orion.update_attribute(id, "oeeObject", "OEE", payload)
         downloaded = remove_orion_metadata(Orion.get(id))
         self.assertAlmostEqual(downloaded["oeeObject"]["value"]["availability"], workstation["oeeObject"]["value"]["availability"], places=PLACES)
         self.assertAlmostEqual(downloaded["oeeObject"]["value"]["performance"], workstation["oeeObject"]["value"]["performance"], places=PLACES)
-        self.assertAlmostEqual(downloaded["oeeObject"]["value"]["Quality"], workstation["oeeObject"]["value"]["Quality"], places=PLACES)
-        self.assertAlmostEqual(downloaded["oeeObject"]["value"]["OEE"], workstation["oeeObject"]["value"]["OEE"], places=PLACES)
+        self.assertAlmostEqual(downloaded["oeeObject"]["value"]["quality"], workstation["oeeObject"]["value"]["quality"], places=PLACES)
+        self.assertAlmostEqual(downloaded["oeeObject"]["value"]["oee"], workstation["oeeObject"]["value"]["oee"], places=PLACES)
 
 
 def main():

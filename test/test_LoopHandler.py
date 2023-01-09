@@ -6,7 +6,6 @@ tests.
 import copy
 from datetime import datetime
 import json
-from logging import getLevelName
 import os
 import sys
 import unittest
@@ -14,11 +13,11 @@ from unittest.mock import patch
 
 # PyPI imports
 import pandas as pd
-import numpy as np
 import psycopg2
 import sqlalchemy
-from sqlalchemy import create_engine, delete
+from sqlalchemy import create_engine
 from sqlalchemy.types import Text
+
 # custom imports
 from modules.remove_orion_metadata import remove_orion_metadata
 from modules import reupload_jsons_to_Orion
@@ -102,16 +101,16 @@ class test_LoopHandler(unittest.TestCase):
                 "availability": None,
                 "performance": None,
                 "quality": None,
-                "OEE": None
+                "oee": None
                 }
         cls.correctOEEObject =  copy.deepcopy(cls.blank_oee)
         cls.correctOEEObject["availability"] = 50 / 60
         cls.correctOEEObject["performance"] = (71 * 46) / (50 * 60)
         cls.correctOEEObject["quality"] = 70 / 71
-        cls.correctOEEObject["OEE"] = (cls.correctOEEObject["availability"] *
+        cls.correctOEEObject["oee"] = (cls.correctOEEObject["availability"] *
                 cls.correctOEEObject["performance"] *
                 cls.correctOEEObject["quality"])
-        cls.correctThroughPutPerShift = (8 * 3600e3 / 46e3) * 8 * cls.correctOEEObject["OEE"]
+        cls.correctThroughPutPerShift = (8 * 3600e3 / 46e3) * 8 * cls.correctOEEObject["oee"]
         with open(os.path.join("..", "json", "Workstation.json")) as f:
             cls.workstation = json.load(f)
 
@@ -142,7 +141,7 @@ class test_LoopHandler(unittest.TestCase):
         self.assertEqual(downloaded_workstation["oeeAvailability"]["value"], None)
         self.assertEqual(downloaded_workstation["oeePerformance"]["value"], None)
         self.assertEqual(downloaded_workstation["oeeQuality"]["value"], None)
-        self.assertEqual(downloaded_workstation["OEE"]["value"], None)
+        self.assertEqual(downloaded_workstation["oee"]["value"], None)
 
     def assert_KPIs_are_correct(self):
         downloaded_workstation = remove_orion_metadata(Orion.get(self.workstation["id"]))
@@ -152,7 +151,7 @@ class test_LoopHandler(unittest.TestCase):
         self.assertAlmostEqual(self.correctOEEObject["availability"], downloaded_workstation["oeeAvailability"]["value"], places=PLACES)
         self.assertAlmostEqual(self.correctOEEObject["performance"], downloaded_workstation["oeePerformance"]["value"], places=PLACES)
         self.assertAlmostEqual(self.correctOEEObject["quality"], downloaded_workstation["oeeQuality"]["value"], places=PLACES)
-        self.assertAlmostEqual(self.correctOEEObject["OEE"], downloaded_workstation["OEE"]["value"], places=PLACES)
+        self.assertAlmostEqual(self.correctOEEObject["oee"], downloaded_workstation["oee"]["value"], places=PLACES)
         assertDeepAlmostEqual(self, self.correctThroughPutPerShift, calculated_throughputPerShift, places=PLACES)
 
     def write_values_into_KPIs(self):
@@ -161,7 +160,7 @@ class test_LoopHandler(unittest.TestCase):
         workstation["oeeAvailability"]["value"] = self.correctOEEObject["availability"]
         workstation["oeePerformance"]["value"] = self.correctOEEObject["performance"]
         workstation["oeeQuality"]["value"] = self.correctOEEObject["quality"]
-        workstation["OEE"]["value"] = self.correctOEEObject["OEE"]
+        workstation["oee"]["value"] = self.correctOEEObject["oee"]
         workstation["throughputPerShift"]["value"] = self.correctThroughPutPerShift
         Orion.update([workstation])
 

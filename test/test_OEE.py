@@ -766,7 +766,7 @@ class test_OEECalculator(unittest.TestCase):
         self.oee.prepare(self.con)
         oeeCalculator_oee = self.oee.calculate_OEE()
         oee = {
-        "OEE": None,
+        "oee": None,
         "availability": None,
         "performance": None,
         "quality": None
@@ -774,7 +774,7 @@ class test_OEECalculator(unittest.TestCase):
         oee["availability"] = 50 / 60
         oee["quality"] = 70 / 71
         oee["performance"] = (71 * 46) / (50 * 60)
-        oee["OEE"] = (
+        oee["oee"] = (
             oee["availability"]
             * oee["quality"]
             * oee["performance"]
@@ -793,7 +793,7 @@ class test_OEECalculator(unittest.TestCase):
             places=PLACES,
         )
         self.assertAlmostEqual(
-            self.oee.oee["OEE"], oee["OEE"], places=PLACES
+            self.oee.oee["oee"], oee["oee"], places=PLACES
         )
         self.assertAlmostEqual(
             oeeCalculator_oee["availability"],
@@ -811,7 +811,7 @@ class test_OEECalculator(unittest.TestCase):
             places=PLACES,
         )
         self.assertAlmostEqual(
-            oeeCalculator_oee["OEE"], oee["OEE"], places=PLACES
+            oeeCalculator_oee["oee"], oee["oee"], places=PLACES
         )
 
     @patch(f"{OEE.__name__}.datetime", wraps=datetime)
@@ -821,7 +821,7 @@ class test_OEECalculator(unittest.TestCase):
         self.oee.prepare(self.con)
         self.oee.calculate_OEE()
         oeeCalculator_throughput = self.oee.calculate_throughput()
-        throughput = (8 * 3600e3 / 46e3) * 8 * self.oee.oee["OEE"]
+        throughput = (8 * 3600e3 / 46e3) * 8 * self.oee.oee["oee"]
         self.assertAlmostEqual(
             oeeCalculator_throughput,
             throughput,

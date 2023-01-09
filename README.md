@@ -184,8 +184,8 @@ Attributes:
         "refJob": {"type": "Relationship", "value": "urn:ngsi_ld:Job:202200045"},
         "availability": {"type": "Number", "value": 0.9},
         "performance": {"type": "Number", "value": 0.9},
-        "Quality": {"type": "Number", "value": 0.9},
-        "OEE": {"type": "Number", "value": 0.729}
+        "quality": {"type": "Number", "value": 0.9},
+        "oee": {"type": "Number", "value": 0.729}
     }
 
 Attributes:

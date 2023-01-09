@@ -56,7 +56,7 @@ class OEECalculator:
             the Workstation's OEE object (that will eventually be uploaded to Orion)
             format:
                 {
-                "OEE": None,
+                "oee": None,
                 "availability": None,
                 "performance": None,
                 "quality": None
@@ -82,7 +82,7 @@ class OEECalculator:
     object_ = {"id": None, "orion": None, "postgres_table": None, "df": None}
     logger = getLogger(__name__)
     OEE_template = {
-        "OEE": None,
+        "oee": None,
         "availability": None,
         "performance": None,
         "quality": None
@@ -898,7 +898,7 @@ class OEECalculator:
         self.handle_availability()
         self.handle_quality()
         self.handle_performance()
-        self.oee["OEE"] = (
+        self.oee["oee"] = (
             self.oee["availability"]
             * self.oee["performance"]
             * self.oee["quality"]
@@ -922,7 +922,7 @@ class OEECalculator:
                 / (self.operation["orion"]["cycleTime"]["value"] * 1e3)
             )
             * self.operation["orion"]["partsPerCycle"]["value"]
-            * self.oee["OEE"]
+            * self.oee["oee"]
         )
         self.logger.info(f"Throughput per shift (estimated): {self.throughput}")
         return self.throughput

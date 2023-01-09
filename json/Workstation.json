@@ -17,7 +17,7 @@
         "type": "Relationship",
         "value": "urn:ngsiv2:i40Recipe:Shift1"
     },
-    "OEE": {
+    "oee": {
         "type": "Number",
         "value": null
     },
@@ -36,10 +36,10 @@
     "oeeObject": {
         "type": "OEE",
         "value": {
-            "OEE": null,
+            "oee": null,
             "availability": null,
             "performance": null,
-            "Quality": null 
+            "quality": null 
         }
     },
     "throughputPerShift": {
