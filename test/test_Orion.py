@@ -104,7 +104,7 @@ class test_Orion(unittest.TestCase):
         workstation1m = self.workstation1.copy()
         workstation1m["RefJob"]["value"] = "urn:ngsiv2:i40Process:Job202200045_mod"
         workstation2m = self.workstation2.copy()
-        workstation2m["RefOEE"]["value"] = "urn:ngsiv2:i40Asset:OEE3"
+        workstation2m["RefShift"]["value"] = "urn:ngsiv2:i40Recipe:Shift2"
 
         # update both Workstations in Orion
         requests.post(url=orion_entities, json=workstation1m)
@@ -124,6 +124,9 @@ class test_Orion(unittest.TestCase):
             self.assertEqual(downloaded_workstations[1], workstation1m)
 
     def test_update_attribute(self):
+        # delete uploaded Workstation objects
+        requests.delete(url=f'{orion_entities}/{self.workstation1["id"]}')
+        requests.delete(url=f'{orion_entities}/{self.workstation2["id"]}')
         id = self.workstation1["id"]
         # Boolean
         workstation = self.workstation1.copy()
