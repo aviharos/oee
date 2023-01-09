@@ -6,11 +6,11 @@
         "type": "Relationship",
         "value": "urn:ngsiv2:i40Recipe:SequenceOfOperations_Cover001"
     },
-    "CycleTime": {
+    "cycleTime": {
         "type": "Number",
         "value": 46
     },
-    "PartsPerCycle": {
+    "partsPerCycle": {
         "type": "Number",
         "value": 8
     }

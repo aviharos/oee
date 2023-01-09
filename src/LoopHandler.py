@@ -101,7 +101,7 @@ class LoopHandler:
             Orion.update_attribute(workstation_id, "oeePerformance", "Number", oee["performance"])
             Orion.update_attribute(workstation_id, "oeeQuality", "Number", oee["quality"])
             Orion.update_attribute(workstation_id, "OEE", "Number", oee["OEE"])
-            Orion.update_attribute(workstation_id, "ThroughputPerShift", "Number", throughput)
+            Orion.update_attribute(workstation_id, "throughputPerShift", "Number", throughput)
         except (
             AttributeError,
             KeyError,
@@ -135,7 +135,7 @@ class LoopHandler:
         Args:
             workstation_id (str): the Workstation's Orion id 
         """
-        Orion.update_attribute(workstation_id, "ThroughputPerShift", "Number", None)
+        Orion.update_attribute(workstation_id, "throughputPerShift", "Number", None)
         self.logger.info(f"ThroughputPerShift cleared successfully for workstation: {workstation_id}")
 
     def clear_KPIs(self, workstation_id: str):

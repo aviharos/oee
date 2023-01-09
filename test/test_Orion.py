@@ -34,7 +34,7 @@ class test_Orion(unittest.TestCase):
         # make a second Workstation
         cls.workstation2 = copy.deepcopy(cls.workstation1)
         cls.workstation2["id"] = "urn:ngsiv2:i40Asset:Workstation2"
-        cls.workstation2["RefJob"]["value"] = "urn:ngsiv2:i40Process:Job202200045_mod"
+        cls.workstation2["refJob"]["value"] = "urn:ngsiv2:i40Process:Job202200045_mod"
 
     @classmethod
     def tearDownClass(cls):
@@ -102,9 +102,9 @@ class test_Orion(unittest.TestCase):
     def test_update(self):
         # create copies of Workstation objects to be used in the test's scope
         workstation1m = self.workstation1.copy()
-        workstation1m["RefJob"]["value"] = "urn:ngsiv2:i40Process:Job202200045_mod"
+        workstation1m["refJob"]["value"] = "urn:ngsiv2:i40Process:Job202200045_mod"
         workstation2m = self.workstation2.copy()
-        workstation2m["RefShift"]["value"] = "urn:ngsiv2:i40Recipe:Shift2"
+        workstation2m["refShift"]["value"] = "urn:ngsiv2:i40Recipe:Shift2"
 
         # update both Workstations in Orion
         requests.post(url=orion_entities, json=workstation1m)
@@ -131,16 +131,16 @@ class test_Orion(unittest.TestCase):
         # Boolean
         workstation = self.workstation1.copy()
         requests.post(url=orion_entities, json=workstation)
-        workstation["Available"]["value"] = False
-        Orion.update_attribute(id, "Available", "Boolean", False)
+        workstation["available"]["value"] = False
+        Orion.update_attribute(id, "available", "Boolean", False)
         downloaded = remove_orion_metadata(Orion.get(id))
         self.assertEqual(downloaded, workstation)
 
         # Number
         workstation = self.workstation1.copy()
         requests.post(url=orion_entities, json=workstation)
-        workstation["ThroughputPerShift"]["value"] = 8
-        Orion.update_attribute(id, "ThroughputPerShift", "Number", 8)
+        workstation["throughputPerShift"]["value"] = 8
+        Orion.update_attribute(id, "throughputPerShift", "Number", 8)
         downloaded = remove_orion_metadata(Orion.get(id))
         self.assertEqual(downloaded, workstation)
         
@@ -150,14 +150,14 @@ class test_Orion(unittest.TestCase):
         payload = {
             "OEE": 0.9 * 0.9 * 0.9,
             "availability": 0.9,
-            "Performance": 0.9,
+            "performance": 0.9,
             "Quality": 0.9 
         }
         workstation["oeeObject"]["value"] = payload
         Orion.update_attribute(id, "oeeObject", "OEE", payload)
         downloaded = remove_orion_metadata(Orion.get(id))
         self.assertAlmostEqual(downloaded["oeeObject"]["value"]["availability"], workstation["oeeObject"]["value"]["availability"], places=PLACES)
-        self.assertAlmostEqual(downloaded["oeeObject"]["value"]["Performance"], workstation["oeeObject"]["value"]["Performance"], places=PLACES)
+        self.assertAlmostEqual(downloaded["oeeObject"]["value"]["performance"], workstation["oeeObject"]["value"]["performance"], places=PLACES)
         self.assertAlmostEqual(downloaded["oeeObject"]["value"]["Quality"], workstation["oeeObject"]["value"]["Quality"], places=PLACES)
         self.assertAlmostEqual(downloaded["oeeObject"]["value"]["OEE"], workstation["oeeObject"]["value"]["OEE"], places=PLACES)
 

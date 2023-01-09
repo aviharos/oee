@@ -6,19 +6,19 @@
         "type": "Relationship",
         "value": "urn:ngsiv2:i40Asset:Part_Core001"
     },
-    "RefOperation": {
+    "refOperation": {
         "type": "Relationship",
         "value": "urn:ngsiv2:i40Recipe:Operation_Core001_injectionMoulding"
     },
-    "JobTargetNumber": {
+    "jobTargetNumber": {
         "type": "Number",
         "value": 8000
     },
-    "GoodPartCounter": {
+    "goodPartCounter": {
         "type": "Number",
         "value": 0
     },
-    "RejectPartCounter": {
+    "rejectPartCounter": {
         "type": "Number",
         "value": 0
     }

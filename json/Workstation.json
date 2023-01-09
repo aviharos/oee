@@ -5,15 +5,15 @@
         "type": "Text",
         "value": "Workstation"
     },
-    "Available": {
+    "available": {
         "type": "Boolean",
         "value": true
     },
-    "RefJob": {
+    "refJob": {
         "type": "Relationship",
         "value": "urn:ngsiv2:i40Process:Job202200045"
     },
-    "RefShift": {
+    "refShift": {
         "type": "Relationship",
         "value": "urn:ngsiv2:i40Recipe:Shift1"
     },
@@ -38,11 +38,11 @@
         "value": {
             "OEE": null,
             "availability": null,
-            "Performance": null,
+            "performance": null,
             "Quality": null 
         }
     },
-    "ThroughputPerShift": {
+    "throughputPerShift": {
         "type": "Number",
         "value": null
     }

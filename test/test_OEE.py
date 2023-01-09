@@ -202,21 +202,21 @@ class test_OEECalculator(unittest.TestCase):
         )
         self.oee.workstation["orion"] = copy.deepcopy(self.jsons["Workstation"])
 
-        del self.oee.workstation["orion"]["RefShift"]["value"]
+        del self.oee.workstation["orion"]["refShift"]["value"]
         with self.assertRaises(KeyError):
             # missing key
             self.oee.get_shift()
 
-        self.oee.workstation["orion"]["RefShift"] = "invalid_operationSchedule:id"
+        self.oee.workstation["orion"]["refShift"] = "invalid_operationSchedule:id"
         with self.assertRaises(TypeError):
             # "invalid_operationSchedule:id"["value"] will result in TypeError
             self.oee.get_shift()
 
     def test_is_datetime_in_todays_shift(self):
-        self.oee.today["Start"] = datetime(
+        self.oee.today["start"] = datetime(
             2022, 4, 4, 8, 0, 0
         )
-        self.oee.today["End"] = datetime(
+        self.oee.today["end"] = datetime(
             2022, 4, 4, 16, 0, 0
         )
         dt1 = datetime(2022, 4, 4, 9, 0, 0)
@@ -234,21 +234,21 @@ class test_OEECalculator(unittest.TestCase):
         )
         self.oee.get_todays_shift_limits()
         self.assertEqual(
-            self.oee.today["Start"],
+            self.oee.today["start"],
             datetime(2022, 8, 23, 8, 0, 0),
         )
         self.assertEqual(
-            self.oee.today["End"],
+            self.oee.today["end"],
             datetime(2022, 8, 23, 16, 0, 0),
         )
 
-        self.oee.shift["orion"]["End"][
+        self.oee.shift["orion"]["end"][
             "value"
         ] = "3 o'clock"
         with self.assertRaises(ValueError):
             self.oee.get_todays_shift_limits()
 
-        del self.oee.shift["orion"]["End"][
+        del self.oee.shift["orion"]["end"][
             "value"
         ]
         with self.assertRaises(KeyError):
@@ -256,7 +256,7 @@ class test_OEECalculator(unittest.TestCase):
             self.oee.get_todays_shift_limits()
 
         self.oee.shift["orion"][
-            "End"
+            "end"
         ] = "no_value_field"
         with self.assertRaises(TypeError):
             # "no_value_field"["value"] will result in a TypeError
@@ -265,7 +265,7 @@ class test_OEECalculator(unittest.TestCase):
     def test_get_job_id(self):
         self.oee.workstation["orion"] = copy.deepcopy(self.jsons["Workstation"])
         self.assertEqual(self.oee.get_job_id(), "urn:ngsiv2:i40Process:Job202200045")
-        self.oee.workstation["orion"]["RefJob"] = None
+        self.oee.workstation["orion"]["refJob"] = None
         with self.assertRaises(TypeError):
             self.oee.get_job_id()
 
@@ -283,7 +283,7 @@ class test_OEECalculator(unittest.TestCase):
         self.oee.job["orion"] = copy.deepcopy(self.jsons["Job202200045"])
         self.oee.get_operation_id()
         self.assertEqual(self.oee.operation["id"], "urn:ngsiv2:i40Recipe:Operation_Core001_injectionMoulding")
-        self.oee.job["orion"]["RefOperation"] = "invalid"
+        self.oee.job["orion"]["refOperation"] = "invalid"
         with self.assertRaises(KeyError):
             self.oee.get_operation_id()
 
@@ -293,15 +293,15 @@ class test_OEECalculator(unittest.TestCase):
         print(self.oee.operation["orion"])
         self.assertEqual(remove_orion_metadata(self.oee.operation["orion"]), self.jsons["Core001_injectionMoulding"])
 
-        self.oee.job["orion"]["RefOperation"]["value"] = "urn:ngsiv2:i40Recipe:Operation_Core001_painting"
+        self.oee.job["orion"]["refOperation"]["value"] = "urn:ngsiv2:i40Recipe:Operation_Core001_painting"
         with self.assertRaises(RuntimeError):
             self.oee.get_operation()
 
-        del self.oee.job["orion"]["RefOperation"]["value"]
+        del self.oee.job["orion"]["refOperation"]["value"]
         with self.assertRaises(KeyError):
             self.oee.get_operation()
 
-        self.oee.job["orion"]["RefOperation"] = None
+        self.oee.job["orion"]["refOperation"] = None
         with self.assertRaises(KeyError):
             self.oee.get_operation()
 
@@ -317,11 +317,11 @@ class test_OEECalculator(unittest.TestCase):
             self.jsons["Shift"],
         )
         self.assertEqual(
-            self.oee.today["Start"],
+            self.oee.today["start"],
             datetime(2022, 8, 23, 8, 0, 0),
         )
         self.assertEqual(
-            self.oee.today["End"],
+            self.oee.today["end"],
             datetime(2022, 8, 23, 16, 0, 0),
         )
         self.assertEqual(
@@ -410,7 +410,7 @@ class test_OEECalculator(unittest.TestCase):
             "/",
             "urn:ngsiv2:i40Asset:Workstation1",
             "Workstation",
-            "RefJob",
+            "refJob",
             "Text",
             job_id,
             "[]",
@@ -467,7 +467,7 @@ class test_OEECalculator(unittest.TestCase):
         #     "/",
         #     "urn:ngsi_ld:Workstation:1",
         #     "Workstation",
-        #     "RefJob",
+        #     "refJob",
         #     "Text",
         #     "urn:ngsi_ld:Job:202200046",
         #     "[]",
@@ -497,7 +497,7 @@ class test_OEECalculator(unittest.TestCase):
             self.oee.set_RefStartTime()
             self.assertEqual(
                 self.oee.today["RefStartTime"],
-                self.oee.today["Start"],
+                self.oee.today["start"],
             )
 
     def test_convert_dataframe_to_str(self):
@@ -519,7 +519,7 @@ class test_OEECalculator(unittest.TestCase):
         #     "/",
         #     "urn:ngsi_ld:Workstation:1",
         #     "Workstation",
-        #     "RefJob",
+        #     "refJob",
         #     "Text",
         #     "urn:ngsi_ld:Job:202200045",
         #     "[]",
@@ -552,8 +552,8 @@ class test_OEECalculator(unittest.TestCase):
             remove_orion_metadata(self.oee.shift["orion"]),
             self.jsons["Shift"],
         )
-        self.assertEqual(self.oee.today["Start"], _8h)
-        self.assertEqual(self.oee.today["End"], _16h)
+        self.assertEqual(self.oee.today["start"], _8h)
+        self.assertEqual(self.oee.today["end"], _16h)
         self.assertEqual(
             remove_orion_metadata(self.oee.job["orion"]), self.jsons["Job202200045"]
         )
@@ -757,7 +757,7 @@ class test_OEECalculator(unittest.TestCase):
         """
         performance = (n_total_cycles * 46) / (50 * 60)
         self.assertEqual(self.oee.oee["performance"], performance)
-        # self.oee['performance']['value'] = self.n_total_cycles * self.operation['orion']['CycleTime']['value'] / self.total_available_time
+        # self.oee['performance']['value'] = self.n_total_cycles * self.operation['orion']['cycleTime']['value'] / self.total_available_time
 
     @patch(f"{OEE.__name__}.datetime", wraps=datetime)
     def test_calculate_OEE(self, mock_datetime):

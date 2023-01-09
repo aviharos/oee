@@ -232,7 +232,7 @@ class OEECalculator:
             KeyError or TypeError if the id cannot be read from the Workstation Orion object
         """
         try:
-            self.shift["id"] = self.workstation["orion"]["RefShift"][
+            self.shift["id"] = self.workstation["orion"]["refShift"][
                 "value"
             ]
         except (KeyError, TypeError) as error:
@@ -252,9 +252,9 @@ class OEECalculator:
             True if the datetime is within the shift of the Workstation
             False otherwise
         """
-        if datetime_ < self.today["Start"]:
+        if datetime_ < self.today["start"]:
             return False
-        if datetime_ > self.today["End"]:
+        if datetime_ > self.today["end"]:
             return False
         return True
 
@@ -270,8 +270,8 @@ class OEECalculator:
         """
         try:
             for time_ in (
-                "Start",
-                "End",
+                "start",
+                "end",
             ):
                 self.today[time_] = self.timeToDatetime(
                     self.shift["orion"][time_]["value"]
@@ -292,7 +292,7 @@ class OEECalculator:
             KeyError or TypeError if getting the value from the dict fails
         """
         try:
-            return self.workstation["orion"]["RefJob"]["value"]
+            return self.workstation["orion"]["refJob"]["value"]
         except (KeyError, TypeError) as error:
             raise error.__class__(
                 f'The workstation object {self.workstation["id"]} has no valid RefJob attribute:\nObject:\n{self.workstation["orion"]}'
@@ -315,7 +315,7 @@ class OEECalculator:
             KeyError or TypeError if getting the value from the dict fails
         """
         try:
-            operation_id = self.job["orion"]["RefOperation"]["value"]
+            operation_id = self.job["orion"]["refOperation"]["value"]
         except (KeyError, TypeError) as error:
             raise KeyError(
                 f'Critical: RefOperation not found in the Job {self.job["id"]}.\nObject:\n{self.job["orion"]}'
@@ -369,7 +369,7 @@ class OEECalculator:
             )
         elif how == "from_schedule_start":
             return self.datetimeToMilliseconds(
-                self.today["Start"]
+                self.today["start"]
             )
         else:
             raise NotImplementedError(
@@ -458,14 +458,14 @@ class OEECalculator:
                 and the last job according to the Cygnus logs differ
         """
         df = self.workstation["df"]
-        refJob_entries = df[df["attrname"] == "RefJob"]
+        refJob_entries = df[df["attrname"] == "refJob"]
 
         if len(refJob_entries) == 0:
             # today's queried workstation df does not contain a job change
             # we assume that the Job was started in a previous shift
             # so the job's today part started at the schedule start time today
-            self.logger.debug(f"Today's job start time: {self.today['Start']}")
-            return self.today["Start"]
+            self.logger.debug(f"Today's job start time: {self.today['start']}")
+            return self.today["start"]
 
         last_job = refJob_entries.iloc[-1]["attrvalue"]
         if last_job != self.job["id"]:
@@ -500,7 +500,7 @@ class OEECalculator:
                 f'The current job started in this shift, RefStartTime: {self.today["RefStartTime"]}'
             )
         else:
-            self.today["RefStartTime"] = self.today["Start"]
+            self.today["RefStartTime"] = self.today["start"]
             self.logger.info(
                 f'The current job started before this shift, RefStartTime: {self.today["RefStartTime"]}'
             )
@@ -824,16 +824,16 @@ class OEECalculator:
         max = values.max()
         if 0 in values:
             self.logger.debug("0 in values")
-            return (max - min) / self.operation["orion"]["PartsPerCycle"]["value"]
+            return (max - min) / self.operation["orion"]["partsPerCycle"]["value"]
         if 0 not in values:
             self.logger.debug("0 not in values")
-            return (max - min) / self.operation["orion"]["PartsPerCycle"]["value"] + 1
+            return (max - min) / self.operation["orion"]["partsPerCycle"]["value"] + 1
 
     def count_cycles(self):
         """Count the number of successful and failed production cycles 
 
         In this terminology, a cycle consists of the Workstation creating
-        self.operation["orion"]["PartsPerCycle"] pcs of parts,
+        self.operation["orion"]["partsPerCycle"] pcs of parts,
         all of them good or reject parts.
 
         The values are stored in
@@ -883,7 +883,7 @@ class OEECalculator:
         Store the result in self.oee["performance"]["value"]"""
         self.oee["performance"] = (
             self.n_total_cycles
-            * self.operation["orion"]["CycleTime"]["value"]
+            * self.operation["orion"]["cycleTime"]["value"]
             * 1e3  # we count in milliseconds
             / self.total_available_time
         )
@@ -913,15 +913,15 @@ class OEECalculator:
             self.throughput: Throughput Object that will eventually be uploaded to Orion
         """
         self.shiftLengthInMilliseconds = self.datetimeToMilliseconds(
-            self.today["End"]
+            self.today["end"]
         ) - self.datetimeToMilliseconds(self.today["RefStartTime"])
         self.throughput = (
             # use milliseconds
             (
                 self.shiftLengthInMilliseconds
-                / (self.operation["orion"]["CycleTime"]["value"] * 1e3)
+                / (self.operation["orion"]["cycleTime"]["value"] * 1e3)
             )
-            * self.operation["orion"]["PartsPerCycle"]["value"]
+            * self.operation["orion"]["partsPerCycle"]["value"]
             * self.oee["OEE"]
         )
         self.logger.info(f"Throughput per shift (estimated): {self.throughput}")

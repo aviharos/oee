@@ -50,8 +50,8 @@ def test_generator_check_throughput(right_throughput, calculated_throughput):
     def test(self):
         self.assertEqual(right_throughput["id"], calculated_throughput["id"])
         self.assertEqual(right_throughput["RefWorkstation"], calculated_throughput["RefWorkstation"])
-        self.assertEqual(right_throughput["RefJob"], calculated_throughput["RefJob"])
-        self.assertAlmostEqual(right_throughput["ThroughputPerShift"]["value"], calculated_throughput["ThroughputPerShift"]["value"], places=PLACES)
+        self.assertEqual(right_throughput["refJob"], calculated_throughput["refJob"])
+        self.assertAlmostEqual(right_throughput["throughputPerShift"]["value"], calculated_throughput["throughputPerShift"]["value"], places=PLACES)
     return test
 
 
@@ -138,7 +138,7 @@ class test_LoopHandler(unittest.TestCase):
         downloaded_workstation = remove_orion_metadata(Orion.get(self.workstation["id"]))
         self.logger.debug(f"test_clear_all_KPIs: downloaded_workstation: {downloaded_workstation}")
         self.assertEqual(downloaded_workstation["oeeObject"]["value"], self.blank_oee)
-        self.assertEqual(downloaded_workstation["ThroughputPerShift"]["value"], None)
+        self.assertEqual(downloaded_workstation["throughputPerShift"]["value"], None)
         self.assertEqual(downloaded_workstation["oeeAvailability"]["value"], None)
         self.assertEqual(downloaded_workstation["oeePerformance"]["value"], None)
         self.assertEqual(downloaded_workstation["oeeQuality"]["value"], None)
@@ -147,7 +147,7 @@ class test_LoopHandler(unittest.TestCase):
     def assert_KPIs_are_correct(self):
         downloaded_workstation = remove_orion_metadata(Orion.get(self.workstation["id"]))
         calculated_oee = downloaded_workstation["oeeObject"]["value"]
-        calculated_throughputPerShift = downloaded_workstation["ThroughputPerShift"]["value"]
+        calculated_throughputPerShift = downloaded_workstation["throughputPerShift"]["value"]
         assertDeepAlmostEqual(self, self.correctOEEObject, calculated_oee, places=PLACES)
         self.assertAlmostEqual(self.correctOEEObject["availability"], downloaded_workstation["oeeAvailability"]["value"], places=PLACES)
         self.assertAlmostEqual(self.correctOEEObject["performance"], downloaded_workstation["oeePerformance"]["value"], places=PLACES)
@@ -162,7 +162,7 @@ class test_LoopHandler(unittest.TestCase):
         workstation["oeePerformance"]["value"] = self.correctOEEObject["performance"]
         workstation["oeeQuality"]["value"] = self.correctOEEObject["quality"]
         workstation["OEE"]["value"] = self.correctOEEObject["OEE"]
-        workstation["ThroughputPerShift"]["value"] = self.correctThroughPutPerShift
+        workstation["throughputPerShift"]["value"] = self.correctThroughPutPerShift
         Orion.update([workstation])
 
     @patch(f"{OEE.__name__}.datetime", wraps=datetime)

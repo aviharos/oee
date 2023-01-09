@@ -97,8 +97,8 @@ You can find examples for each object explained below.
     {
         "type": "Workstation",
         "id": "urn:ngsi_ld:Workstation:1",
-        "Available": {"type": "Boolean", "value": true},
-        "RefJob": {"type": "Relationship", "value": "urn:ngsi_ld:Job:202200045"},
+        "available": {"type": "Boolean", "value": true},
+        "refJob": {"type": "Relationship", "value": "urn:ngsi_ld:Job:202200045"},
         "RefOEE": {"type": "Relationship", "value": "urn:ngsi_ld:OEE:1"},
         "RefThroughput": {"type": "Relationship", "value": "urn:ngsi_ld:Throughput:1"},
         "RefOperatorSchedule": {"type": "Relationship", "value": "urn:ngsi_ld:OperatorSchedule:1"}
@@ -120,9 +120,9 @@ The Workstation cannot be turned on any day before the OperatorSchedule's Operat
         "id": "urn:ngsi_ld:Job:202200045",
         "refPart": {"type": "Relationship", "value": "urn:ngsi_ld:Part:Core001"},
         "CurrentOperationType": {"type": "Text", "value": "Core001_injection_moulding"},
-        "JobTargetNumber": {"type": "Number", "value": 8000},
-        "GoodPartCounter": {"type": "Number", "value": 0},
-        "RejectPartCounter": {"type": "Number", "value": 0}
+        "jobTargetNumber": {"type": "Number", "value": 8000},
+        "goodPartCounter": {"type": "Number", "value": 0},
+        "rejectPartCounter": {"type": "Number", "value": 0}
     }
 
 Attributes:
@@ -144,8 +144,8 @@ Attributes:
                     "type": "Operation",
                     "OperationNumber": {"type": "Number", "value": 10},
                     "OperationType": {"type": "Text", "value": "Core001_injection_moulding"},
-                    "CycleTime": {"type": "Number", "value": 36},
-                    "PartsPerCycle": {"type": "Number", "value": 8}
+                    "cycleTime": {"type": "Number", "value": 36},
+                    "partsPerCycle": {"type": "Number", "value": 8}
                 }
             ]
         }
@@ -181,9 +181,9 @@ Attributes:
         "type": "OEE",
         "id": "urn:ngsi_ld:OEE:1",
         "RefWorkstation": {"type": "Relationship", "value": "urn:ngsi_ld:Workstation:1"},
-        "RefJob": {"type": "Relationship", "value": "urn:ngsi_ld:Job:202200045"},
+        "refJob": {"type": "Relationship", "value": "urn:ngsi_ld:Job:202200045"},
         "availability": {"type": "Number", "value": 0.9},
-        "Performance": {"type": "Number", "value": 0.9},
+        "performance": {"type": "Number", "value": 0.9},
         "Quality": {"type": "Number", "value": 0.9},
         "OEE": {"type": "Number", "value": 0.729}
     }
@@ -204,8 +204,8 @@ The OEE microservice deletes the Availability, Performance, Quality and OEE attr
         "type": "Throughput",
         "id": "urn:ngsi_ld:Throughput:1",
         "RefWorkstation": {"type": "Relationship", "value": "urn:ngsi_ld:Workstation:1"},
-        "RefJob": {"type": "Relationship", "value": "urn:ngsi_ld:Job:202200045"},
-        "ThroughputPerShift": {"type": "Number", "value": 4100}
+        "refJob": {"type": "Relationship", "value": "urn:ngsi_ld:Job:202200045"},
+        "throughputPerShift": {"type": "Number", "value": 4100}
     }
 
 Attributes:

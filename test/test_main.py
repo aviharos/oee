@@ -58,7 +58,7 @@ class test_object_to_template(unittest.TestCase):
             "type": "i40Asset",
             "i40AssetType": {"type": "Text", "value": "OEE"},
             "RefWorkstation": {"type": "Relationship", "value": "urn:ngsiv2:i40Asset:Workstation1"},
-            "RefJob": {"type": "Relationship", "value": "urn:ngsiv2:i40Process:Job202200045"},
+            "refJob": {"type": "Relationship", "value": "urn:ngsiv2:i40Process:Job202200045"},
             "availability": {"type": "Number", "value": None},
             "performance": {"type": "Number", "value": None},
             "quality": {"type": "Number", "value": None},
@@ -69,8 +69,8 @@ class test_object_to_template(unittest.TestCase):
             "type": "i40Asset",
             "i40AssetType": {"type": "Text", "value": "Throughput"},
             "RefWorkstation": {"type": "Relationship", "value": "urn:ngsiv2:i40Asset:Workstation1"},
-            "RefJob": {"type": "Relationship", "value": "urn:ngsiv2:i40Process:Job202200045"},
-            "ThroughputPerShift": {"type": "Number", "value": None}
+            "refJob": {"type": "Relationship", "value": "urn:ngsiv2:i40Process:Job202200045"},
+            "throughputPerShift": {"type": "Number", "value": None}
         }
         reupload_jsons_to_Orion.main()
         cls.engine = create_engine(
@@ -172,7 +172,7 @@ class test_object_to_template(unittest.TestCase):
         # check calculated KPIs
         downloaded_workstation = remove_orion_metadata(Orion.get(self.workstation["id"]))
         calculated_oee = downloaded_workstation["oeeObject"]["value"]
-        calculated_throughputPerShift = downloaded_workstation["ThroughputPerShift"]["value"]
+        calculated_throughputPerShift = downloaded_workstation["throughputPerShift"]["value"]
         self.logger.debug(f"""assert_KPIs_are_correct:
 calculated_oee: {calculated_oee}
 calculated_throughput: {calculated_throughputPerShift}""")

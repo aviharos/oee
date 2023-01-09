@@ -4,7 +4,7 @@ df = pd.read_csv('urn_ngsi_ld_job_202200045_job.csv')
 # today df, today: 2022 04 04
 tdf = df[df['recvtimets'] < 1649109599000]
 
-gp = tdf[tdf['attrname'] == 'GoodPartCounter']
+gp = tdf[tdf['attrname'] == 'goodPartCounter']
 # ha van benne 0, akkor 1-gyel kevesebb
 gp_unique = gp['attrvalue'].unique()
 print(gp_unique)
@@ -15,7 +15,7 @@ else:
     n_successful_moudings = gp_unique.shape[0]
 
 
-rp = tdf[tdf['attrname'] == 'RejectPartCounter']
+rp = tdf[tdf['attrname'] == 'rejectPartCounter']
 # ha van benne 0, akkor 1-gyel kevesebb
 rp_unique = rp['attrvalue'].unique()
 print(rp_unique)
