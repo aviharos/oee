@@ -137,30 +137,30 @@ class test_LoopHandler(unittest.TestCase):
     def assert_KPIs_are_cleared(self):
         downloaded_workstation = remove_orion_metadata(Orion.get(self.workstation["id"]))
         self.logger.debug(f"test_clear_all_KPIs: downloaded_workstation: {downloaded_workstation}")
-        self.assertEqual(downloaded_workstation["OEEObject"]["value"], self.blank_oee)
+        self.assertEqual(downloaded_workstation["oeeObject"]["value"], self.blank_oee)
         self.assertEqual(downloaded_workstation["ThroughputPerShift"]["value"], None)
-        self.assertEqual(downloaded_workstation["OEEAvailability"]["value"], None)
-        self.assertEqual(downloaded_workstation["OEEPerformance"]["value"], None)
-        self.assertEqual(downloaded_workstation["OEEQuality"]["value"], None)
+        self.assertEqual(downloaded_workstation["oeeAvailability"]["value"], None)
+        self.assertEqual(downloaded_workstation["oeePerformance"]["value"], None)
+        self.assertEqual(downloaded_workstation["oeeQuality"]["value"], None)
         self.assertEqual(downloaded_workstation["OEE"]["value"], None)
 
     def assert_KPIs_are_correct(self):
         downloaded_workstation = remove_orion_metadata(Orion.get(self.workstation["id"]))
-        calculated_oee = downloaded_workstation["OEEObject"]["value"]
+        calculated_oee = downloaded_workstation["oeeObject"]["value"]
         calculated_throughputPerShift = downloaded_workstation["ThroughputPerShift"]["value"]
         assertDeepAlmostEqual(self, self.correctOEEObject, calculated_oee, places=PLACES)
-        self.assertAlmostEqual(self.correctOEEObject["Availability"], downloaded_workstation["OEEAvailability"]["value"], places=PLACES)
-        self.assertAlmostEqual(self.correctOEEObject["Performance"], downloaded_workstation["OEEPerformance"]["value"], places=PLACES)
-        self.assertAlmostEqual(self.correctOEEObject["Quality"], downloaded_workstation["OEEQuality"]["value"], places=PLACES)
+        self.assertAlmostEqual(self.correctOEEObject["Availability"], downloaded_workstation["oeeAvailability"]["value"], places=PLACES)
+        self.assertAlmostEqual(self.correctOEEObject["Performance"], downloaded_workstation["oeePerformance"]["value"], places=PLACES)
+        self.assertAlmostEqual(self.correctOEEObject["Quality"], downloaded_workstation["oeeQuality"]["value"], places=PLACES)
         self.assertAlmostEqual(self.correctOEEObject["OEE"], downloaded_workstation["OEE"]["value"], places=PLACES)
         assertDeepAlmostEqual(self, self.correctThroughPutPerShift, calculated_throughputPerShift, places=PLACES)
 
     def write_values_into_KPIs(self):
         workstation = copy.deepcopy(self.workstation)
-        workstation["OEEObject"]["value"] = self.correctOEEObject
-        workstation["OEEAvailability"]["value"] = self.correctOEEObject["Availability"]
-        workstation["OEEPerformance"]["value"] = self.correctOEEObject["Performance"]
-        workstation["OEEQuality"]["value"] = self.correctOEEObject["Quality"]
+        workstation["oeeObject"]["value"] = self.correctOEEObject
+        workstation["oeeAvailability"]["value"] = self.correctOEEObject["Availability"]
+        workstation["oeePerformance"]["value"] = self.correctOEEObject["Performance"]
+        workstation["oeeQuality"]["value"] = self.correctOEEObject["Quality"]
         workstation["OEE"]["value"] = self.correctOEEObject["OEE"]
         workstation["ThroughputPerShift"]["value"] = self.correctThroughPutPerShift
         Orion.update([workstation])

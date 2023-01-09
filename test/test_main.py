@@ -171,15 +171,15 @@ class test_object_to_template(unittest.TestCase):
 
         # check calculated KPIs
         downloaded_workstation = remove_orion_metadata(Orion.get(self.workstation["id"]))
-        calculated_oee = downloaded_workstation["OEEObject"]["value"]
+        calculated_oee = downloaded_workstation["oeeObject"]["value"]
         calculated_throughputPerShift = downloaded_workstation["ThroughputPerShift"]["value"]
         self.logger.debug(f"""assert_KPIs_are_correct:
 calculated_oee: {calculated_oee}
 calculated_throughput: {calculated_throughputPerShift}""")
         assertDeepAlmostEqual(self, self.correctOEEObject, calculated_oee, places=PLACES)
-        self.assertAlmostEqual(self.correctOEEObject["Availability"], downloaded_workstation["OEEAvailability"]["value"], places=PLACES)
-        self.assertAlmostEqual(self.correctOEEObject["Performance"], downloaded_workstation["OEEPerformance"]["value"], places=PLACES)
-        self.assertAlmostEqual(self.correctOEEObject["Quality"], downloaded_workstation["OEEQuality"]["value"], places=PLACES)
+        self.assertAlmostEqual(self.correctOEEObject["Availability"], downloaded_workstation["oeeAvailability"]["value"], places=PLACES)
+        self.assertAlmostEqual(self.correctOEEObject["Performance"], downloaded_workstation["oeePerformance"]["value"], places=PLACES)
+        self.assertAlmostEqual(self.correctOEEObject["Quality"], downloaded_workstation["oeeQuality"]["value"], places=PLACES)
         self.assertAlmostEqual(self.correctOEEObject["OEE"], downloaded_workstation["OEE"]["value"], places=PLACES)
         assertDeepAlmostEqual(self, self.correctThroughPutPerShift, calculated_throughputPerShift, places=PLACES)
 

@@ -2,7 +2,7 @@
     "id": "urn:ngsiv2:i40Process:Job202200047",
     "type": "i40Process",
     "i40ProcessType": {"type": "Text", "value": "Job"},
-    "RefPart": {
+    "refPart": {
         "type": "Relationship",
         "value": "urn:ngsiv2:i40Asset:Part_Cube001"
     },

@@ -658,7 +658,7 @@ class OEECalculator:
         time_off = 0
         # the first interval starts at RefStartTime
         previous_timestamp = self.datetimeToMilliseconds(self.today["RefStartTime"])
-        # see if we can determine the Workstation's Available attribute 
+        # see if we can determine the Workstation's available attribute 
         # from RefStartTime to the first entry
         if len(df_before) == 0:
             # assume not turned on 
@@ -666,7 +666,7 @@ class OEECalculator:
             # the Workstation cannot be turned on before the schedule start!
             available = False
         else:
-            # there is at least one Available attribute entry today before RefStartTime
+            # there is at least one available attribute entry today before RefStartTime
             # use the last of those to see if the Workstation was on at RefStartTime
             df_before.sort_values(by=["recvtimets"], inplace=True)
             last_availability = df_before.iloc[-1]["attrvalue"]
@@ -677,11 +677,11 @@ class OEECalculator:
             Interate all rows
             Every 2 subsequent rows defines an interval during which the Workstation was on
             Or off without interruption
-            The first row shows the Workstation's Available attribute during that interval
+            The first row shows the Workstation's available attribute during that interval
             Check which interval is on and off, and increase times accordingly
 
             Caution: Cygnus logs in a way that more subsequent rows can have the same
-            Available value, so we cannot assume that they alternate
+            available value, so we cannot assume that they alternate
 
             The first and last intervals are special.
             The first interval starts at RefStartTime, ends at the first entry
@@ -724,7 +724,7 @@ class OEECalculator:
     def calc_availability(self, df_av: pd.DataFrame):
         """Calculate the availability of the Workstation
 
-        The Workstation's Available attribute
+        The Workstation's available attribute
         is true and false in this periodical order.
 
         This function first checks if there is any availability log since RefStartTime
@@ -773,17 +773,17 @@ class OEECalculator:
                 if the Workstation was not turned on since midnight
         """
         df = self.workstation["df"]
-        df_av = df[df["attrname"] == "Available"]
+        df_av = df[df["attrname"] == "available"]
         available_true = df_av[df_av["attrvalue"] == "true"]
         if available_true.size == 0:
             raise ValueError(
-                f'The Workstation {self.workstation["id"]} was not turned Available by {self.now_datetime} since midnight, no OEE data'
+                f'The Workstation {self.workstation["id"]} was not turned available by {self.now_datetime} since midnight, no OEE data'
             )
         self.oee["Availability"] = self.calc_availability(df_av)
         self.logger.info(f"Availability: {self.oee['Availability']}")
 
     def count_cycles_based_on_counter_values(self, values: np.array):
-        """Count number of injection moulding cycles based on a np.array of GoodPartCounter values
+        """Count number of injection moulding cycles based on a np.array of goodPartCounter values
 
         Used for counting the number of successful or failed cycles
         Example:
@@ -819,7 +819,7 @@ class OEECalculator:
         try:
             values = values.astype(int)
         except ValueError as error:
-            raise ValueError("At least one GoodPartCounter or RejectPartCounter value cannot be converted to int") from error
+            raise ValueError("At least one goodPartCounter or rejectPartCounter value cannot be converted to int") from error
         min = values.min()
         max = values.max()
         if 0 in values:
@@ -843,13 +843,13 @@ class OEECalculator:
         df = self.job["df"]
         attr_name_val = df[["attrname", "attrvalue"]]
         goodPartCounter_values = attr_name_val[
-            attr_name_val["attrname"] == "GoodPartCounter"
+            attr_name_val["attrname"] == "goodPartCounter"
         ]["attrvalue"].unique()
         rejectPartCounter_values = attr_name_val[
-            attr_name_val["attrname"] == "RejectPartCounter"
+            attr_name_val["attrname"] == "rejectPartCounter"
         ]["attrvalue"].unique()
-        self.logger.debug(f"GoodPartCounter values: {goodPartCounter_values}")
-        self.logger.debug(f"RejectPartCounter values: {rejectPartCounter_values}")
+        self.logger.debug(f"goodPartCounter values: {goodPartCounter_values}")
+        self.logger.debug(f"rejectPartCounter values: {rejectPartCounter_values}")
         self.n_successful_cycles = self.count_cycles_based_on_counter_values(goodPartCounter_values)
         self.logger.debug(f"Number of successful cycles: {self.n_successful_cycles}")
         self.n_failed_cycles = self.count_cycles_based_on_counter_values(rejectPartCounter_values)

@@ -2,11 +2,11 @@
     "id": "urn:ngsiv2:i40Recipe:SequenceOfOperations_Cube001",
     "type": "i40Recipe",
     "i40RecipeType": {"type": "Text", "value": "SequenceOfOperations"},
-    "RefPart": {
+    "refPart": {
         "type": "Relationship",
         "value": "urn:ngsiv2:i40Asset:Part_Cube001"
     },
-    "Operations": {
+    "operations": {
         "type": "List",
         "value": [
             "urn:ngsiv2:i40Recipe:Operation_Cube001_injectionMoulding"

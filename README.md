@@ -118,7 +118,7 @@ The Workstation cannot be turned on any day before the OperatorSchedule's Operat
     {
         "type": "Job",
         "id": "urn:ngsi_ld:Job:202200045",
-        "RefPart": {"type": "Relationship", "value": "urn:ngsi_ld:Part:Core001"},
+        "refPart": {"type": "Relationship", "value": "urn:ngsi_ld:Part:Core001"},
         "CurrentOperationType": {"type": "Text", "value": "Core001_injection_moulding"},
         "JobTargetNumber": {"type": "Number", "value": 8000},
         "GoodPartCounter": {"type": "Number", "value": 0},
@@ -137,7 +137,7 @@ Attributes:
     {
         "type": "Part",
         "id": "urn:ngsi_ld:Part:Core001",
-        "Operations": {
+        "operations": {
             "type": "List",
             "value": [
                 {

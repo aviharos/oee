@@ -661,7 +661,7 @@ class test_OEECalculator(unittest.TestCase):
         mock_datetime.now.return_value = now
         self.oee.prepare(self.con)
         df = self.oee.workstation["df"].copy()
-        df_av = df[df["attrname"] == "Available"]
+        df_av = df[df["attrname"] == "available"]
         df_before = self.oee.filter_in_relation_to_RefStartTime(df_av, how="before")
         df_after = self.oee.filter_in_relation_to_RefStartTime(df_av, how="after")
         # self.logger.debug("calc_availability_if_exists_record_after_RefStartTime, df_av: {df_av}")
@@ -676,7 +676,7 @@ class test_OEECalculator(unittest.TestCase):
         mock_datetime.now.return_value = now
         self.oee.prepare(self.con)
         df = self.oee.workstation["df"].copy()
-        df_av = df[df["attrname"] == "Available"]
+        df_av = df[df["attrname"] == "available"]
         self.assertEqual(self.oee.calc_availability(df_av), 50 / 60)
 
     @patch(f"{OEE.__name__}.datetime", wraps=datetime)

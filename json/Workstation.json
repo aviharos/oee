@@ -21,19 +21,19 @@
         "type": "Number",
         "value": null
     },
-    "OEEAvailability": {
+    "oeeAvailability": {
         "type": "Number",
         "value": null
     },
-    "OEEPerformance": {
+    "oeePerformance": {
         "type": "Number",
         "value": null
     },
-    "OEEQuality": {
+    "oeeQuality": {
         "type": "Number",
         "value": null
     },
-    "OEEObject": {
+    "oeeObject": {
         "type": "OEE",
         "value": {
             "OEE": null,

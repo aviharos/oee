@@ -96,10 +96,10 @@ class LoopHandler:
         try:
             self.logger.info(f'Calculating KPIs for {workstation_id}')
             oee, throughput = self.calculate_KPIs(workstation_id)
-            Orion.update_attribute(workstation_id, "OEEObject", "OEE", oee)
-            Orion.update_attribute(workstation_id, "OEEAvailability", "Number", oee["Availability"])
-            Orion.update_attribute(workstation_id, "OEEPerformance", "Number", oee["Performance"])
-            Orion.update_attribute(workstation_id, "OEEQuality", "Number", oee["Quality"])
+            Orion.update_attribute(workstation_id, "oeeObject", "OEE", oee)
+            Orion.update_attribute(workstation_id, "oeeAvailability", "Number", oee["Availability"])
+            Orion.update_attribute(workstation_id, "oeePerformance", "Number", oee["Performance"])
+            Orion.update_attribute(workstation_id, "oeeQuality", "Number", oee["Quality"])
             Orion.update_attribute(workstation_id, "OEE", "Number", oee["OEE"])
             Orion.update_attribute(workstation_id, "ThroughputPerShift", "Number", throughput)
         except (
@@ -122,11 +122,11 @@ class LoopHandler:
         Args:
             workstation_id (str): the Workstation's Orion id 
         """
-        Orion.update_attribute(workstation_id, "OEEObject", "OEE", OEECalculator.OEE_template.copy())
+        Orion.update_attribute(workstation_id, "oeeObject", "OEE", OEECalculator.OEE_template.copy())
         Orion.update_attribute(workstation_id, "OEE", "Number", None)
-        Orion.update_attribute(workstation_id, "OEEAvailability", "Number", None)
-        Orion.update_attribute(workstation_id, "OEEPerformance", "Number", None)
-        Orion.update_attribute(workstation_id, "OEEQuality", "Number", None)
+        Orion.update_attribute(workstation_id, "oeeAvailability", "Number", None)
+        Orion.update_attribute(workstation_id, "oeePerformance", "Number", None)
+        Orion.update_attribute(workstation_id, "oeeQuality", "Number", None)
         self.logger.info(f"OEE cleared successfully for workstation: {workstation_id}")
 
     def clear_throughputPerShift(self, workstation_id: str):
