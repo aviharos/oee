@@ -65,6 +65,20 @@ def getRequest(url: str):
             ) from error
         return response.status_code, response.json()
 
+def is_reachable():
+    """Return True if the OCB is reachable, False otherwise
+
+    Args:
+        None
+
+    Returns:
+        Boolean:
+            True if the OCB is reachable
+            False otherwise
+    """
+    url = f"http://{ORION_HOST}:{ORION_PORT}/version"
+    status_code, _ = getRequest(url)
+    return status_code == 200
 
 def get(object_id: str, host: str=ORION_HOST, port: int =ORION_PORT):
     """Get an object from Orion identified by the ID
