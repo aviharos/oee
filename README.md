@@ -342,7 +342,7 @@ If you encounter any trouble using the OEE microservice, inspect its logs:
 
     docker logs <container name>
 
-In the default MOMAMS setup, the container name is `r4t-oee`.
+In the default MOMAMS setup, the container name is `momams-oee`.
 
 ## Limitations
 
