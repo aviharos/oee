@@ -34,7 +34,7 @@ Before reading further, it is strongly advised to read the following official Fi
 
 You can run the component from a docker image. You can build it using the [Dockerfile](Dockerfile):
 
-	docker build -t oee:<version> .
+	$ docker build -t oee:<version> .
 
 ## Requirements
 
@@ -58,7 +58,7 @@ You do not need to activate the oee microservice. If you add the microservice to
 ### Notifying Cygnus of all context changes
 After running the docker-compose project, you need to set Orion to notify Cygnus of all context changes using the script:
 
-    ./notify_cygnus.sh
+    $ ./notify_cygnus.sh
 
 This script should be executed once, immediately after starting the docker-compose project.
 
@@ -340,7 +340,7 @@ Please note that the tests were originally written in the GMT+2 time zone, so th
 
 If you encounter any trouble using the OEE microservice, inspect its logs:
 
-    docker logs <container name>
+    $ docker logs <container name>
 
 In the default MOMAMS setup, the container name is `momams-oee`.
 
