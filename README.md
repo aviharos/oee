@@ -24,6 +24,12 @@ The [Fiware Orion Context Broker](https://github.com/Fiware/tutorials.Getting-St
 
 The OEE microservice can handle systems matching the manufacturing system [requirements](#requirements). The objects stored in the Orion Context Broker must match the data model (see an example configuration in [jsons](jsons)). If we configure the manufacturing system according to the way described in [Usage](#usage), we can calculate the OEE and ThroughputPerShift of each Workstation object.
 
+Before reading further, it is strongly advised to read the following official Fiware tutorials:
+
+- [Getting Started](https://github.com/FIWARE/tutorials.Getting-Started)
+- [Entity Relationships](https://github.com/FIWARE/tutorials.Entity-Relationships)
+- [Persisting Context Data using Apache Flume (MongoDB, MySQL, PostgreSQL)](https://github.com/FIWARE/tutorials.Historic-Context-Flume).
+
 ## Build
 
 You can run the component from a docker image. You can build it using the [Dockerfile](Dockerfile):
@@ -68,7 +74,7 @@ As the manufacturing process is working, you need to keep these objects up-to-da
 Below you can find the design of the key objects. You cannot change the attribute names, but you can change their content. You cannot change the object types. The manufacturing system and the processes are also defined in these json files. You can arbitratily extend the data model with additional attributes and other types of objects. Make sure that if you have other Orion objects, none of them is of type `i40Asset` and of subType `Workstation`.
 
 You need to configure and constantly update:
-- One Workstation object for each Workstation. In the example, there is one: "urn:ngsiv2:i40Asset:Workstation1".
+- One Workstation object for each Workstation. In the example json files, there is one: `urn:ngsiv2:i40Asset:Workstation1`.
 - One Job object for each Job.
 
 In addition, you need to configure the manufacturing technology in the following objects. These objects rarely change.
@@ -332,13 +338,14 @@ Please note that the tests were originally written in the GMT+2 time zone, so th
 
 ## Troubleshooting
 
-If you encounter any trouble using the OEE microservice, inspect its docker logs:
+If you encounter any trouble using the OEE microservice, inspect its logs:
 
     docker logs <container name>
 
 In the default MOMAMS setup, the container name is `r4t-oee`.
 
 ## Limitations
+
 The OEE microservice currently cannot handle HTTPS and Fiware’s authentication system.
 
 ## License
