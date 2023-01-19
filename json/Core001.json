@@ -1,7 +1,10 @@
 {
     "id": "urn:ngsiv2:i40Asset:Part_Core001",
     "type": "i40Asset",
-    "i40AssetType": {"type": "Text", "value": "Part"},
+    "i40AssetType": {
+        "type": "Text",
+        "value": "Part"
+    },
     "refSequenceOfOperations": {
         "type": "Relationship",
         "value": "urn:ngsiv2:SequenceOfOperations:Core001"

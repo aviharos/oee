@@ -1,7 +1,10 @@
 {
     "id": "urn:ngsiv2:i40Recipe:Operation_Cover001_injectionMoulding",
     "type": "i40Recipe",
-    "i40RecipeType": {"type": "Text", "value": "Operation"},
+    "i40RecipeType": {
+        "type": "Text",
+        "value": "Operation"
+    },
     "refSequenceOfOperations": {
         "type": "Relationship",
         "value": "urn:ngsiv2:i40Recipe:SequenceOfOperations_Cover001"

@@ -14,6 +14,7 @@ An OEE calculator microservice to be used with Fiware Cygnus time series data. A
   - [API](#api)
   - [Demo](#demo)
   - [Testing](#testing)
+  - [Troubleshooting](#troubleshooting)
   - [Limitations](#limitations)
   - [License](#license)
 
@@ -21,14 +22,16 @@ An OEE calculator microservice to be used with Fiware Cygnus time series data. A
 
 The [Fiware Orion Context Broker](https://github.com/Fiware/tutorials.Getting-Started) can be configured to send notifications to Fiware Cygnus whenever an object changes. Cygnus can be configured to log all historical data into a time series database (in our case, PostgreSQL), as you can see [here](https://github.com/FIWARE/tutorials.Historic-Context-Flume).
 
-The OEE microservice can handle systems matching the manufacturing system [requirements](#requirements). The objects stored in the Orion Context Broker must match the data model (see an example configuration in [jsons](jsons)). If we configure the manufacturing system according to the way described in [Usage](#usage), we can calculate the OEE and Throughput of each Workstation object, and also upload them as objects to Orion.
+The OEE microservice can handle systems matching the manufacturing system [requirements](#requirements). The objects stored in the Orion Context Broker must match the data model (see an example configuration in [jsons](jsons)). If we configure the manufacturing system according to the way described in [Usage](#usage), we can calculate the OEE and ThroughputPerShift of each Workstation object.
 
 ## Build
+
 You can run the component from a docker image. You can build it using the [Dockerfile](Dockerfile):
 
 	docker build -t oee:<version> .
 
 ## Requirements
+
 The OEE microservice is designed to be able to handle manufacturing systems that match the criteria of the [Job-shop scheduling](https://en.wikipedia.org/wiki/Job-shop_scheduling) problem. The criteria:
 - We are given n Jobs: J_1, J_2, ... J_n.
 - We are given m Workstations.
@@ -37,7 +40,7 @@ The OEE microservice is designed to be able to handle manufacturing systems that
 - The Operations must be carried out in a specific order.
 - For each Job, only one Operation can be processed at any given time.
 
-The OEE microservice does not support different CycleTimes for different Workstations.
+The OEE microservice does not support any operation having different cycleTimes for different Workstations.
 
 ## Usage
 The microservice is designed to run inside a docker-compose project. See a minimal [docker-compose.yml](docker-compose.yml) file. The Robo4Toys TTE's project solution repository, MOMAMS also provides a more complete [docker-compose.yml](https://github.com/aviharos/momams/blob/main/docker-compose.yml) file. However, since the microservice does not depend on any microservice besides the Orion Context Broker, Cygnus, MongoDB and PostgreSQL; it can be used without the Robo4Toys TTE's other microservices.
@@ -49,169 +52,246 @@ You do not need to activate the oee microservice. If you add the microservice to
 ### Notifying Cygnus of all context changes
 After running the docker-compose project, you need to set Orion to notify Cygnus of all context changes using the script:
 
-	$ curl --location --request POST 'http://localhost:1026/v2/subscriptions' \
-	--header 'Content-Type: application/json' \
-	--data-raw '{
-	  "description": "Notify Cygnus Postgres of all context changes",
-	  "subject": {
-	    "entities": [
-	      {
-	        "idPattern": ".*"
-	      }
-	    ]
-	  },
-	  "notification": {
-	    "http": {
-	      "url": "http://cygnus:5055/notify"
-	    }
-	  }
-	}'
+    ./notify_cygnus.sh
+
+This script should be executed once, immediately after starting the docker-compose project.
 
 In the docker-compose file, Cygnus is configured to store all historic data into PostgreSQL.
 
 ### Objects in the Orion Context Broker
 You need to investigate your manufacturing system and determine what events influence the OEE. Then you need to translate your manufacturing system to the data model outlined in [json](json) and keep it in sync with the physical system.
 
-You need to design your objects as outlined below. When the Orion Context Broker is started, you need to post these objects into the broker.
+You need to design your objects as outlined below. When the Orion Context Broker is started, you need to post these objects into the broker to initiate them.
 
-As the manufacturing process is working, you need to keep these objects up-to-date in the Orion Context Broker according to the data model. You can use any method you like: PLC HTTP connection, industrial PC, Raspberry Pi, etc. The point is that you need to take care that the Orion Context Broker's contents match the reality. The OEE microservice does not modify production data at all except for the OEE and Throughput objects.
+As the manufacturing process is working, you need to keep these objects up-to-date in the Orion Context Broker according to the data model. You can use any method you like: PLC HTTP connection, industrial PC, Raspberry Pi, etc. The point is that you need to take care that the Orion Context Broker's contents match the reality. The OEE microservice does not modify production data at all except for the OEE and ThroughputPerShift attributes of the Workstation objects.
 
-Below you can find the design of the crucial objects. You cannot change the attribute names, but you can change their content. You cannot change the object types. The manufacturing system and the processes are also defined in these json files. You can arbitratily extend the data model with additional attributes and other types of objects. Make sure that if you have other Orion objects, their types do not overlap with the ones below.
+Below you can find the design of the key objects. You cannot change the attribute names, but you can change their content. You cannot change the object types. The manufacturing system and the processes are also defined in these json files. You can arbitratily extend the data model with additional attributes and other types of objects. Make sure that if you have other Orion objects, none of them is of type `i40Asset` and of subType `Workstation`.
 
 You need to configure and constantly update:
-- One Workstation object for each Workstation. In the example, there is one: "urn:ngsi_ld:Workstation:1".
+- One Workstation object for each Workstation. In the example, there is one: "urn:ngsiv2:i40Asset:Workstation1".
 - One Job object for each Job.
-- One OperatorSchedule object containing the Workstation's schedule data.
-- One object for each produced Part in the system. Each part contains the manufacturing data of the parts, including all operations.
+
+In addition, you need to configure the manufacturing technology in the following objects. These objects rarely change.
+- One Part object for each produced part in the system.
+- One SequenceOfOperations object for each part, that contains the manufacturing sequence of operations.
+- One Operation object for each operation in the manufacturing system.
+
+In addition, you need to create
+- One Shift object for each different Shift in the manufacturing system, containing the shift's start and end times.
 
 You need to create each object upon startup in the Orion Context Broker. During the short term, only the number of Jobs is not known in advance, so you need to create as many as you need. The microservice does not have a function for creating these objects.
 
-The OEE microservice never updates the Workstation, Job, OperatorSchedule and Part objects. Your manufacturing system or employees need to keep them up to date.
+The OEE microservice never updates any object's any data except for the Workstation's OEE and ThroughputPerShift related attributes. Your manufacturing system or employees need to keep them up to date at all times.
 
-The OEE microservice creates and updates 2 objects for each Workstation with the ids contained in the Workstation object: an OEE and a Throughput object for each Workstation.
+The OEE microservice periodically updates the OEE and ThroughputPerShift related attributes of each Workstation object.
 
 You can find examples for each object explained below.
 
 #### Workstation
 
     {
-        "type": "Workstation",
-        "id": "urn:ngsi_ld:Workstation:1",
-        "available": {"type": "Boolean", "value": true},
-        "refJob": {"type": "Relationship", "value": "urn:ngsi_ld:Job:202200045"},
-        "RefOEE": {"type": "Relationship", "value": "urn:ngsi_ld:OEE:1"},
-        "RefThroughput": {"type": "Relationship", "value": "urn:ngsi_ld:Throughput:1"},
-        "RefOperatorSchedule": {"type": "Relationship", "value": "urn:ngsi_ld:OperatorSchedule:1"}
+        "id": "urn:ngsiv2:i40Asset:Workstation1",
+        "type": "i40Asset",
+        "i40AssetType": {
+            "type": "Text",
+            "value": "Workstation"
+        },
+        "available": {
+            "type": "Boolean",
+            "value": true
+        },
+        "refJob": {
+            "type": "Relationship",
+            "value": "urn:ngsiv2:i40Process:Job202200045"
+        },
+        "refShift": {
+            "type": "Relationship",
+            "value": "urn:ngsiv2:i40Recipe:Shift1"
+        },
+        "oee": {
+            "type": "Number",
+            "value": null
+        },
+        "oeeAvailability": {
+            "type": "Number",
+            "value": null
+        },
+        "oeePerformance": {
+            "type": "Number",
+            "value": null
+        },
+        "oeeQuality": {
+            "type": "Number",
+            "value": null
+        },
+        "oeeObject": {
+            "type": "OEE",
+            "value": {
+                "oee": null,
+                "availability": null,
+                "performance": null,
+                "quality": null 
+            }
+        },
+        "throughputPerShift": {
+            "type": "Number",
+            "value": null
+        }
     }
 
 Attributes:
-- Available (Boolean): true if the Workstation is on, false otherwise.
-- RefJob (Relationship): refers to the currently active Job object.
-- RefOEE (Relationship): refers to the Workstation's OEE object.
-- RefThroughput (Relationship): refers to the Workstation's Throughput object.
-- RefOperatorSchedule (Relationship): refers to the OperatorSchedule object that provides information about when the Workstation should be on or off. Since the OperatorSchedule objects are not universal, each Workstation can refer to a different OperatorSchedule.
+- i40AssetType (Text): Workstation. You cannot change it.
+- available (Boolean): `true` if the Workstation is on, `false` otherwise.
+- refJob (Relationship): refers to the currently active Job object.
+- refShift (Relationship): refers to the Shift object that provides information about when the Workstation should be on or off. Since the Shift objects are not universal, each Workstation can refer to a different Shift.
+The following attributes are calculated by the OEE microservice:
+- oee (Number): the OEE metric of the Workstation. It is a number if all calculations succeed, `null` otherwise.
+- oeeAvailability (Number): the Availability metric of the Workstation. It is a number if all calculations succeed, `null` otherwise.
+- oeePerformance (Number): the Performance metric of the Workstation. It is a number if all calculations succeed, `null` otherwise.
+- oeeQuality (Number): the Quality metric of the Workstation. It is a number if all calculations succeed, `null` otherwise.
+- oeeObject (OEE): the OEE metric of the Workstation with all sub-metrics bundled into a single attribute.The values are as described above.
+- throughputPerShift (Number): the estimated throughputPerShift metric of the Workstation. It is a number if all calculations succeed, `null` otherwise.
 
-The Workstation cannot be turned on any day before the OperatorSchedule's OperatorWorkingScheduleStartsAt attribute. The reason for this is that if the Workstation is turned off after the Schedule's start time, the OEE microservice will find at least one entry in the Postgres logs and will not need to guess about the Workstation's availability.
+The Workstation cannot be turned on any day before the Shift's `start` attribute. The reason for this is that if the Workstation is turned off after the Shift's start time, the OEE microservice will find at least one entry in the Postgres logs and will not need to guess about the Workstation's availability. Not following this requirement may cause incorrect results.
 
 #### Job
-
     {
-        "type": "Job",
-        "id": "urn:ngsi_ld:Job:202200045",
-        "refPart": {"type": "Relationship", "value": "urn:ngsi_ld:Part:Core001"},
-        "CurrentOperationType": {"type": "Text", "value": "Core001_injection_moulding"},
-        "jobTargetNumber": {"type": "Number", "value": 8000},
-        "goodPartCounter": {"type": "Number", "value": 0},
-        "rejectPartCounter": {"type": "Number", "value": 0}
+        "id": "urn:ngsiv2:i40Process:Job202200045",
+        "type": "i40Process",
+        "i40ProcessType": {
+            "type": "Text",
+            "value": "Job"
+        },
+        "refPart": {
+            "type": "Relationship",
+            "value": "urn:ngsiv2:i40Asset:Part_Core001"
+        },
+        "refOperation": {
+            "type": "Relationship",
+            "value": "urn:ngsiv2:i40Recipe:Operation_Core001_injectionMoulding"
+        },
+        "jobTargetNumber": {
+            "type": "Number",
+            "value": 8000
+        },
+        "goodPartCounter": {
+            "type": "Number",
+            "value": 0
+        },
+        "rejectPartCounter": {
+            "type": "Number",
+            "value": 0
+        }
     }
 
 Attributes:
-- RefPart (Relationship): the Part that the Job produces.
-- CurrentOperationType (Text): refers to the current operation's OperationType inside the Part's Operations attribute. The OperationType acts as an id to the operation.
-- JobTargetNumber (Number): the number of Parts to be produced in this Job.
-- GoodPartCounter (Number): the counter of the good parts.
-- RejectPartCounter (Number): the counter of the reject parts.
+- i40ProcessType (Text): Job. Constant.
+- refPart (Relationship): refers to the Part that the Job produces.
+- refOperation (Relationship): refers to the current Operation of the Job that is being performed on the Workstation.
+- jobTargetNumber (Number): the number of Parts to be produced in this Job.
+- goodPartCounter (Number): the counter of the good parts.
+- rejectPartCounter (Number): the counter of the reject parts.
 
 #### Part 
+    {
+        "id": "urn:ngsiv2:i40Asset:Part_Core001",
+        "type": "i40Asset",
+        "i40AssetType": {
+            "type": "Text",
+            "value": "Part"
+        },
+        "refSequenceOfOperations": {
+            "type": "Relationship",
+            "value": "urn:ngsiv2:SequenceOfOperations:Core001"
+        }
+    }
+
+Attributes:
+- i40AssetType (Text): Part. Constant.
+- refSequenceOfOperations (Relationship): refers to the SequenceOfOperations object of the Part.
+
+#### SequenceOfOperations
 
     {
-        "type": "Part",
-        "id": "urn:ngsi_ld:Part:Core001",
+        "id": "urn:ngsiv2:i40Recipe:SequenceOfOperations_Core001",
+        "type": "i40Recipe",
+        "i40RecipeType": {
+            "type": "Text",
+            "value": "SequenceOfOperations"
+        },
+        "refPart": {
+            "type": "Relationship",
+            "value": "urn:ngsiv2:i40Asset:Part_Core001"
+        },
         "operations": {
             "type": "List",
             "value": [
-                {
-                    "type": "Operation",
-                    "OperationNumber": {"type": "Number", "value": 10},
-                    "OperationType": {"type": "Text", "value": "Core001_injection_moulding"},
-                    "cycleTime": {"type": "Number", "value": 36},
-                    "partsPerCycle": {"type": "Number", "value": 8}
-                }
+                "urn:ngsiv2:i40Recipe:Operation_Core001_injectionMoulding"
             ]
         }
     }
 
 Attributes:
-- Operations (List): Contains the Operations.
+- i40RecipeType (Text): SequenceOfOperations. Constant.
+- refPart (Relationship): refers to the Part object whose sequence of operations are included in this object.
+- operations (List): contains the ids of the Operation objects in order that are needed to complete the manufacturing of each part.
 
-The Operations are not separate Orion objects. Their attributes are as follows:
-- OperationNumber (Number): the Operation's number. Currently it is not used by the microservice, but you can provide this information.
-- OperationType (Number): this is the id of the Operation that the Job refers to. The Job's CurrentOperationType must always refer to the current operation's OperationType.
-- CycleTime (Number): the cycle time of the operation in seconds. Every cycle, the Workstation produces a set of parts. Important: the OEE microservice currently does not support sets of parts that contain good and bad parts too. Each cycle, the resulting set is considered to have 100% good or 100% reject parts.
-- PartsPerCycle (Number): each cycle produces this many parts.
+The SequenceOfOperations objects are not compulsory. The OEE microservice does not use them. But they make the data model complete.
 
-If you cannot trace the Workstation through the Job object to the Part object's Operation, something is missing.
-
-#### OperatorSchedule 
+#### Operation
 
     {
-        "type": "OperatorSchedule",
-        "id": "urn:ngsi_ld:OperatorSchedule:1",
-        "OperatorWorkingScheduleStartsAt": {"type": "Time", "value": "8:00:00"},
-        "OperatorWorkingScheduleStopsAt": {"type": "Time", "value": "16:00:00"}
+        "id": "urn:ngsiv2:i40Recipe:Operation_Core001_injectionMoulding",
+        "type": "i40Recipe",
+        "i40RecipeType": {
+            "type": "Text",
+            "value": "Operation"
+        },
+        "refSequenceOfOperations": {
+            "type": "Relationship",
+            "value": "urn:ngsiv2:i40Recipe:SequenceOfOperations_Core001"
+        },
+        "cycleTime": {
+            "type": "Number",
+            "value": 46
+        },
+        "partsPerCycle": {
+            "type": "Number",
+            "value": 8
+        }
     }
 
 Attributes:
-- OperatorWorkingScheduleStartsAt (Time): the time the Workstation should be turned on each day.
-- OperatorWorkingScheduleStopsAt (Time): the time the Workstation should be turned off each day.
+- i40RecipeType (Text): Operation. Constant.
+- refSequenceOfOperations (Relationship): refers to the SequenceOfOperations object in which this operation is included.
+- cycleTime (Number): the cycle time of the operation in seconds. Every cycle, the Workstation produces a set of parts. Important: the OEE microservice currently does not support sets of parts that contain good and bad parts too. Each cycle, the resulting set is considered to have 100% good or 100% reject parts.
+- partsPerCycle (Number): each cycle produces this many parts.
 
-#### OEE 
+If you cannot trace the Workstation through the Job object to the current Operation, something is missing.
+
+#### Shift
 
     {
-        "type": "OEE",
-        "id": "urn:ngsi_ld:OEE:1",
-        "RefWorkstation": {"type": "Relationship", "value": "urn:ngsi_ld:Workstation:1"},
-        "refJob": {"type": "Relationship", "value": "urn:ngsi_ld:Job:202200045"},
-        "availability": {"type": "Number", "value": 0.9},
-        "performance": {"type": "Number", "value": 0.9},
-        "quality": {"type": "Number", "value": 0.9},
-        "oee": {"type": "Number", "value": 0.729}
+        "id": "urn:ngsiv2:i40Recipe:Shift1",
+        "type": "i40Recipe",
+        "i40RecipeType": {
+            "type": "Text",
+            "value": "Shift"
+        },
+        "start": {
+            "type": "Time",
+            "value": "8:00:00"
+        },
+        "end": {
+            "type": "Time",
+            "value": "16:00:00"
+        }
     }
 
 Attributes:
-- RefWorkstation (Relationship): the Workstation object the OEE object belongs to.
-- RefJob (Relationship): the Job object the OEE object belongs to. The OEE microservice does not consider multiple Jobs, only the current one.
-- Availability (Number): the current Availability of the referred Workstation.
-- Performance (Number): the current Performance of the referred Workstation.
-- Quality (Number): the current Quality of  the referred Workstation.
-- OEE (Number): the current OEE of  the referred Workstation.
-
-The OEE microservice deletes the Availability, Performance, Quality and OEE attributes' value if the Workstation should not be on according to its OperatorSchedule or if the calculation fails for some reason.
-
-#### Throughput
-
-    {
-        "type": "Throughput",
-        "id": "urn:ngsi_ld:Throughput:1",
-        "RefWorkstation": {"type": "Relationship", "value": "urn:ngsi_ld:Workstation:1"},
-        "refJob": {"type": "Relationship", "value": "urn:ngsi_ld:Job:202200045"},
-        "throughputPerShift": {"type": "Number", "value": 4100}
-    }
-
-Attributes:
-- RefWorkstation (Relationship): the Workstation object the Throughput object belongs to.
-- RefJob (Relationship): the Job object the Throughput object belongs to. The OEE microservice does not consider multiple Jobs, only the current one.
-- ThroughputPerShift (Number): the predicted throughput of the Workstation for the amount of time it should be turned on according to its OperatorSchedule.
+- i40RecipeType (Text): Shift. Constant.
+- start (Time): the time the Workstation should be turned on each day.
+- end (Time): the time the Workstation should be turned off each day.
 
 ## API
 
@@ -239,7 +319,6 @@ Then start the *test* [docker-compose](test/docker-compose.yml) project, that is
 Then run the tests as follows.
 
     $ source env
-    $ python test_object_to_template.py
     $ python test_Orion.py
     $ python test_OEE.py
     $ python test_LoopHandler.py
@@ -250,6 +329,14 @@ Now you can stop the test docker-compose project:
     $ docker-compose down
 
 Please note that the tests were originally written in the GMT+2 time zone, so they might fail in other time zones.
+
+## Troubleshooting
+
+If you encounter any trouble using the OEE microservice, inspect its docker logs:
+
+    docker logs <container name>
+
+In the default MOMAMS setup, the container name is `r4t-oee`.
 
 ## Limitations
 The OEE microservice currently cannot handle HTTPS and Fiware’s authentication system.
