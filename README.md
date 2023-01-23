@@ -49,20 +49,20 @@ The OEE microservice is designed to be able to handle manufacturing systems that
 The OEE microservice does not support any operation having different cycleTimes for different Workstations.
 
 ## Usage
-The microservice is designed to run inside a docker-compose project. See a minimal [docker-compose.yml](docker-compose.yml) file. The Robo4Toys TTE's project solution repository, MOMAMS also provides a more complete [docker-compose.yml](https://github.com/aviharos/momams/blob/main/docker-compose.yml) file. However, since the microservice does not depend on any microservice besides the Orion Context Broker, Cygnus, MongoDB and PostgreSQL; it can be used without the Robo4Toys TTE's other microservices.
+The microservice is designed to run inside a docker compose project. See a minimal [docker-compose.yml](docker-compose.yml) file. The Robo4Toys TTE's project solution repository, MOMAMS also provides a more complete [docker-compose.yml](https://github.com/aviharos/momams/blob/main/docker-compose.yml) file. However, since the microservice does not depend on any microservice besides the Orion Context Broker, Cygnus, MongoDB and PostgreSQL; it can be used without the Robo4Toys TTE's other microservices.
 
 The microservice does not store data or have any kind of memory. It just periodically performs a calculation. If the container crashes, it is safe to restart it automatically.
 
-You do not need to activate the oee microservice. If you add the microservice to your docker-compose file, create your manufacturing system's Orion Context Broker objects according to the data model and keep all data up-to-date in the Orion Context Broker, the microservice will automatically and periodically perform the OEE calculation for each Workstation object.
+You do not need to activate the oee microservice. If you add the microservice to your docker compose file, create your manufacturing system's Orion Context Broker objects according to the data model and keep all data up-to-date in the Orion Context Broker, the microservice will automatically and periodically perform the OEE calculation for each Workstation object.
 
 ### Notifying Cygnus of all context changes
-After running the docker-compose project, you need to set Orion to notify Cygnus of all context changes using the script:
+After running the docker compose project, you need to set Orion to notify Cygnus of all context changes using the script:
 
     $ ./notify_cygnus.sh
 
-This script should be executed once, immediately after starting the docker-compose project.
+This script should be executed once, immediately after starting the docker compose project.
 
-In the docker-compose file, Cygnus is configured to store all historic data into PostgreSQL.
+In the docker compose file, Cygnus is configured to store all historic data into PostgreSQL.
 
 ### Objects in the Orion Context Broker
 You need to investigate your manufacturing system and determine what events influence the OEE. Then you need to translate your manufacturing system to the data model outlined in [json](json) and keep it in sync with the physical system.
@@ -320,7 +320,7 @@ For testing, you need to create an environment and install necessary packages. E
 Then start the *test* [docker-compose](test/docker-compose.yml) project, that is not identical to the minimal [docker-compose.yml](docker-compose.yml) mentioned in Usage:
 
     $ cd test
-    $ docker-compose up -d
+    $ docker compose up -d
 
 Then run the tests as follows.
 
@@ -330,9 +330,9 @@ Then run the tests as follows.
     $ python test_LoopHandler.py
     $ python test_main.py
 
-Now you can stop the test docker-compose project:
+Now you can stop the test docker compose project:
 
-    $ docker-compose down
+    $ docker compose down
 
 Please note that the tests were originally written in the GMT+2 time zone, so they might fail in other time zones.
 
