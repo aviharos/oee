@@ -23,6 +23,11 @@ from Logger import getLogger
 
 logger_Orion = getLogger(__name__)
 
+# constants
+WORKSTATION_OBJECT_TYPE = "i40Asset"
+WORKSTATION_OBJECT_SUBTYPE_NAME = "i40AssetType"
+WORKSTATION_OBJECT_SUBTYPE_VALUE = "Workstation"
+
 # environment variables
 ORION_HOST = os.environ.get("ORION_HOST")
 if ORION_HOST is None:
@@ -130,7 +135,7 @@ def getWorkstations():
     Raises:
         RuntimeError: if the get request's status_code is not 200
     """
-    url = f"http://{ORION_HOST}:{ORION_PORT}/v2/entities?type=i40Asset&q=i40AssetType==Workstation"
+    url = f"http://{ORION_HOST}:{ORION_PORT}/v2/entities?type={WORKSTATION_OBJECT_TYPE}&q={WORKSTATION_OBJECT_SUBTYPE_NAME}=={WORKSTATION_OBJECT_SUBTYPE_VALUE}"
     status_code, workstations = getRequest(url)
     if status_code != 200:
         raise RuntimeError(
