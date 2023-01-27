@@ -148,10 +148,10 @@ class test_OEECalculator(unittest.TestCase):
             self.oee.time_to_datetime("13:46:40"), datetime(2022, 4, 5, 13, 46, 40)
         )
 
-    def test_datetimeToMilliseconds(self):
+    def test_datetime_to_milliseconds(self):
         dt = datetime(2022, 4, 5, 13, 46, 40)
         self.assertEqual(
-            self.oee.datetimeToMilliseconds(dt),
+            self.oee.datetime_to_milliseconds(dt),
             dt.timestamp()*1e3,
         )
 
@@ -328,11 +328,11 @@ class test_OEECalculator(unittest.TestCase):
         self.oee.get_todays_shift_limits()
         self.assertEqual(
             self.oee.get_query_start_timestamp(how="from_midnight"),
-            self.oee.datetimeToMilliseconds(datetime(2022, 4, 5, 0, 0, 0)),
+            self.oee.datetime_to_milliseconds(datetime(2022, 4, 5, 0, 0, 0)),
         )
         self.assertEqual(
             self.oee.get_query_start_timestamp(how="from_schedule_start"),
-            self.oee.datetimeToMilliseconds(datetime(2022, 4, 5, 8, 0, 0)),
+            self.oee.datetime_to_milliseconds(datetime(2022, 4, 5, 8, 0, 0)),
         )
 
         with self.assertRaises(NotImplementedError):
@@ -351,7 +351,7 @@ class test_OEECalculator(unittest.TestCase):
         df = self.workstation_df.copy()
         df["recvtimets"] = df["recvtimets"].map(str).map(int)
         df.dropna(how="any", inplace=True)
-        start_timestamp = self.oee.datetimeToMilliseconds(datetime(2022, 4, 4))
+        start_timestamp = self.oee.datetime_to_milliseconds(datetime(2022, 4, 4))
         df = df[
             (start_timestamp <= df["recvtimets"])
             & (df["recvtimets"] <= self.oee.now_unix)
@@ -367,7 +367,7 @@ class test_OEECalculator(unittest.TestCase):
         df = self.workstation_df.copy()
         df["recvtimets"] = df["recvtimets"].map(str).map(int)
         df.dropna(how="any", inplace=True)
-        start_timestamp = self.oee.datetimeToMilliseconds(datetime(2022, 4, 4, 8, 0, 0))
+        start_timestamp = self.oee.datetime_to_milliseconds(datetime(2022, 4, 4, 8, 0, 0))
         df = df[
             (start_timestamp <= df["recvtimets"])
             & (df["recvtimets"] <= self.oee.now_unix)
@@ -391,7 +391,7 @@ class test_OEECalculator(unittest.TestCase):
 
 
     def insert_RefJob_entry_at(self, df, datetime_: datetime, job_id: str):
-        timestamp = self.oee.datetimeToMilliseconds(datetime_)
+        timestamp = self.oee.datetime_to_milliseconds(datetime_)
         datetime_string = str(datetime.fromtimestamp(timestamp/ 1000.0).
                             strftime(OEE.OEECalculator.DATETIME_FORMAT))[:-3]
         df.loc[len(df)] = [
@@ -449,7 +449,7 @@ class test_OEECalculator(unittest.TestCase):
         # the following should cause
         # an error because of a Job id mismatch
         dt_at_10h = datetime(2022, 4, 4, 10, 0, 0)
-        ts_at_10h = self.oee.datetimeToMilliseconds(dt_at_10h)
+        ts_at_10h = self.oee.datetime_to_milliseconds(dt_at_10h)
         workstation_df = self.insert_RefJob_entry_at(workstation_df, dt_at_10h, "urn:ngsiv2:i40Process:Job202200046")
         self.oee.workstation["df"] = workstation_df.copy()
         with self.assertRaises(ValueError):
@@ -512,7 +512,7 @@ class test_OEECalculator(unittest.TestCase):
         _8h = datetime(2022, 4, 5, 8, 0, 0)
         _16h = datetime(2022, 4, 5, 16, 0, 0)
         self.oee.prepare(self.con)
-        self.assertEqual(self.oee.now_unix, self.oee.datetimeToMilliseconds(now))
+        self.assertEqual(self.oee.now_unix, self.oee.datetime_to_milliseconds(now))
         self.assertEqual(
             remove_orion_metadata(self.oee.workstation["orion"]), self.jsons["Workstation"]
         )
@@ -602,9 +602,9 @@ class test_OEECalculator(unittest.TestCase):
             self.oee.calc_availability_if_no_availability_record_after_RefStartTime(df),
             1,
         )
-        total_time_so_far_since_RefStartTime = self.oee.datetimeToMilliseconds(
+        total_time_so_far_since_RefStartTime = self.oee.datetime_to_milliseconds(
             _9h
-        ) - self.oee.datetimeToMilliseconds(_8h40)
+        ) - self.oee.datetime_to_milliseconds(_8h40)
         self.assertEqual(
             self.oee.total_time_so_far_since_RefStartTime, total_time_so_far_since_RefStartTime
         )

@@ -166,7 +166,7 @@ class OEECalculator:
             str(self.now_datetime.date()) + " " + string, self.DATETIME_FORMAT
         )
 
-    def datetimeToMilliseconds(self, datetime_):
+    def datetime_to_milliseconds(self, datetime_):
         """Convert datetime to unix timestamp in milliseconds
 
         Args:
@@ -340,11 +340,11 @@ class OEECalculator:
         """
         if how == "from_midnight":
             # construct midnight's datetime
-            return self.datetimeToMilliseconds(
+            return self.datetime_to_milliseconds(
                 datetime.combine(self.now_datetime.date(), datetime.min.time())
             )
         elif how == "from_schedule_start":
-            return self.datetimeToMilliseconds(
+            return self.datetime_to_milliseconds(
                 self.today["start"]
             )
         else:
@@ -552,12 +552,12 @@ class OEECalculator:
         if how == "after":
             filtered = df[
                 df["recvtimets"]
-                >= self.datetimeToMilliseconds(self.today["RefStartTime"])
+                >= self.datetime_to_milliseconds(self.today["RefStartTime"])
             ]
         elif how == "before":
             filtered = df[
                 df["recvtimets"]
-                < self.datetimeToMilliseconds(self.today["RefStartTime"])
+                < self.datetime_to_milliseconds(self.today["RefStartTime"])
             ]
         else:
             raise NotImplementedError(f"filter_RefStartTime: Invalid option how={how}")
@@ -589,7 +589,7 @@ class OEECalculator:
                 if the Cygnus log contains an invalid availability value
         """
         self.logger.debug(f"df_before:\n{df_before}")
-        self.total_time_so_far_since_RefStartTime = self.now_unix - self.datetimeToMilliseconds(
+        self.total_time_so_far_since_RefStartTime = self.now_unix - self.datetime_to_milliseconds(
             self.today["RefStartTime"]
         )
         df_before.sort_values(by=["recvtimets"], inplace=True)
@@ -633,7 +633,7 @@ class OEECalculator:
         time_on = 0
         time_off = 0
         # the first interval starts at RefStartTime
-        previous_timestamp = self.datetimeToMilliseconds(self.today["RefStartTime"])
+        previous_timestamp = self.datetime_to_milliseconds(self.today["RefStartTime"])
         # see if we can determine the Workstation's available attribute 
         # from RefStartTime to the first entry
         if len(df_before) == 0:
@@ -888,9 +888,9 @@ class OEECalculator:
         Returns:
             self.throughput: Throughput Object that will eventually be uploaded to Orion
         """
-        self.shiftLengthInMilliseconds = self.datetimeToMilliseconds(
+        self.shiftLengthInMilliseconds = self.datetime_to_milliseconds(
             self.today["end"]
-        ) - self.datetimeToMilliseconds(self.today["RefStartTime"])
+        ) - self.datetime_to_milliseconds(self.today["RefStartTime"])
         self.throughput = (
             # use milliseconds
             (
