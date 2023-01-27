@@ -55,6 +55,8 @@ The microservice does not store data or have any kind of memory. It just periodi
 
 You do not need to activate the oee microservice. If you add the microservice to your docker compose file, create your manufacturing system's Orion Context Broker objects according to the data model and keep all data up-to-date in the Orion Context Broker, the microservice will automatically and periodically perform the OEE calculation for each Workstation object.
 
+You need to set your timezone in the docker compose file in the oee microservice's environment. The timezone must be [one of the available ones in python](https://stackoverflow.com/questions/13866926/is-there-a-list-of-pytz-timezones).
+
 ### Notifying Cygnus of all context changes
 After running the docker compose project, you need to set Orion to notify Cygnus of all context changes using the script:
 
