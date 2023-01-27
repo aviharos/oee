@@ -135,12 +135,6 @@ class test_OEECalculator(unittest.TestCase):
         self.oee.now_unix = now.timestamp() * 1e3
         self.assertEqual(self.oee.now_datetime, now)
 
-    def test_msToDateTimeString(self):
-        dt = datetime(2022, 4, 5, 13, 46, 40)
-        self.assertEqual(
-                self.oee.msToDateTimeString(dt.timestamp()*1e3), f"{dt.year}-{dt.month:02d}-{dt.day:02d} {dt.hour}:{dt.minute:02d}:{dt.second:02d}.000"
-        )
-
     def test_msToDateTime(self):
         dt = datetime(2022, 4, 5, 13, 46, 40)
         self.assertEqual(
@@ -402,11 +396,14 @@ class test_OEECalculator(unittest.TestCase):
                     self.con, self.oee.workstation["postgres_table"], how="from_midnight"
                 )
 
+
     def insert_RefJob_entry_at(self, df, datetime_: datetime, job_id: str):
         timestamp = self.oee.datetimeToMilliseconds(datetime_)
+        datetime_string = str(datetime.fromtimestamp(timestamp/ 1000.0).
+                            strftime(OEE.OEECalculator.DATETIME_FORMAT))[:-3]
         df.loc[len(df)] = [
             int(timestamp),
-            self.oee.msToDateTimeString(timestamp),
+            datetime_string,
             "/",
             "urn:ngsiv2:i40Asset:Workstation1",
             "Workstation",
@@ -461,17 +458,6 @@ class test_OEECalculator(unittest.TestCase):
         dt_at_10h = datetime(2022, 4, 4, 10, 0, 0)
         ts_at_10h = self.oee.datetimeToMilliseconds(dt_at_10h)
         workstation_df = self.insert_RefJob_entry_at(workstation_df, dt_at_10h, "urn:ngsiv2:i40Process:Job202200046")
-        # workstation_df.loc[len(workstation_df)] = [
-        #     int(ts_at_10h),
-        #     self.oee.msToDateTimeString(ts_at_10h),
-        #     "/",
-        #     "urn:ngsi_ld:Workstation:1",
-        #     "Workstation",
-        #     "refJob",
-        #     "Text",
-        #     "urn:ngsi_ld:Job:202200046",
-        #     "[]",
-        # ]
         self.oee.workstation["df"] = workstation_df.copy()
         with self.assertRaises(ValueError):
             self.oee.get_current_job_start_time_today()
@@ -513,17 +499,6 @@ class test_OEECalculator(unittest.TestCase):
         dt_at_9h = datetime(2022, 4, 4, 9, 0, 0)
         # append an entry, thus intentionally spoiling the timewise order
         workstation_df = self.insert_RefJob_entry_at(workstation_df, dt_at_9h, "urn:ngsiv2:i40Process:Job202200045")
-        # workstation_df.loc[len(workstation_df)] = [
-        #     int(ts_at_9h),
-        #     self.oee.msToDateTimeString(ts_at_9h),
-        #     "/",
-        #     "urn:ngsi_ld:Workstation:1",
-        #     "Workstation",
-        #     "refJob",
-        #     "Text",
-        #     "urn:ngsi_ld:Job:202200045",
-        #     "[]",
-        # ]
         self.oee.workstation["df"] = workstation_df.copy()
         workstation_df.sort_values(by=["recvtimets"], inplace=True)
         self.oee.workstation["df"] = self.oee.sort_df_by_time(self.oee.workstation["df"])

@@ -140,19 +140,6 @@ class OEECalculator:
         """
         return self.msToDateTime(self.now_unix)
 
-    def msToDateTimeString(self, ms: float):
-        """Convert a timestamp in milliseconds to human readable format according to the DATETIME_FORMAT
-
-        Args:
-            ms (float): timestamp in milliseconds
-
-        Returns:
-            timestamp in human readable format (str)
-        """
-        return str(datetime.fromtimestamp(ms / 1000.0).strftime(self.DATETIME_FORMAT))[
-            :-3
-        ]
-
     def msToDateTime(self, ms: float):
         """Convert a timestamp in milliseconds to datetime object
 
@@ -162,7 +149,7 @@ class OEECalculator:
         Returns:
             timestamp in datetime object
         """
-        return self.stringToDateTime(self.msToDateTimeString(ms))
+        return datetime.fromtimestamp(ms/1000.0)
 
     def stringToDateTime(self, string: str):
         """Convert a datetime in DATETIME_FORMAT string format to a datetime.datetime object
