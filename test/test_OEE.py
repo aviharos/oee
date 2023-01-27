@@ -135,10 +135,10 @@ class test_OEECalculator(unittest.TestCase):
         self.oee.now_unix = now.timestamp() * 1e3
         self.assertEqual(self.oee.now_datetime, now)
 
-    def test_msToDateTime(self):
+    def test_milliseconds_to_datetime(self):
         dt = datetime(2022, 4, 5, 13, 46, 40)
         self.assertEqual(
-            self.oee.msToDateTime(dt.timestamp()*1e3), dt
+            self.oee.milliseconds_to_datetime(dt.timestamp()*1e3), dt
         )
 
     def test_stringToDateTime(self):

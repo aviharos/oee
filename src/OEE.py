@@ -138,18 +138,18 @@ class OEECalculator:
         Returns:
             the oeeCalculator.now timestamp in milliseconds (numeric)
         """
-        return self.msToDateTime(self.now_unix)
+        return self.milliseconds_to_datetime(self.now_unix)
 
-    def msToDateTime(self, ms: float):
+    def milliseconds_to_datetime(self, milliseconds: float):
         """Convert a timestamp in milliseconds to datetime object
 
         Args:
-            ms (float): timestamp in milliseconds
+            milliseconds (float): timestamp in milliseconds
 
         Returns:
             timestamp in datetime object
         """
-        return datetime.fromtimestamp(ms/1000.0)
+        return datetime.fromtimestamp(milliseconds/1000.0)
 
     def stringToDateTime(self, string: str):
         """Convert a datetime in DATETIME_FORMAT string format to a datetime.datetime object
@@ -462,7 +462,7 @@ class OEECalculator:
         current_Jobs_RefJob_entries = refJob_entries[refJob_entries["attrvalue"] == self.job["id"]]
         last_job_change = current_Jobs_RefJob_entries["recvtimets"].min()
         self.logger.debug(f"Today's job start time: {last_job_change}")
-        return self.msToDateTime(last_job_change)
+        return self.milliseconds_to_datetime(last_job_change)
 
     def set_RefStartTime(self):
         """Get RefStartTime
