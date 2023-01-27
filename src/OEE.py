@@ -16,6 +16,10 @@ import sqlalchemy
 from Logger import getLogger
 import Orion
 
+# type definitions for type hints
+milliseconds = int
+oee = dict
+
 
 class OEECalculator:
     """An OEE calculator class that builds on Fiware Cygnus logs.
@@ -140,7 +144,7 @@ class OEECalculator:
         """
         return self.milliseconds_to_datetime(self.now_unix)
 
-    def milliseconds_to_datetime(self, milliseconds: float):
+    def milliseconds_to_datetime(self, milliseconds: float) -> datetime:
         """Convert a timestamp in milliseconds to datetime object
 
         Args:
@@ -151,7 +155,7 @@ class OEECalculator:
         """
         return datetime.fromtimestamp(milliseconds/1000.0)
 
-    def time_to_datetime(self, string: str):
+    def time_to_datetime(self, string: str) -> datetime:
         """Convert a time (no date component) in string format to datetime
 
         The date component is the date of the oeeCalculator.now
@@ -166,7 +170,7 @@ class OEECalculator:
             str(self.now_datetime.date()) + " " + string, self.DATETIME_FORMAT
         )
 
-    def datetime_to_milliseconds(self, datetime_):
+    def datetime_to_milliseconds(self, datetime_) -> milliseconds:
         """Convert datetime to unix timestamp in milliseconds
 
         Args:
@@ -185,7 +189,7 @@ class OEECalculator:
         """
         df["recvtimets"] = df["recvtimets"].astype("float64").astype("int64")
 
-    def get_cygnus_postgres_table(self, orion_obj: dict):
+    def get_cygnus_postgres_table(self, orion_obj: dict) -> str:
         """Get the table name of the PostgreSQL logs
 
         The table names are set by Fiware Cygnus, this method just recreates the table name
@@ -223,7 +227,7 @@ class OEECalculator:
         self.shift["orion"] = Orion.get(self.shift["id"])
         self.logger.debug(f"Shift: {self.shift}")
 
-    def is_datetime_in_todays_shift(self, datetime_: datetime):
+    def is_datetime_in_todays_shift(self, datetime_: datetime) -> bool:
         """Check if datetime is in todays shift
 
         Args:
@@ -263,7 +267,7 @@ class OEECalculator:
             ) from error
         self.logger.debug(f"Today: {self.today}")
 
-    def get_job_id(self):
+    def get_job_id(self) -> str:
         """Get the referenced Job's Orion id from the Workstation Orion object
 
         Returns:
@@ -330,7 +334,7 @@ class OEECalculator:
         self.get_job()
         self.get_operation()
 
-    def get_query_start_timestamp(self, how: str):
+    def get_query_start_timestamp(self, how: str) -> milliseconds:
         """Get the PostgreSQL query's starting timestamp
 
         Args:
@@ -357,7 +361,7 @@ class OEECalculator:
                 f"Cannot set query start time. Unsupported argument: how={how}"
             )
 
-    def query_todays_data(self, con, table_name: str, how: str):
+    def query_todays_data(self, con, table_name: str, how: str) -> pd.DataFrame:
         """Query today's data from PostgreSQL from a table
 
         Args:
@@ -390,7 +394,7 @@ class OEECalculator:
             ) from error
         return df
 
-    def convert_dataframe_to_str(self, df: pd.DataFrame):
+    def convert_dataframe_to_str(self, df: pd.DataFrame) -> pd.DataFrame:
         """Convert a pandas DataFrame's all columns to str
 
         Cygnus 2.16.0 uploads all data as Text to Postgres
@@ -402,7 +406,7 @@ class OEECalculator:
         """
         return df.applymap(str)
 
-    def sort_df_by_time(self, df_: pd.DataFrame):
+    def sort_df_by_time(self, df_: pd.DataFrame) -> pd.DataFrame:
         """Sort a pandas DataFrame in ascending order by the timestamps
 
         Uses the column recvtimets
@@ -423,7 +427,7 @@ class OEECalculator:
             )
         return df_.sort_values(by=["recvtimets"])
 
-    def get_current_job_start_time_today(self):
+    def get_current_job_start_time_today(self) -> datetime:
         """Get the Job's start time. If it is before the schedule's start, return the schedule start time
 
         If the the current job started in today's shift,
@@ -540,7 +544,7 @@ class OEECalculator:
         # despite the documentation's clear statement about not to do that
         self.job["df"] = self.filter_in_relation_to_RefStartTime(self.job["df"], how="after")
 
-    def filter_in_relation_to_RefStartTime(self, df: pd.DataFrame, how: str):
+    def filter_in_relation_to_RefStartTime(self, df: pd.DataFrame, how: str) -> pd.DataFrame:
         """Filter Cygnus logs in relation to RefStartTime
 
         Args:
@@ -570,7 +574,7 @@ class OEECalculator:
 
     def calc_availability_if_no_availability_record_after_RefStartTime(
         self, df_before: pd.DataFrame
-    ):
+    ) -> int:
         """Calculate availability if there is no availability record after RefStartTime in the Workstation logs
 
         The Workstation's available attribute has not changed since the RefStartTime.
@@ -621,7 +625,7 @@ class OEECalculator:
 
     def calc_availability_if_exists_record_after_RefStartTime(
         self, df_before, df_after: pd.DataFrame
-    ):
+    ) -> float:
         """Calculate availability if there is at least one availability record in the Cygnus logs since RefStartTime
 
         Args:
@@ -702,7 +706,7 @@ class OEECalculator:
             raise ZeroDivisionError("Total time so far in the shift is 0, no OEE data")
         return self.total_available_time / self.total_time_so_far_since_RefStartTime
 
-    def calc_availability(self, df_av: pd.DataFrame):
+    def calc_availability(self, df_av: pd.DataFrame) -> float:
         """Calculate the availability of the Workstation
 
         The Workstation's available attribute
@@ -763,7 +767,7 @@ class OEECalculator:
         self.oee["availability"] = self.calc_availability(df_av)
         self.logger.info(f"availability: {self.oee['availability']}")
 
-    def count_cycles_based_on_counter_values(self, values: np.array):
+    def count_cycles_based_on_counter_values(self, values: np.array) -> int:
         """Count number of injection moulding cycles based on a np.array of goodPartCounter values
 
         Used for counting the number of successful or failed cycles
@@ -810,7 +814,7 @@ class OEECalculator:
             self.logger.debug("0 not in values")
             return (max - min) / self.operation["orion"]["partsPerCycle"]["value"] + 1
 
-    def count_cycles(self):
+    def count_cycles(self) -> int:
         """Count the number of successful and failed production cycles 
 
         In this terminology, a cycle consists of the Workstation creating
@@ -870,7 +874,7 @@ class OEECalculator:
         )
         self.logger.info(f"performance: {self.oee['performance']}")
 
-    def calculate_OEE(self):
+    def calculate_OEE(self) -> oee:
         """Calculate the OEE
 
         Returns:
@@ -887,7 +891,7 @@ class OEECalculator:
         self.logger.info(f"OEE data: {self.oee}")
         return self.oee
 
-    def calculate_throughput(self):
+    def calculate_throughput(self) -> float:
         """Calculate the Throughput
 
         Returns:
