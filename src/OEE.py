@@ -151,7 +151,7 @@ class OEECalculator:
         """
         return datetime.fromtimestamp(milliseconds/1000.0)
 
-    def timeToDatetime(self, string: str):
+    def time_to_datetime(self, string: str):
         """Convert a time (no date component) in string format to datetime
 
         The date component is the date of the oeeCalculator.now
@@ -249,7 +249,7 @@ class OEECalculator:
                 "start",
                 "end",
             ):
-                self.today[time_] = self.timeToDatetime(
+                self.today[time_] = self.time_to_datetime(
                     self.shift["orion"][time_]["value"]
                 )
         except (ValueError, KeyError, TypeError) as error:
