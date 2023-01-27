@@ -155,9 +155,9 @@ class test_OEECalculator(unittest.TestCase):
             dt.timestamp()*1e3,
         )
 
-    def test_convertRecvtimetsToInt(self):
+    def test_convert_recvtimets_column_to_int(self):
         self.oee.workstation["df"] = self.workstation_df.copy()
-        self.oee.convertRecvtimetsToInt(self.oee.workstation["df"])
+        self.oee.convert_recvtimets_column_to_int(self.oee.workstation["df"])
         self.assertEqual(self.oee.workstation["df"]["recvtimets"].dtype, np.int64)
 
     def test_get_cygnus_postgres_table(self):
@@ -425,7 +425,7 @@ class test_OEECalculator(unittest.TestCase):
         )
         workstation_df["recvtimets"] = workstation_df["recvtimets"].map(str).map(float).map(int)
         self.oee.workstation["df"] = workstation_df.copy()
-        # self.oee.convertRecvtimetsToInt(self.oee.workstation["df"])
+        # self.oee.convert_recvtimets_column_to_int(self.oee.workstation["df"])
         self.assertEqual(
             # the Job was not started today, return shift start time
             self.oee.get_current_job_start_time_today(),

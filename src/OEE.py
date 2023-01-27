@@ -177,7 +177,12 @@ class OEECalculator:
         """
         return datetime_.timestamp() * 1000
 
-    def convertRecvtimetsToInt(self, df):
+    def convert_recvtimets_column_to_int(self, df):
+        """Convert a pandas DataFrame's recvtimets column to int64
+
+        Args:
+            df (pd.DataFrame): pandas DataFrame to convert in-place
+        """
         df["recvtimets"] = df["recvtimets"].astype("float64").astype("int64")
 
     def get_cygnus_postgres_table(self, orion_obj: dict):
@@ -518,14 +523,14 @@ class OEECalculator:
             con=con, table_name=self.workstation["postgres_table"], how="from_midnight"
         )
         self.workstation["df"] = self.convert_dataframe_to_str(self.workstation["df"])
-        self.convertRecvtimetsToInt(self.workstation["df"])
+        self.convert_recvtimets_column_to_int(self.workstation["df"])
         self.workstation["df"] = self.sort_df_by_time(self.workstation["df"])
 
         self.job["df"] = self.query_todays_data(
             con=con, table_name=self.job["postgres_table"], how="from_schedule_start"
         )
         self.job["df"] = self.convert_dataframe_to_str(self.job["df"])
-        self.convertRecvtimetsToInt(self.job["df"])
+        self.convert_recvtimets_column_to_int(self.job["df"])
         self.job["df"] = self.sort_df_by_time(self.job["df"])
 
         self.set_RefStartTime()
