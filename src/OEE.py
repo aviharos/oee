@@ -897,13 +897,13 @@ class OEECalculator:
         Returns:
             self.throughput: Throughput Object that will eventually be uploaded to Orion
         """
-        self.shiftLengthInMilliseconds = self.datetime_to_milliseconds(
+        self.shift_length_in_milliseconds = self.datetime_to_milliseconds(
             self.today["end"]
         ) - self.datetime_to_milliseconds(self.today["reference_start_time"])
         self.throughput = (
             # use milliseconds
             (
-                self.shiftLengthInMilliseconds
+                self.shift_length_in_milliseconds
                 / (self.operation["orion"]["cycleTime"]["value"] * 1e3)
             )
             * self.operation["orion"]["partsPerCycle"]["value"]
