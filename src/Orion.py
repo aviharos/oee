@@ -42,7 +42,7 @@ if ORION_PORT is None:
     ORION_PORT = default_port
 
 
-def getRequest(url: str):
+def get_request(url: str):
     """Send a GET request to Orion
 
     Args:
@@ -82,7 +82,7 @@ def is_reachable():
             False otherwise
     """
     url = f"http://{ORION_HOST}:{ORION_PORT}/version"
-    status_code, _ = getRequest(url)
+    status_code, _ = get_request(url)
     return status_code == 200
 
 def get(object_id: str, host: str=ORION_HOST, port: int =ORION_PORT):
@@ -101,7 +101,7 @@ def get(object_id: str, host: str=ORION_HOST, port: int =ORION_PORT):
     """
     url = f"http://{host}:{port}/v2/entities/{object_id}"
     logger_Orion.debug(f"Get: {url}")
-    status_code, json_ = getRequest(url)
+    status_code, json_ = get_request(url)
     if status_code != 200:
         raise RuntimeError(
             f"Failed to get object from Orion broker:{object_id}, status_code:{status_code}; no OEE data"
@@ -126,7 +126,7 @@ def exists(object_id: str):
         return False
 
 
-def getWorkstations():
+def get_workstations():
     """Download all Workstation objects at once from Orion
 
     Returns:
@@ -136,7 +136,7 @@ def getWorkstations():
         RuntimeError: if the get request's status_code is not 200
     """
     url = f"http://{ORION_HOST}:{ORION_PORT}/v2/entities?type={WORKSTATION_OBJECT_TYPE}&q={WORKSTATION_OBJECT_SUBTYPE_NAME}=={WORKSTATION_OBJECT_SUBTYPE_VALUE}"
-    status_code, workstations = getRequest(url)
+    status_code, workstations = get_request(url)
     if status_code != 200:
         raise RuntimeError(
             f"Critical: could not get Workstations from Orion with GET request to URL: {url}"

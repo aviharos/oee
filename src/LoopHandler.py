@@ -166,7 +166,7 @@ class LoopHandler:
         this function tries to delete all KPI values using the function delete_attributes
         """
         try:
-            self.workstations = Orion.getWorkstations()
+            self.workstations = Orion.get_workstations()
         except (RuntimeError, ValueError) as error:
             self.logger.error(f"Error: HTTP request to get all Workstation objects failed.\n{error}")
             return
