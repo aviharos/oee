@@ -455,7 +455,7 @@ class test_OEECalculator(unittest.TestCase):
         with self.assertRaises(ValueError):
             self.oee.get_current_job_start_time_today()
 
-    def test_set_RefStartTime(self):
+    def test_set_reference_start_time(self):
         now = datetime(2022, 4, 5, 13, 46, 40)
         self.oee.now_unix = now.timestamp()*1e3
         self.oee.shift["orion"] = copy.deepcopy(
@@ -468,14 +468,14 @@ class test_OEECalculator(unittest.TestCase):
         ) as mock_get_start_time:
             dt_9_40 = datetime(2022, 4, 5, 9, 40, 0)
             mock_get_start_time.return_value = dt_9_40
-            self.oee.set_RefStartTime()
-            self.assertEqual(self.oee.today["RefStartTime"], dt_9_40)
+            self.oee.set_reference_start_time()
+            self.assertEqual(self.oee.today["reference_start_time"], dt_9_40)
 
             dt_7_40 = datetime(2022, 4, 5, 7, 40, 0)
             mock_get_start_time.return_value = dt_7_40
-            self.oee.set_RefStartTime()
+            self.oee.set_reference_start_time()
             self.assertEqual(
-                self.oee.today["RefStartTime"],
+                self.oee.today["reference_start_time"],
                 self.oee.today["start"],
             )
 
@@ -538,7 +538,7 @@ class test_OEECalculator(unittest.TestCase):
         # self.write_df_with_dtypes(self.oee.job["df"].sort_values(by=["recvtimets", "attrname"]), "job_oee")
         self.assertTrue(self.are_dfs_equal(self.oee.job["df"], job_df))
 
-        self.assertEqual(self.oee.today["RefStartTime"], _8h)
+        self.assertEqual(self.oee.today["reference_start_time"], _8h)
 
         # with patch("datetime.datetime.now") as mock_now:
         # mock_now.return_value = now
@@ -560,22 +560,22 @@ class test_OEECalculator(unittest.TestCase):
             with self.assertRaises(ValueError):
                 self.oee.prepare(self.con)
 
-    def test_filter_in_relation_to_RefStartTime(self):
+    def test_filter_in_relation_to_reference_start_time(self):
         _8h30 = datetime(2022, 4, 4, 8, 30, 0)
         ms = _8h30.timestamp()*1e3
-        self.oee.today["RefStartTime"] = _8h30
+        self.oee.today["reference_start_time"] = _8h30
         _8h = datetime(2022, 4, 4, 8, 0, 0)
         # _8h40 = datetime(2022, 4, 4, 8, 40, 0)
         _9h = datetime(2022, 4, 4, 9, 0, 0)
         # self.oee.now_unix = _9h
-        # self.oee.today["RefStartTime"] = _8h40
+        # self.oee.today["reference_start_time"] = _8h40
         df = self.prepare_df_between(self.workstation_df, _8h, _9h)
         # df["recvtimets"] = df["recvtimets"].map(str).map(float).map(int)
         # df.sort_values(by=["recvtimets"], inplace=True)
         df_after = df[ms <= df["recvtimets"]]
         df_after.dropna(how="any", inplace=True)
         df_after.reset_index(drop=True, inplace=True)
-        df_filt = self.oee.filter_in_relation_to_RefStartTime(df, how="after")
+        df_filt = self.oee.filter_in_relation_to_reference_start_time(df, how="after")
         self.logger.debug(f"df_filt: {df_filt}")
         self.logger.debug(f"df_after: {df_after}")
         self.assertTrue(df_filt.equals(df_after))
@@ -583,58 +583,58 @@ class test_OEECalculator(unittest.TestCase):
         df_before.dropna(how="any", inplace=True)
         df_before.reset_index(drop=True, inplace=True)
         self.assertTrue(
-            self.oee.filter_in_relation_to_RefStartTime(df, how="before").equals(
+            self.oee.filter_in_relation_to_reference_start_time(df, how="before").equals(
                 df_before
             )
         )
         with self.assertRaises(NotImplementedError):
-            self.oee.filter_in_relation_to_RefStartTime(df, how="somehow_else")
+            self.oee.filter_in_relation_to_reference_start_time(df, how="somehow_else")
 
-    def test_calc_availability_if_no_availability_record_after_RefStartTime(self):
+    def test_calc_availability_if_no_availability_record_after_reference_start_time(self):
         _8h = datetime(2022, 4, 4, 8, 0, 0)
         _8h40 = datetime(2022, 4, 4, 8, 40, 0)
         _9h = datetime(2022, 4, 4, 9, 0, 0)
         self.oee.now_unix = _9h.timestamp()*1e3
-        self.oee.today["RefStartTime"] = _8h40
+        self.oee.today["reference_start_time"] = _8h40
         df = self.prepare_df_between(self.workstation_df, _8h, _8h40)
-        # the RefStartTime is 8:40, the last entry (as of 9h) is 8:30 turn on, so availability = 1
+        # the reference_start_time is 8:40, the last entry (as of 9h) is 8:30 turn on, so availability = 1
         self.assertEqual(
-            self.oee.calc_availability_if_no_availability_record_after_RefStartTime(df),
+            self.oee.calc_availability_if_no_availability_record_after_reference_start_time(df),
             1,
         )
-        total_time_so_far_since_RefStartTime = self.oee.datetime_to_milliseconds(
+        total_time_so_far_since_reference_start_time = self.oee.datetime_to_milliseconds(
             _9h
         ) - self.oee.datetime_to_milliseconds(_8h40)
         self.assertEqual(
-            self.oee.total_time_so_far_since_RefStartTime, total_time_so_far_since_RefStartTime
+            self.oee.total_time_so_far_since_reference_start_time, total_time_so_far_since_reference_start_time
         )
-        self.assertEqual(self.oee.total_available_time, total_time_so_far_since_RefStartTime)
-        # the RefStartTime is 8:40, the last entry (as of 9h) is 8:30 turn off, so availability = 0
+        self.assertEqual(self.oee.total_available_time, total_time_so_far_since_reference_start_time)
+        # the reference_start_time is 8:40, the last entry (as of 9h) is 8:30 turn off, so availability = 0
         df.at[-1, "attrvalue"] = "false"
         self.assertEqual(
-            self.oee.calc_availability_if_no_availability_record_after_RefStartTime(df),
+            self.oee.calc_availability_if_no_availability_record_after_reference_start_time(df),
             0,
         )
         self.assertEqual(
-            self.oee.total_time_so_far_since_RefStartTime, total_time_so_far_since_RefStartTime
+            self.oee.total_time_so_far_since_reference_start_time, total_time_so_far_since_reference_start_time
         )
         self.assertEqual(self.oee.total_available_time, 0)
         df.at[-1, "attrvalue"] = "False"
         with self.assertRaises(ValueError):
-            self.oee.calc_availability_if_no_availability_record_after_RefStartTime(df)
+            self.oee.calc_availability_if_no_availability_record_after_reference_start_time(df)
 
     @patch(f"{OEE.__name__}.datetime", wraps=datetime)
-    def test_calc_availability_if_exists_record_after_RefStartTime(self, mock_datetime):
+    def test_calc_availability_if_exists_record_after_reference_start_time(self, mock_datetime):
         now = datetime(2022, 4, 4, 9, 0, 0)
         mock_datetime.now.return_value = now
         self.oee.prepare(self.con)
         df = self.oee.workstation["df"].copy()
         df_av = df[df["attrname"] == "available"]
-        df_before = self.oee.filter_in_relation_to_RefStartTime(df_av, how="before")
-        df_after = self.oee.filter_in_relation_to_RefStartTime(df_av, how="after")
-        # self.logger.debug("calc_availability_if_exists_record_after_RefStartTime, df_av: {df_av}")
+        df_before = self.oee.filter_in_relation_to_reference_start_time(df_av, how="before")
+        df_after = self.oee.filter_in_relation_to_reference_start_time(df_av, how="after")
+        # self.logger.debug("calc_availability_if_exists_record_after_reference_start_time, df_av: {df_av}")
         self.assertEqual(
-            self.oee.calc_availability_if_exists_record_after_RefStartTime(df_before, df_after),
+            self.oee.calc_availability_if_exists_record_after_reference_start_time(df_before, df_after),
             50 / 60,
         )
 
