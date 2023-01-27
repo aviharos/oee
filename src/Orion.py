@@ -18,7 +18,6 @@ import os
 import requests
 
 # Custom imports
-# from modules.log_it import log_it
 from Logger import getLogger
 
 logger_Orion = getLogger(__name__)
@@ -42,7 +41,7 @@ if ORION_PORT is None:
     ORION_PORT = default_port
 
 
-def get_request(url: str):
+def get_request(url: str) -> tuple:
     """Send a GET request to Orion
 
     Args:
@@ -70,7 +69,7 @@ def get_request(url: str):
             ) from error
         return response.status_code, response.json()
 
-def is_reachable():
+def is_reachable() -> bool:
     """Return True if the OCB is reachable, False otherwise
 
     Args:
@@ -85,7 +84,7 @@ def is_reachable():
     status_code, _ = get_request(url)
     return status_code == 200
 
-def get(object_id: str, host: str=ORION_HOST, port: int =ORION_PORT):
+def get(object_id: str, host: str=ORION_HOST, port: int=ORION_PORT) -> dict:
     """Get an object from Orion identified by the ID
 
     Args:
@@ -109,7 +108,7 @@ def get(object_id: str, host: str=ORION_HOST, port: int =ORION_PORT):
     return json_
 
 
-def exists(object_id: str):
+def exists(object_id: str) -> bool:
     """Check if an object exists in Orion
 
     Args:
@@ -126,7 +125,7 @@ def exists(object_id: str):
         return False
 
 
-def get_workstations():
+def get_workstations() -> tuple:
     """Download all Workstation objects at once from Orion
 
     Returns:
@@ -144,7 +143,7 @@ def get_workstations():
     return workstations
 
 
-def update(objects: list):
+def update(objects: list) -> int:
     """Updates the objects in Orion
 
     This method takes an iterable (objects) that contain Orion objects
@@ -158,6 +157,9 @@ def update(objects: list):
     Raises:
         TypeError: if the objects does not contain an iterable
         RuntimeError: if the POST request's status code is not 204
+
+    Returns:
+        response.status_code: the HTTP request's response status code
     """
     logger_Orion.debug(f"update: objects: {objects}")
     url = f"http://{ORION_HOST}:{ORION_PORT}/v2/op/update"
@@ -176,7 +178,7 @@ def update(objects: list):
     else:
         return response.status_code
 
-def update_attribute(object_id: str, attribute_name: str, attribute_type: str, attribute_value):
+def update_attribute(object_id: str, attribute_name: str, attribute_type: str, attribute_value) -> int:
     """Updates the object's given attribute in Orion
 
     This method takes an object id and an attribute name and value pair
@@ -192,6 +194,9 @@ def update_attribute(object_id: str, attribute_name: str, attribute_type: str, a
 
     Raises:
         RuntimeError: if the POST request's status code is not 204
+
+    Returns:
+        response.status_code: the HTTP request's response status code
     """
     logger_Orion.debug(f"""update_attribute:
 object_id: {object_id}

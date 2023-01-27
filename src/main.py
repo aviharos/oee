@@ -18,7 +18,7 @@ from LoopHandler import LoopHandler
 logger_main = getLogger(__name__)
 
 
-def get_SLEEP_TIME():
+def get_SLEEP_TIME() -> int:
     """Read and convert the SLEEP_TIME environment variable
 
     If the SLEEP_TIME is None, the default of 60 seconds is used.

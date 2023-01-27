@@ -61,7 +61,7 @@ class LoopHandler:
     def __init__(self):
         pass
 
-    def calculate_KPIs(self, workstation_id: str):
+    def calculate_KPIs(self, workstation_id: str) -> tuple:
         """Calculate the OEE and the Throughput of the current Workstation
 
         Wraps the OEECalculator class
@@ -73,8 +73,8 @@ class LoopHandler:
         Returns:
             Tuple: (oee, throughput):
                 oee:
-                    the OEE object to be uploaded to Orion
-                    format in self.OEE_template
+                    the OEE object to be uploaded to Orion in a dict
+                    format in OEE.OEECalculator.OEE_template
                 throughput:
                     the Throughput object to be uploaded to Orion
         """
