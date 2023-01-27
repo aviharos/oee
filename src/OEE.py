@@ -67,7 +67,7 @@ class OEECalculator:
     Raises various errors if the calculation fails
     """
 
-    DATETIME_FORMAT = "%Y-%m-%d %H:%M:%S.%f"
+    DATETIME_FORMAT = "%Y-%m-%d %H:%M:%S"
     """
     The way the OEECalculator stores data is according to the object_ dict
     id (str):
@@ -151,17 +151,6 @@ class OEECalculator:
         """
         return datetime.fromtimestamp(milliseconds/1000.0)
 
-    def stringToDateTime(self, string: str):
-        """Convert a datetime in DATETIME_FORMAT string format to a datetime.datetime object
-
-        Args:
-            string (str): datetime in string
-
-        Returns:
-            timestamp in datetime object
-        """
-        return datetime.strptime(string, self.DATETIME_FORMAT)
-
     def timeToDatetime(self, string: str):
         """Convert a time (no date component) in string format to datetime
 
@@ -174,7 +163,7 @@ class OEECalculator:
             datetime object
         """
         return datetime.strptime(
-            str(self.now_datetime.date()) + " " + string, "%Y-%m-%d %H:%M:%S"
+            str(self.now_datetime.date()) + " " + string, self.DATETIME_FORMAT
         )
 
     def datetimeToMilliseconds(self, datetime_):
