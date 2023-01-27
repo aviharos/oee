@@ -204,7 +204,7 @@ class test_LoopHandler(unittest.TestCase):
         mock_datetime.now.return_value = now
         reupload_jsons_to_Orion.main()
         self.loopHandler.handle()
-        workstations = Orion.getWorkstations()
+        workstations = Orion.get_workstations()
         self.assertEqual(len(workstations), 1)
         self.assert_KPIs_are_correct()
 

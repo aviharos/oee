@@ -48,9 +48,9 @@ class test_Orion(unittest.TestCase):
     def tearDown(self):
         pass
 
-    def test_getRequest(self):
+    def test_get_request(self):
         # try downloading the Core001 object
-        status_code, downloaded_json = Orion.getRequest(
+        status_code, downloaded_json = Orion.get_request(
             f'{orion_entities}/{self.obj["id"]}'
         )
         downloaded_json = remove_orion_metadata(downloaded_json)
@@ -60,7 +60,7 @@ class test_Orion(unittest.TestCase):
         with patch("requests.get") as mocked_get:
             mocked_get.side_effect = ValueError
             with self.assertRaises(RuntimeError):
-                Orion.getRequest(f'{orion_entities}/{self.obj["id"]}')
+                Orion.get_request(f'{orion_entities}/{self.obj["id"]}')
 
     def test_get(self):
         self.assertEqual(
@@ -75,19 +75,19 @@ class test_Orion(unittest.TestCase):
         self.assertTrue(Orion.exists("urn:ngsiv2:i40Asset:Part_Core001"))
         self.assertFalse(Orion.exists("urn:ngsiv2:i40Asset:Part_Core002"))
 
-    def test_getWorkstations(self):
+    def test_get_workstations(self):
         # delete uploaded Workstation objects
         requests.delete(url=f'{orion_entities}/{self.workstation1["id"]}')
         requests.delete(url=f'{orion_entities}/{self.workstation2["id"]}')
 
         # there are no Workstation objects in Orion
-        self.assertEqual(len(Orion.getWorkstations()), 0)
+        self.assertEqual(len(Orion.get_workstations()), 0)
 
         # post 2 Workstation objects
         requests.post(url=orion_entities, json=self.workstation1)
         requests.post(url=orion_entities, json=self.workstation2)
         downloaded_workstations = [
-            remove_orion_metadata(workstation) for workstation in Orion.getWorkstations()
+            remove_orion_metadata(workstation) for workstation in Orion.get_workstations()
         ]
         self.assertEqual(len(downloaded_workstations), 2)
 
@@ -113,7 +113,7 @@ class test_Orion(unittest.TestCase):
 
         # check if update was successful
         downloaded_workstations = [
-            remove_orion_metadata(workstation) for workstation in Orion.getWorkstations()
+            remove_orion_metadata(workstation) for workstation in Orion.get_workstations()
         ]
         self.assertEqual(len(downloaded_workstations), 2)
         if downloaded_workstations[0]["id"] == workstation1m["id"]:
