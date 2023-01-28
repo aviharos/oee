@@ -79,7 +79,7 @@ def setupClass_common(cls: unittest.TestCase):
     )
     # download test logs
     cls.workstation_df = pd.read_sql_query(
-        f"select * from {POSTGRES_SCHEMA}.{WORKSTATION_TABLE}", con=cls.con
+        sqlalchemy.text(f"select * from {POSTGRES_SCHEMA}.{WORKSTATION_TABLE}"), con=cls.con
     )
 
     # the same with the Job logs
@@ -94,7 +94,7 @@ def setupClass_common(cls: unittest.TestCase):
         if_exists="replace",
     )
     cls.job_df = pd.read_sql_query(
-        f"select * from {POSTGRES_SCHEMA}.{JOB_TABLE}", con=cls.con
+        sqlalchemy.text(f"select * from {POSTGRES_SCHEMA}.{JOB_TABLE}"), con=cls.con
     )
 
     # load all jsons into a dict for easy access

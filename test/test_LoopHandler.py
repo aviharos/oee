@@ -81,7 +81,7 @@ class test_LoopHandler(unittest.TestCase):
             if_exists="replace",
         )
         cls.workstation_df = pd.read_sql_query(
-            f"select * from {POSTGRES_SCHEMA}.{WORKSTATION_TABLE}", con=cls.con
+            sqlalchemy.text(f"select * from {POSTGRES_SCHEMA}.{WORKSTATION_TABLE}"), con=cls.con
         )
 
         cls.job_df = pd.read_csv(os.path.join("csv", JOB_FILE))
@@ -95,7 +95,7 @@ class test_LoopHandler(unittest.TestCase):
             if_exists="replace",
         )
         cls.job_df = pd.read_sql_query(
-            f"select * from {POSTGRES_SCHEMA}.{JOB_TABLE}", con=cls.con
+            sqlalchemy.text(f"select * from {POSTGRES_SCHEMA}.{JOB_TABLE}"), con=cls.con
         )
         cls.blank_oee = {
                 "availability": None,

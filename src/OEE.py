@@ -378,13 +378,11 @@ class OEECalculator:
         """
         start_timestamp = self.get_query_start_timestamp(how)
         self.logger.debug(f"query_todays_data: start_timestamp: {start_timestamp}")
+        query = f"""select * from {self.POSTGRES_SCHEMA}.{table_name}
+                    where {start_timestamp} <= cast (recvtimets as bigint)
+                    and cast (recvtimets as bigint) <= {self.now_unix};"""
         try:
-            df = pd.read_sql_query(
-                f"""select * from {self.POSTGRES_SCHEMA}.{table_name}
-                                       where {start_timestamp} <= cast (recvtimets as bigint)
-                                       and cast (recvtimets as bigint) <= {self.now_unix};""",
-                con=con,
-            )
+            df = pd.read_sql_query(sqlalchemy.text(query), con=con)
         except (
             psycopg2.errors.UndefinedTable,
             sqlalchemy.exc.ProgrammingError,
