@@ -13,8 +13,8 @@ LOGGING_LEVEL:
     meaning the same as in python's logging module
 
 LOG_TO_FILE:
-    TRUE*
-    FALSE
+    TRUE
+    FALSE*
 
 LOG_TO_STDOUT:
     TRUE*
