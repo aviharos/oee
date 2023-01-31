@@ -331,7 +331,7 @@ class test_OEECalculator(unittest.TestCase):
             self.oee.datetime_to_milliseconds(datetime(2022, 4, 5, 0, 0, 0)),
         )
         self.assertEqual(
-            self.oee.get_query_start_timestamp(how="from_schedule_start"),
+            self.oee.get_query_start_timestamp(how="from_shift_start"),
             self.oee.datetime_to_milliseconds(datetime(2022, 4, 5, 8, 0, 0)),
         )
 
@@ -362,7 +362,7 @@ class test_OEECalculator(unittest.TestCase):
         self.assertTrue(self.oee.workstation["df"].equals(df))
 
         self.oee.workstation["df"] = self.oee.query_todays_data(
-            self.con, self.oee.workstation["postgres_table"], how="from_schedule_start"
+            self.con, self.oee.workstation["postgres_table"], how="from_shift_start"
         )
         df = self.workstation_df.copy()
         df["recvtimets"] = df["recvtimets"].map(str).map(int)

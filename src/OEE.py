@@ -336,7 +336,7 @@ class OEECalculator:
         """Get the PostgreSQL query's starting timestamp
 
         Args:
-            how (str): "from_midnight" or "from_schedule_start"
+            how (str): "from_midnight" or "from_shift_start"
 
         Returns:
             timestamp in milliseconds
@@ -350,7 +350,7 @@ class OEECalculator:
             return self.datetime_to_milliseconds(
                 datetime.combine(self.now_datetime.date(), datetime.min.time())
             )
-        elif how == "from_schedule_start":
+        elif how == "from_shift_start":
             return self.datetime_to_milliseconds(
                 self.today["start"]
             )
@@ -365,7 +365,7 @@ class OEECalculator:
         Args:
             con (sqlalchemy connection object): self.con, the LoopHandler creates it
             table_name (str): PostgreSQL table name
-            how (str): "from_midnight" or "from_schedule_start"
+            how (str): "from_midnight" or "from_shift_start"
 
         Returns:
             pandas DataFrame containing the queried data
@@ -527,7 +527,7 @@ class OEECalculator:
         self.workstation["df"] = self.sort_df_by_time(self.workstation["df"])
 
         self.job["df"] = self.query_todays_data(
-            con=con, table_name=self.job["postgres_table"], how="from_schedule_start"
+            con=con, table_name=self.job["postgres_table"], how="from_shift_start"
         )
         self.job["df"] = self.convert_dataframe_to_str(self.job["df"])
         self.convert_recvtimets_column_to_int(self.job["df"])
