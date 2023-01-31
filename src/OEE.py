@@ -47,11 +47,14 @@ class OEECalculator:
     Common usage:
         oeeCalculator = OEECalculator(workstation_id)
         oeeCalculator.prepare(con)
-        oee, throughput = oeeCalculator.calculate_KPIs()
+        oee = oeeCalculator.calculate_OEE()
+        throughput = oeeCalculator.calculate_throughput()
 
-    Args:
+    Parameter for __init__():
         workstation_id:
             the Orion id of the Workstation
+
+    Argument for prepare():
         con:
             The sqlalchemy module's engine's connection object to PostgreSQL
 
@@ -72,17 +75,15 @@ class OEECalculator:
     """
 
     DATETIME_FORMAT = "%Y-%m-%d %H:%M:%S"
-    """
-    The way the OEECalculator stores data is according to the object_ dict
-    id (str):
-        Orion id 
-    orion (dict):
-        Orion object
-    postgres_table (str):
-        postgres table name of the logs of the object
-    df (pandas DataFrame):
-        logs downloaded from PostgreSQL
-    """
+    # The way the OEECalculator stores data is according to the object_ dict
+    # id (str):
+    #     Orion id 
+    # orion (dict):
+    #     Orion object
+    # postgres_table (str):
+    #     postgres table name of the logs of the object
+    # df (pandas DataFrame):
+    #     logs downloaded from PostgreSQL
     object_ = {"id": None, "orion": None, "postgres_table": None, "df": None}
     logger = getLogger(__name__)
     OEE_template = {
@@ -136,8 +137,8 @@ class OEECalculator:
         self.now_unix = datetime.now().timestamp() * 1e3
 
     @property
-    def now_datetime(self):
-        """Function for getting the frozen timestamp in milliseconds
+    def now_datetime(self) -> datetime:
+        """Property for getting the frozen timestamp in milliseconds
 
         Returns:
             the oeeCalculator.now timestamp in milliseconds (numeric)
@@ -244,13 +245,13 @@ class OEECalculator:
         return True
 
     def get_todays_shift_limits(self):
-        """Get the limits of today's schedule
+        """Get the limits of today's shift
 
-        Extract the schedule's start and end Shift object
+        Extract the shift's start and end
         Store the date in self.today
 
         Raises:
-            ValueError, KeyError or TypeError if getting the schedule
+            ValueError, KeyError or TypeError if getting the shift
                 start or end or converting the time to datetime fails
         """
         try:
@@ -292,9 +293,6 @@ class OEECalculator:
 
     def get_operation_id(self):
         """Get the referenced Operation's Orion id from the Job Orion object
-
-        Returns:
-            the Operation's Orion id (str)
 
         Raises:
             KeyError or TypeError if getting the value from the dict fails
@@ -421,12 +419,12 @@ class OEECalculator:
         """
         if df_["recvtimets"].dtype != np.int64:
             raise ValueError(
-                f'The recvtimets column should contain np.int64 dtype values, current dtype: {df_["recvtimets"]}'
+                f'The recvtimets column should contain np.int64 dtype values, current dtype: {df_["recvtimets"].dtype}'
             )
         return df_.sort_values(by=["recvtimets"])
 
     def get_current_job_start_time_today(self) -> datetime:
-        """Get the Job's start time. If it is before the schedule's start, return the schedule start time
+        """Get the Job's start time. If it is before the shift's start, return the shift start time
 
         If the the current job started in today's shift,
         return its start time,
@@ -446,7 +444,7 @@ class OEECalculator:
         if len(refJob_entries) == 0:
             # today's queried workstation df does not contain a job change
             # we assume that the Job was started in a previous shift
-            # so the job's today part started at the schedule start time today
+            # so the job's today part started at the shift start time today
             self.logger.debug(f"Today's job start time: {self.today['start']}")
             return self.today["start"]
 
@@ -465,13 +463,13 @@ class OEECalculator:
 
         reference_start_time is the one later in time of these two:
             1. Current Job's start time
-            2. Current schedule's start time
+            2. Current shift's start time
 
         This way, only one Job will be considered (1.),
-        and only one working interval in the schedule is considered (2.)
+        and only a single shift's data is considered (2.)
 
         As a consequence, the OEE and Throughput metrics always refer to the current Job
-        and the current working interval of the schedule
+        and the current working interval of the shift
 
         The result is stored in self.today["reference_start_time"]
         """
@@ -646,7 +644,7 @@ class OEECalculator:
         if len(df_before) == 0:
             # assume not turned on 
             # the OEE microservice's specification declares that 
-            # the Workstation cannot be turned on before the schedule start!
+            # the Workstation cannot be turned on before the shift start!
             available = False
         else:
             # there is at least one available attribute entry today before reference_start_time
@@ -656,23 +654,21 @@ class OEECalculator:
             available = True if last_availability == "true" else False
 
         for _, row in df_after.iterrows():
-            """
-            Interate all rows
-            Every 2 subsequent rows defines an interval during which the Workstation was on
-            Or off without interruption
-            The first row shows the Workstation's available attribute during that interval
-            Check which interval is on and off, and increase times accordingly
-
-            Caution: Cygnus logs in a way that more subsequent rows can have the same
-            available value, so we cannot assume that they alternate
-
-            The first and last intervals are special.
-            The first interval starts at reference_start_time, ends at the first entry
-            The last interval starts at the last entry, ends at self.now_unix
-
-            The first interval is handled here, because the previous_timestamp
-            starts at reference_start_time
-            """
+            # Interate all rows
+            # Every 2 subsequent rows defines an interval during which the Workstation was on
+            # Or off without interruption
+            # The first row shows the Workstation's available attribute during that interval
+            # Check which interval is on and off, and increase times accordingly
+            #
+            # Caution: Cygnus logs in a way that more subsequent rows can have the same
+            # available value, so we cannot assume that they alternate
+            #
+            # The first and last intervals are special.
+            # The first interval starts at reference_start_time, ends at the first entry
+            # The last interval starts at the last entry, ends at self.now_unix
+            #
+            # The first interval is handled here, because the previous_timestamp
+            # starts at reference_start_time
             current_timestamp = row["recvtimets"]
             interval_duration = current_timestamp - previous_timestamp
             self.logger.debug(f"Processing availability interval: previous timestamp: {previous_timestamp}, interval_duration: {interval_duration}, available: {available}")
@@ -741,12 +737,12 @@ class OEECalculator:
         """Handle everything related to the availability KPI
 
         Important: the OEECalculator queries data from_midnight
-        So if a Workstation becomes available before the schedule starts,
+        So if a Workstation becomes available before the shift starts,
         The OEECalculator will recognise that it is available
         But the availability calculations will not consider any time before
-        the schedule starts.
+        the shift starts.
         The OEECalculator treats the Workstation
-        as if it became available just when the schedule started.
+        as if it became available just when the shift started.
         This way, the availability KPI cannot exceed 1.
 
         The availability is stored in self.oee["availability"]["value"]
@@ -778,7 +774,7 @@ class OEECalculator:
                 including the one that made the counter 16 at first
 
         The module cannot handle if the min. or max. value is missing,
-            for example in the previous case, '16' or '48' is missing from the logs
+            for example in the previous case, '16' or '56' is missing from the logs
 
         The way this function counts is as follows:
             Converts the np.array to integer array

@@ -1,7 +1,7 @@
 ﻿# -*- coding: utf-8 -*-
 """The main file for the OEE and Throughput calculator microservice
 
-It reads the SLEEP_TIME environment variableself.
+It reads the SLEEP_TIME environment variable.
 The main module runs the LoopHandler each loop, using a period of about SLEEP_TIME.
 See the loop function's docs for why this time is not exact.
 
@@ -54,7 +54,7 @@ def loop(scheduler_: sched.scheduler):
     of the next loop.
     The OEE microservice does not follow a strict period time
     to ensure that the previous loop is always finished
-    before starting a new one is due
+    before starting a new one is due.
 
     Args:
         scheduler_ (sched.scheduler): instance of sched.scheduler, used in all loops
@@ -68,7 +68,7 @@ def loop(scheduler_: sched.scheduler):
 def main():
     """The main module that starts up the microservice and runs the first loop
 
-    All environment variables not containing "PASS" are logged for information
+    All environment variables not containing "PASS" or "KEY" are logged for information
     Can be stopped with KeyboardInterrupt
     """
     logger_main.info("Starting OEE microservice...")

@@ -9,7 +9,7 @@ Environment variables:
     ORION_PORT: the port of the Orion broker
 
 Raises:
-    RuntimeError: if the Orion_HOST is not set
+    RuntimeError: if the ORION_HOST is not set
 """
 # Standard Library imports
 import os
