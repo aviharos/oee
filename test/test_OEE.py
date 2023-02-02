@@ -21,7 +21,7 @@ from modules.remove_orion_metadata import remove_orion_metadata
 from modules.TestCase_common import setupClass_common
 
 # Constants
-workstation_ID = "urn:ngsiv2:i40Asset:Workstation1"
+workstation_ID = "urn:ngsiv2:i40Asset:Workstation:001"
 workstation_TABLE = workstation_ID.lower().replace(":", "_") + "_i40asset"
 workstation_FILE = f"{workstation_TABLE}.csv"
 OEE_ID = "urn:ngsiv2:i40Asset:OEE1"
@@ -398,7 +398,7 @@ class test_OEECalculator(unittest.TestCase):
             int(timestamp),
             datetime_string,
             "/",
-            "urn:ngsiv2:i40Asset:Workstation1",
+            "urn:ngsiv2:i40Asset:Workstation:001",
             "Workstation",
             "refJob",
             "Text",

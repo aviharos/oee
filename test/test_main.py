@@ -37,7 +37,7 @@ POSTGRES_SCHEMA = os.environ.get("POSTGRES_SCHEMA")
 
 # Constants
 PLACES = 5
-WORKSTATION_ID = "urn:ngsiv2:i40Asset:Workstation1"
+WORKSTATION_ID = "urn:ngsiv2:i40Asset:Workstation:001"
 WORKSTATION_TABLE = WORKSTATION_ID.lower().replace(":", "_") + "_i40asset"
 WORKSTATION_FILE = f"{WORKSTATION_TABLE}.csv"
 JOB_ID = "urn:ngsiv2:i40Process:Job:000001"

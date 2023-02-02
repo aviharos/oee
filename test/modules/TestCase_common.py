@@ -19,7 +19,7 @@ import OEE
 from modules import reupload_jsons_to_Orion
 
 # Constants
-WORKSTATION_ID = "urn:ngsiv2:i40Asset:Workstation1"
+WORKSTATION_ID = "urn:ngsiv2:i40Asset:Workstation:001"
 WORKSTATION_TABLE = WORKSTATION_ID.lower().replace(":", "_") + "_i40asset"
 OEE_ID = "urn:ngsiv2:i40Asset:OEE1"
 OEE_TABLE = OEE_ID.lower().replace(":", "_") + "_i40asset"

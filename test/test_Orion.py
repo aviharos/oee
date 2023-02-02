@@ -33,7 +33,7 @@ class test_Orion(unittest.TestCase):
             cls.workstation1 = json.load(f)
         # make a second Workstation
         cls.workstation2 = copy.deepcopy(cls.workstation1)
-        cls.workstation2["id"] = "urn:ngsiv2:i40Asset:Workstation2"
+        cls.workstation2["id"] = "urn:ngsiv2:i40Asset:Workstation:002"
         cls.workstation2["refJob"]["value"] = "urn:ngsiv2:i40Process:Job:000001_mod"
 
     @classmethod

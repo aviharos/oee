@@ -76,7 +76,7 @@ As the manufacturing process is working, you need to keep these objects up-to-da
 Below you can find the design of the key objects. You cannot change the attribute names, but you can change their content. You cannot change the object types. The manufacturing system and the processes are also defined in these json files. You can arbitratily extend the data model with additional attributes and other types of objects. Make sure that if you have other Orion objects, none of them is of type `i40Asset` and of subType `Workstation`.
 
 You need to configure and constantly update:
-- One Workstation object for each Workstation. In the example json files, there is one: `urn:ngsiv2:i40Asset:Workstation1`.
+- One Workstation object for each Workstation. In the example json files, there is one: `urn:ngsiv2:i40Asset:Workstation:001`.
 - One Job object for each Job.
 
 In addition, you need to configure the manufacturing technology in the following objects. These objects rarely change.
@@ -98,7 +98,7 @@ You can find examples for each object explained below.
 #### Workstation
 
     {
-        "id": "urn:ngsiv2:i40Asset:Workstation1",
+        "id": "urn:ngsiv2:i40Asset:Workstation:001",
         "type": "i40Asset",
         "i40AssetType": {
             "type": "Text",
