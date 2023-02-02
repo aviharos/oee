@@ -114,7 +114,7 @@ You can find examples for each object explained below.
         },
         "refShift": {
             "type": "Relationship",
-            "value": "urn:ngsiv2:i40Recipe:Shift1"
+            "value": "urn:ngsiv2:i40Recipe:Shift:001"
         },
         "oee": {
             "type": "Number",
@@ -280,7 +280,7 @@ If you cannot trace the Workstation through the Job object to the current Operat
 #### Shift
 
     {
-        "id": "urn:ngsiv2:i40Recipe:Shift1",
+        "id": "urn:ngsiv2:i40Recipe:Shift:001",
         "type": "i40Recipe",
         "i40RecipeType": {
             "type": "Text",

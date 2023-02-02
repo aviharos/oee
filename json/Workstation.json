@@ -15,7 +15,7 @@
     },
     "refShift": {
         "type": "Relationship",
-        "value": "urn:ngsiv2:i40Recipe:Shift1"
+        "value": "urn:ngsiv2:i40Recipe:Shift:001"
     },
     "oee": {
         "type": "Number",
