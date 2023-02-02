@@ -1,5 +1,5 @@
 {
-    "id": "urn:ngsiv2:i40Recipe:SequenceOfOperations_Core001",
+    "id": "urn:ngsiv2:i40Recipe:sequenceOfOperations:core001",
     "type": "i40Recipe",
     "i40RecipeType": {
         "type": "Text",

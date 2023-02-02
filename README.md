@@ -221,7 +221,7 @@ Attributes:
 #### SequenceOfOperations
 
     {
-        "id": "urn:ngsiv2:i40Recipe:SequenceOfOperations_Core001",
+        "id": "urn:ngsiv2:i40Recipe:sequenceOfOperations:core001",
         "type": "i40Recipe",
         "i40RecipeType": {
             "type": "Text",
@@ -257,7 +257,7 @@ The SequenceOfOperations objects are not compulsory. The OEE microservice does n
         },
         "refSequenceOfOperations": {
             "type": "Relationship",
-            "value": "urn:ngsiv2:i40Recipe:SequenceOfOperations_Core001"
+            "value": "urn:ngsiv2:i40Recipe:sequenceOfOperations:core001"
         },
         "cycleTime": {
             "type": "Number",

@@ -1,5 +1,5 @@
 {
-    "id": "urn:ngsiv2:i40Recipe:SequenceOfOperations_Cube001",
+    "id": "urn:ngsiv2:i40Recipe:SequenceOfOperations:cube001",
     "type": "i40Recipe",
     "i40RecipeType": {
         "type": "Text",

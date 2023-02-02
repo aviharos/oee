@@ -7,7 +7,7 @@
     },
     "refSequenceOfOperations": {
         "type": "Relationship",
-        "value": "urn:ngsiv2:i40Recipe:SequenceOfOperations_Cube001"
+        "value": "urn:ngsiv2:i40Recipe:SequenceOfOperations:cube001"
     },
     "cycleTime": {
         "type": "Number",
