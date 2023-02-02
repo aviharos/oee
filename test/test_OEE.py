@@ -269,7 +269,7 @@ class test_OEECalculator(unittest.TestCase):
     def test_get_operation_id(self):
         self.oee.job["orion"] = copy.deepcopy(self.jsons["Job202200045"])
         self.oee.get_operation_id()
-        self.assertEqual(self.oee.operation["id"], "urn:ngsiv2:i40Recipe:operation:core001:injectionMoulding")
+        self.assertEqual(self.oee.operation["id"], "urn:ngsiv2:i40Recipe:Operation:core001:injectionMoulding")
         self.oee.job["orion"]["refOperation"] = "invalid"
         with self.assertRaises(KeyError):
             self.oee.get_operation_id()
