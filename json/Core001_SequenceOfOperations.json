@@ -12,7 +12,7 @@
     "operations": {
         "type": "List",
         "value": [
-            "urn:ngsiv2:i40Recipe:Operation_Core001_injectionMoulding"
+            "urn:ngsiv2:i40Recipe:operation:core001:injectionMoulding"
         ]
     }
 }

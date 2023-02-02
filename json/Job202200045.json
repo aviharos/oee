@@ -11,7 +11,7 @@
     },
     "refOperation": {
         "type": "Relationship",
-        "value": "urn:ngsiv2:i40Recipe:Operation_Core001_injectionMoulding"
+        "value": "urn:ngsiv2:i40Recipe:operation:core001:injectionMoulding"
     },
     "jobTargetNumber": {
         "type": "Number",

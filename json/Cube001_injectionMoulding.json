@@ -1,5 +1,5 @@
 {
-    "id": "urn:ngsiv2:i40Recipe:Operation_Cube001_injectionMoulding",
+    "id": "urn:ngsiv2:i40Recipe:operation:cube001:injectionMoulding",
     "type": "i40Recipe",
     "i40RecipeType": {
         "type": "Text",
