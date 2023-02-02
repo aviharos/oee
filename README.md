@@ -110,7 +110,7 @@ You can find examples for each object explained below.
         },
         "refJob": {
             "type": "Relationship",
-            "value": "urn:ngsiv2:i40Process:Job202200045"
+            "value": "urn:ngsiv2:i40Process:Job:000001"
         },
         "refShift": {
             "type": "Relationship",
@@ -164,7 +164,7 @@ The Workstation cannot be turned on any day before the Shift's `start` attribute
 
 #### Job
     {
-        "id": "urn:ngsiv2:i40Process:Job202200045",
+        "id": "urn:ngsiv2:i40Process:Job:000001",
         "type": "i40Process",
         "i40ProcessType": {
             "type": "Text",

@@ -11,7 +11,7 @@
     },
     "refJob": {
         "type": "Relationship",
-        "value": "urn:ngsiv2:i40Process:Job202200045"
+        "value": "urn:ngsiv2:i40Process:Job:000001"
     },
     "refShift": {
         "type": "Relationship",

@@ -26,7 +26,7 @@ workstation_TABLE = workstation_ID.lower().replace(":", "_") + "_i40asset"
 workstation_FILE = f"{workstation_TABLE}.csv"
 OEE_ID = "urn:ngsiv2:i40Asset:OEE1"
 OEE_TABLE = OEE_ID.lower().replace(":", "_") + "_i40asset"
-JOB_ID = "urn:ngsiv2:i40Process:Job202200045"
+JOB_ID = "urn:ngsiv2:i40Process:Job:000001"
 JOB_TABLE = JOB_ID.lower().replace(":", "_") + "_i40process"
 JOB_FILE = f"{JOB_TABLE}.csv"
 PLACES = 5
@@ -251,7 +251,7 @@ class test_OEECalculator(unittest.TestCase):
 
     def test_get_job_id(self):
         self.oee.workstation["orion"] = copy.deepcopy(self.jsons["Workstation"])
-        self.assertEqual(self.oee.get_job_id(), "urn:ngsiv2:i40Process:Job202200045")
+        self.assertEqual(self.oee.get_job_id(), "urn:ngsiv2:i40Process:Job:000001")
         self.oee.workstation["orion"]["refJob"] = None
         with self.assertRaises(TypeError):
             self.oee.get_job_id()
@@ -415,7 +415,7 @@ class test_OEECalculator(unittest.TestCase):
             self.jsons["Shift"]
         )
         self.oee.get_todays_shift_limits()
-        self.oee.job["id"] = "urn:ngsiv2:i40Process:Job202200045"
+        self.oee.job["id"] = "urn:ngsiv2:i40Process:Job:000001"
         self.oee.workstation["orion"] = copy.deepcopy(self.jsons["Workstation"])
         self.oee.workstation["postgres_table"] = self.oee.get_cygnus_postgres_table(
             self.oee.workstation["orion"]
@@ -435,14 +435,14 @@ class test_OEECalculator(unittest.TestCase):
         # the current Job start time should be 9h if we insert
         # the following
         dt_at_9h00 = datetime(2022, 4, 4, 9, 0, 0)
-        workstation_df = self.insert_RefJob_entry_at(workstation_df, dt_at_9h00, "urn:ngsiv2:i40Process:Job202200045")
+        workstation_df = self.insert_RefJob_entry_at(workstation_df, dt_at_9h00, "urn:ngsiv2:i40Process:Job:000001")
         self.oee.workstation["df"] = workstation_df.copy()
         self.assertEqual(self.oee.get_current_job_start_time_today(), dt_at_9h00)
 
         # if we insert the same RefJob many times,
         # we should get the first record's timestamp
         dt_at_9h30 = datetime(2022, 4, 4, 9, 30, 0)
-        workstation_df = self.insert_RefJob_entry_at(workstation_df, dt_at_9h30, "urn:ngsiv2:i40Process:Job202200045")
+        workstation_df = self.insert_RefJob_entry_at(workstation_df, dt_at_9h30, "urn:ngsiv2:i40Process:Job:000001")
         self.oee.workstation["df"] = workstation_df.copy()
         self.assertEqual(self.oee.get_current_job_start_time_today(), dt_at_9h00)
 
@@ -450,7 +450,7 @@ class test_OEECalculator(unittest.TestCase):
         # an error because of a Job id mismatch
         dt_at_10h = datetime(2022, 4, 4, 10, 0, 0)
         ts_at_10h = self.oee.datetime_to_milliseconds(dt_at_10h)
-        workstation_df = self.insert_RefJob_entry_at(workstation_df, dt_at_10h, "urn:ngsiv2:i40Process:Job202200046")
+        workstation_df = self.insert_RefJob_entry_at(workstation_df, dt_at_10h, "urn:ngsiv2:i40Process:Job:000002")
         self.oee.workstation["df"] = workstation_df.copy()
         with self.assertRaises(ValueError):
             self.oee.get_current_job_start_time_today()
@@ -491,7 +491,7 @@ class test_OEECalculator(unittest.TestCase):
         workstation_df["recvtimets"] = workstation_df["recvtimets"].map(str).map(float).map(int)
         dt_at_9h = datetime(2022, 4, 4, 9, 0, 0)
         # append an entry, thus intentionally spoiling the timewise order
-        workstation_df = self.insert_RefJob_entry_at(workstation_df, dt_at_9h, "urn:ngsiv2:i40Process:Job202200045")
+        workstation_df = self.insert_RefJob_entry_at(workstation_df, dt_at_9h, "urn:ngsiv2:i40Process:Job:000001")
         self.oee.workstation["df"] = workstation_df.copy()
         workstation_df.sort_values(by=["recvtimets"], inplace=True)
         self.oee.workstation["df"] = self.oee.sort_df_by_time(self.oee.workstation["df"])

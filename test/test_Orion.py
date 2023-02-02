@@ -34,7 +34,7 @@ class test_Orion(unittest.TestCase):
         # make a second Workstation
         cls.workstation2 = copy.deepcopy(cls.workstation1)
         cls.workstation2["id"] = "urn:ngsiv2:i40Asset:Workstation2"
-        cls.workstation2["refJob"]["value"] = "urn:ngsiv2:i40Process:Job202200045_mod"
+        cls.workstation2["refJob"]["value"] = "urn:ngsiv2:i40Process:Job:000001_mod"
 
     @classmethod
     def tearDownClass(cls):
@@ -102,7 +102,7 @@ class test_Orion(unittest.TestCase):
     def test_update(self):
         # create copies of Workstation objects to be used in the test's scope
         workstation1m = self.workstation1.copy()
-        workstation1m["refJob"]["value"] = "urn:ngsiv2:i40Process:Job202200045_mod"
+        workstation1m["refJob"]["value"] = "urn:ngsiv2:i40Process:Job:000001_mod"
         workstation2m = self.workstation2.copy()
         workstation2m["refShift"]["value"] = "urn:ngsiv2:i40Recipe:Shift2"
 
