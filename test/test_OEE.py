@@ -161,7 +161,7 @@ class test_OEECalculator(unittest.TestCase):
         self.assertEqual(self.oee.workstation["df"]["recvtimets"].dtype, np.int64)
 
     def test_get_cygnus_postgres_table(self):
-        job_table = self.oee.get_cygnus_postgres_table(self.jsons["Job202200045"])
+        job_table = self.oee.get_cygnus_postgres_table(self.jsons["Job000001"])
         self.assertEqual(job_table, "urn_ngsiv2_i40process_job_000001_i40process")
 
     def test_get_workstation(self):
@@ -169,7 +169,7 @@ class test_OEECalculator(unittest.TestCase):
         self.oee.get_workstation()
         self.assertEqual(
             # need to remove metadata fields when checking downloaded Orion objects
-            remove_orion_metadata(self.oee.workstation["orion"]), self.jsons["Workstation"]
+            remove_orion_metadata(self.oee.workstation["orion"]), self.jsons["Workstation001"]
         )
         self.assertEqual(
             self.oee.workstation["postgres_table"], "urn_ngsiv2_i40asset_workstation_001_i40asset"
@@ -181,13 +181,13 @@ class test_OEECalculator(unittest.TestCase):
         manually add the Workstation object that is normally 
         downloaded before the Shift
         """
-        self.oee.workstation["orion"] = copy.deepcopy(self.jsons["Workstation"])
+        self.oee.workstation["orion"] = copy.deepcopy(self.jsons["Workstation001"])
         self.oee.get_shift()
         self.assertEqual(
             remove_orion_metadata(self.oee.shift["orion"]),
-            self.jsons["Shift"],
+            self.jsons["Shift001"],
         )
-        self.oee.workstation["orion"] = copy.deepcopy(self.jsons["Workstation"])
+        self.oee.workstation["orion"] = copy.deepcopy(self.jsons["Workstation001"])
 
         del self.oee.workstation["orion"]["refShift"]["value"]
         with self.assertRaises(KeyError):
@@ -217,7 +217,7 @@ class test_OEECalculator(unittest.TestCase):
         now = datetime(2022, 8, 23, 13, 0, 0)
         self.oee.now_unix = now.timestamp()*1e3
         self.oee.shift["orion"] = copy.deepcopy(
-            self.jsons["Shift"]
+            self.jsons["Shift001"]
         )
         self.oee.get_todays_shift_limits()
         self.assertEqual(
@@ -250,24 +250,24 @@ class test_OEECalculator(unittest.TestCase):
             self.oee.get_todays_shift_limits()
 
     def test_get_job_id(self):
-        self.oee.workstation["orion"] = copy.deepcopy(self.jsons["Workstation"])
+        self.oee.workstation["orion"] = copy.deepcopy(self.jsons["Workstation001"])
         self.assertEqual(self.oee.get_job_id(), "urn:ngsiv2:i40Process:Job:000001")
         self.oee.workstation["orion"]["refJob"] = None
         with self.assertRaises(TypeError):
             self.oee.get_job_id()
 
     def test_get_job(self):
-        self.oee.workstation["orion"] = copy.deepcopy(self.jsons["Workstation"])
+        self.oee.workstation["orion"] = copy.deepcopy(self.jsons["Workstation001"])
         self.oee.get_job()
         self.assertEqual(
-            remove_orion_metadata(self.oee.job["orion"]), self.jsons["Job202200045"]
+            remove_orion_metadata(self.oee.job["orion"]), self.jsons["Job000001"]
         )
         self.assertEqual(
             self.oee.job["postgres_table"], "urn_ngsiv2_i40process_job_000001_i40process"
         )
 
     def test_get_operation_id(self):
-        self.oee.job["orion"] = copy.deepcopy(self.jsons["Job202200045"])
+        self.oee.job["orion"] = copy.deepcopy(self.jsons["Job000001"])
         self.oee.get_operation_id()
         self.assertEqual(self.oee.operation["id"], "urn:ngsiv2:i40Recipe:Operation:core001:injectionMoulding")
         self.oee.job["orion"]["refOperation"] = "invalid"
@@ -275,7 +275,7 @@ class test_OEECalculator(unittest.TestCase):
             self.oee.get_operation_id()
 
     def test_get_operation(self):
-        self.oee.job["orion"] = copy.deepcopy(self.jsons["Job202200045"])
+        self.oee.job["orion"] = copy.deepcopy(self.jsons["Job000001"])
         self.oee.get_operation()
         print(self.oee.operation["orion"])
         self.assertEqual(remove_orion_metadata(self.oee.operation["orion"]), self.jsons["Core001_injectionMoulding"])
@@ -297,11 +297,11 @@ class test_OEECalculator(unittest.TestCase):
         self.oee.now_unix = now.timestamp()*1e3
         self.oee.get_objects_shift_limits()
         self.assertEqual(
-            remove_orion_metadata(self.oee.workstation["orion"]), self.jsons["Workstation"]
+            remove_orion_metadata(self.oee.workstation["orion"]), self.jsons["Workstation001"]
         )
         self.assertEqual(
             remove_orion_metadata(self.oee.shift["orion"]),
-            self.jsons["Shift"],
+            self.jsons["Shift001"],
         )
         self.assertEqual(
             self.oee.today["start"],
@@ -312,7 +312,7 @@ class test_OEECalculator(unittest.TestCase):
             datetime(2022, 8, 23, 16, 0, 0),
         )
         self.assertEqual(
-            remove_orion_metadata(self.oee.job["orion"]), self.jsons["Job202200045"]
+            remove_orion_metadata(self.oee.job["orion"]), self.jsons["Job000001"]
         )
         self.assertEqual(
             remove_orion_metadata(self.oee.operation["orion"]),
@@ -323,7 +323,7 @@ class test_OEECalculator(unittest.TestCase):
         now = datetime(2022, 4, 5, 13, 0, 0)
         self.oee.now_unix = now.timestamp()*1e3
         self.oee.shift["orion"] = copy.deepcopy(
-            self.jsons["Shift"]
+            self.jsons["Shift001"]
         )
         self.oee.get_todays_shift_limits()
         self.assertEqual(
@@ -342,7 +342,7 @@ class test_OEECalculator(unittest.TestCase):
         now = datetime(2022, 4, 4, 13, 0, 0)
         self.oee.now_unix = now.timestamp()*1e3
         self.oee.shift["orion"] = copy.deepcopy(
-            self.jsons["Shift"]
+            self.jsons["Shift001"]
         )
         self.oee.get_objects_shift_limits()
         self.oee.workstation["df"] = self.oee.query_todays_data(
@@ -399,7 +399,7 @@ class test_OEECalculator(unittest.TestCase):
             datetime_string,
             "/",
             "urn:ngsiv2:i40Asset:Workstation:001",
-            "Workstation",
+            "i40Asset",
             "refJob",
             "Text",
             job_id,
@@ -412,11 +412,11 @@ class test_OEECalculator(unittest.TestCase):
         now = datetime(2022, 4, 4, 13, 0, 0)
         self.oee.now_unix = now.timestamp()*1e3
         self.oee.shift["orion"] = copy.deepcopy(
-            self.jsons["Shift"]
+            self.jsons["Shift001"]
         )
         self.oee.get_todays_shift_limits()
         self.oee.job["id"] = "urn:ngsiv2:i40Process:Job:000001"
-        self.oee.workstation["orion"] = copy.deepcopy(self.jsons["Workstation"])
+        self.oee.workstation["orion"] = copy.deepcopy(self.jsons["Workstation001"])
         self.oee.workstation["postgres_table"] = self.oee.get_cygnus_postgres_table(
             self.oee.workstation["orion"]
         )
@@ -459,7 +459,7 @@ class test_OEECalculator(unittest.TestCase):
         now = datetime(2022, 4, 5, 13, 46, 40)
         self.oee.now_unix = now.timestamp()*1e3
         self.oee.shift["orion"] = copy.deepcopy(
-            self.jsons["Shift"]
+            self.jsons["Shift001"]
         )
         self.oee.get_todays_shift_limits()
 
@@ -514,16 +514,16 @@ class test_OEECalculator(unittest.TestCase):
         self.oee.prepare(self.con)
         self.assertEqual(self.oee.now_unix, self.oee.datetime_to_milliseconds(now))
         self.assertEqual(
-            remove_orion_metadata(self.oee.workstation["orion"]), self.jsons["Workstation"]
+            remove_orion_metadata(self.oee.workstation["orion"]), self.jsons["Workstation001"]
         )
         self.assertEqual(
             remove_orion_metadata(self.oee.shift["orion"]),
-            self.jsons["Shift"],
+            self.jsons["Shift001"],
         )
         self.assertEqual(self.oee.today["start"], _8h)
         self.assertEqual(self.oee.today["end"], _16h)
         self.assertEqual(
-            remove_orion_metadata(self.oee.job["orion"]), self.jsons["Job202200045"]
+            remove_orion_metadata(self.oee.job["orion"]), self.jsons["Job000001"]
         )
         self.assertEqual(
             remove_orion_metadata(self.oee.operation["orion"]),

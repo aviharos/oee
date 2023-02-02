@@ -111,7 +111,7 @@ class test_LoopHandler(unittest.TestCase):
                 cls.correctOEEObject["performance"] *
                 cls.correctOEEObject["quality"])
         cls.correctThroughPutPerShift = (8 * 3600e3 / 46e3) * 8 * cls.correctOEEObject["oee"]
-        with open(os.path.join("..", "json", "Workstation.json")) as f:
+        with open(os.path.join("..", "json", "Workstation001.json")) as f:
             cls.workstation = json.load(f)
 
     @classmethod

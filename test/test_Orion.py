@@ -29,7 +29,7 @@ class test_Orion(unittest.TestCase):
         with open(os.path.join("..", "json", "Core001.json"), "r") as f:
             cls.obj = json.load(f)
         requests.post(url=orion_entities, json=cls.obj)
-        with open(os.path.join("..", "json", "Workstation.json"), "r") as f:
+        with open(os.path.join("..", "json", "Workstation001.json"), "r") as f:
             cls.workstation1 = json.load(f)
         # make a second Workstation
         cls.workstation2 = copy.deepcopy(cls.workstation1)
