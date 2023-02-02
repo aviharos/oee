@@ -64,15 +64,15 @@ class test_Orion(unittest.TestCase):
 
     def test_get(self):
         self.assertEqual(
-            remove_orion_metadata(Orion.get("urn:ngsiv2:i40Asset:Part_Core001")), self.obj
+            remove_orion_metadata(Orion.get("urn:ngsiv2:i40Asset:Part:core001")), self.obj
         )
         with patch("requests.get") as mocked_get:
             mocked_get.status_code = 201
             with self.assertRaises(RuntimeError):
-                Orion.get("urn:ngsiv2:i40Asset:Part_Core001")
+                Orion.get("urn:ngsiv2:i40Asset:Part:core001")
 
     def test_exists(self):
-        self.assertTrue(Orion.exists("urn:ngsiv2:i40Asset:Part_Core001"))
+        self.assertTrue(Orion.exists("urn:ngsiv2:i40Asset:Part:core001"))
         self.assertFalse(Orion.exists("urn:ngsiv2:i40Asset:Part_Core002"))
 
     def test_get_workstations(self):

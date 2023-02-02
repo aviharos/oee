@@ -172,7 +172,7 @@ The Workstation cannot be turned on any day before the Shift's `start` attribute
         },
         "refPart": {
             "type": "Relationship",
-            "value": "urn:ngsiv2:i40Asset:Part_Core001"
+            "value": "urn:ngsiv2:i40Asset:Part:core001"
         },
         "refOperation": {
             "type": "Relationship",
@@ -202,7 +202,7 @@ Attributes:
 
 #### Part 
     {
-        "id": "urn:ngsiv2:i40Asset:Part_Core001",
+        "id": "urn:ngsiv2:i40Asset:Part:core001",
         "type": "i40Asset",
         "i40AssetType": {
             "type": "Text",
@@ -229,7 +229,7 @@ Attributes:
         },
         "refPart": {
             "type": "Relationship",
-            "value": "urn:ngsiv2:i40Asset:Part_Core001"
+            "value": "urn:ngsiv2:i40Asset:Part:core001"
         },
         "operations": {
             "type": "List",
