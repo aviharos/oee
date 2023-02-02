@@ -172,7 +172,7 @@ class test_OEECalculator(unittest.TestCase):
             remove_orion_metadata(self.oee.workstation["orion"]), self.jsons["Workstation"]
         )
         self.assertEqual(
-            self.oee.workstation["postgres_table"], "urn_ngsiv2_i40asset_workstation1_i40asset"
+            self.oee.workstation["postgres_table"], "urn_ngsiv2_i40asset_workstation_001_i40asset"
         )
 
     def test_get_shift(self):
