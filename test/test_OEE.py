@@ -162,7 +162,7 @@ class test_OEECalculator(unittest.TestCase):
 
     def test_get_cygnus_postgres_table(self):
         job_table = self.oee.get_cygnus_postgres_table(self.jsons["Job202200045"])
-        self.assertEqual(job_table, "urn_ngsiv2_i40process_job202200045_i40process")
+        self.assertEqual(job_table, "urn_ngsiv2_i40process_job_000001_i40process")
 
     def test_get_workstation(self):
         """ Test if downloaded Workstation object and its postgres_table match """
@@ -263,7 +263,7 @@ class test_OEECalculator(unittest.TestCase):
             remove_orion_metadata(self.oee.job["orion"]), self.jsons["Job202200045"]
         )
         self.assertEqual(
-            self.oee.job["postgres_table"], "urn_ngsiv2_i40process_job202200045_i40process"
+            self.oee.job["postgres_table"], "urn_ngsiv2_i40process_job_000001_i40process"
         )
 
     def test_get_operation_id(self):
