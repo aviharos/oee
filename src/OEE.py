@@ -762,7 +762,7 @@ class OEECalculator:
         self.logger.info(f"availability: {self.oee['availability']}")
 
     def count_cycles_based_on_counter_values(self, values: np.array) -> int:
-        """Count number of injection moulding cycles based on a np.array of goodPartCounter values
+        """Count number of machine cycles based on a np.array of goodPartCounter values
 
         Used for counting the number of successful or failed cycles
         Example:
