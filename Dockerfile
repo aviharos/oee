@@ -10,7 +10,7 @@ ENV PYTHONUNBUFFERED 1
 RUN apt-get update && \
     apt-get install -y --no-install-recommends gcc libpq-dev python-dev
 
-RUN echo "nameserver 8.8.8.8" >> /etc/resolv.conf
+# RUN echo "nameserver 8.8.8.8" >> /etc/resolv.conf
 
 RUN python -m venv /opt/venv
 
