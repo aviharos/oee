@@ -1,5 +1,5 @@
 {
-    "id": "urn:ngsiv2:i40Process:Job:000002",
+    "id": "urn:ngsiv2:i40Process:Job:000001",
     "type": "i40Process",
     "i40ProcessType": {
         "type": "Text",
@@ -7,11 +7,11 @@
     },
     "refPart": {
         "type": "Relationship",
-        "value": "urn:ngsiv2:i40Asset:Part:cover001"
+        "value": "urn:ngsiv2:i40Asset:Part:part001"
     },
     "refOperation": {
         "type": "Relationship",
-        "value": "urn:ngsiv2:i40Recipe:Operation:cover001:001"
+        "value": "urn:ngsiv2:i40Recipe:Operation:part001:001"
     },
     "jobTargetNumber": {
         "type": "Number",

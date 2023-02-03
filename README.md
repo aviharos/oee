@@ -172,11 +172,11 @@ The Workstation cannot be turned on any day before the Shift's `start` attribute
         },
         "refPart": {
             "type": "Relationship",
-            "value": "urn:ngsiv2:i40Asset:Part:core001"
+            "value": "urn:ngsiv2:i40Asset:Part:part001"
         },
         "refOperation": {
             "type": "Relationship",
-            "value": "urn:ngsiv2:i40Recipe:Operation:core001:001"
+            "value": "urn:ngsiv2:i40Recipe:Operation:part001:001"
         },
         "jobTargetNumber": {
             "type": "Number",
@@ -202,7 +202,7 @@ Attributes:
 
 #### Part 
     {
-        "id": "urn:ngsiv2:i40Asset:Part:core001",
+        "id": "urn:ngsiv2:i40Asset:Part:part001",
         "type": "i40Asset",
         "i40AssetType": {
             "type": "Text",
@@ -210,7 +210,7 @@ Attributes:
         },
         "refSequenceOfOperations": {
             "type": "Relationship",
-            "value": "urn:ngsiv2:SequenceOfOperations:Core001"
+            "value": "urn:ngsiv2:SequenceOfOperations:part001"
         }
     }
 
@@ -221,7 +221,7 @@ Attributes:
 #### SequenceOfOperations
 
     {
-        "id": "urn:ngsiv2:i40Recipe:sequenceOfOperations:core001",
+        "id": "urn:ngsiv2:i40Recipe:sequenceOfOperations:part001",
         "type": "i40Recipe",
         "i40RecipeType": {
             "type": "Text",
@@ -229,12 +229,12 @@ Attributes:
         },
         "refPart": {
             "type": "Relationship",
-            "value": "urn:ngsiv2:i40Asset:Part:core001"
+            "value": "urn:ngsiv2:i40Asset:Part:part001"
         },
         "operations": {
             "type": "List",
             "value": [
-                "urn:ngsiv2:i40Recipe:Operation:core001:001"
+                "urn:ngsiv2:i40Recipe:Operation:part001:001"
             ]
         }
     }
@@ -249,7 +249,7 @@ The SequenceOfOperations objects are not compulsory. The OEE microservice does n
 #### Operation
 
     {
-        "id": "urn:ngsiv2:i40Recipe:Operation:core001:001",
+        "id": "urn:ngsiv2:i40Recipe:Operation:part001:001",
         "type": "i40Recipe",
         "i40RecipeType": {
             "type": "Text",
@@ -257,7 +257,7 @@ The SequenceOfOperations objects are not compulsory. The OEE microservice does n
         },
         "refSequenceOfOperations": {
             "type": "Relationship",
-            "value": "urn:ngsiv2:i40Recipe:sequenceOfOperations:core001"
+            "value": "urn:ngsiv2:i40Recipe:sequenceOfOperations:part001"
         },
         "cycleTime": {
             "type": "Number",

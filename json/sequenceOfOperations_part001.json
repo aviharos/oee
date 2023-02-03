@@ -1,5 +1,5 @@
 {
-    "id": "urn:ngsiv2:i40Recipe:SequenceOfOperations:cube001",
+    "id": "urn:ngsiv2:i40Recipe:sequenceOfOperations:part001",
     "type": "i40Recipe",
     "i40RecipeType": {
         "type": "Text",
@@ -7,12 +7,12 @@
     },
     "refPart": {
         "type": "Relationship",
-        "value": "urn:ngsiv2:i40Asset:Part:cube001"
+        "value": "urn:ngsiv2:i40Asset:Part:part001"
     },
     "operations": {
         "type": "List",
         "value": [
-            "urn:ngsiv2:i40Recipe:Operation:cube001:001"
+            "urn:ngsiv2:i40Recipe:Operation:part001:001"
         ]
     }
 }

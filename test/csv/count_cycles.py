@@ -10,9 +10,9 @@ gp_unique = gp['attrvalue'].unique()
 print(gp_unique)
 if '0' in gp_unique:
     print('0 in the unique gp values')
-    n_successful_moudings = gp_unique.shape[0] - 1
+    n_successful_cycles = gp_unique.shape[0] - 1
 else:
-    n_successful_moudings = gp_unique.shape[0]
+    n_successful_cycles = gp_unique.shape[0]
 
 
 rp = tdf[tdf['attrname'] == 'rejectPartCounter']
@@ -21,10 +21,10 @@ rp_unique = rp['attrvalue'].unique()
 print(rp_unique)
 if '0' in rp_unique:
     print('0 in the unique rp values')
-    n_failed_moudings = rp_unique.shape[0] - 1
+    n_failed_cycles = rp_unique.shape[0] - 1
 else:
-    n_failed_moudings = rp_unique.shape[0]
+    n_failed_cycles = rp_unique.shape[0]
 
-print(f'Successful mouldings: {n_successful_moudings}')
-print(f'Failed mouldings: {n_failed_moudings}')
+print(f'Successful cycles: {n_successful_cycles}')
+print(f'Failed cycles: {n_failed_cycles}')
 

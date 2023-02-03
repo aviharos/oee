@@ -24,12 +24,12 @@ PLACES = 5
 class test_Orion(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        """ Upload Core001 and Workstation to Orion """
+        """ Upload part001 and Workstation to Orion """
         cls.maxDiff = None
-        with open(os.path.join("..", "json", "Core001.json"), "r") as f:
+        with open(os.path.join("..", "json", "part001.json"), "r") as f:
             cls.obj = json.load(f)
         requests.post(url=orion_entities, json=cls.obj)
-        with open(os.path.join("..", "json", "Workstation001.json"), "r") as f:
+        with open(os.path.join("..", "json", "workstation001.json"), "r") as f:
             cls.workstation1 = json.load(f)
         # make a second Workstation
         cls.workstation2 = copy.deepcopy(cls.workstation1)
@@ -49,7 +49,7 @@ class test_Orion(unittest.TestCase):
         pass
 
     def test_get_request(self):
-        # try downloading the Core001 object
+        # try downloading the part001 object
         status_code, downloaded_json = Orion.get_request(
             f'{orion_entities}/{self.obj["id"]}'
         )
@@ -64,15 +64,15 @@ class test_Orion(unittest.TestCase):
 
     def test_get(self):
         self.assertEqual(
-            remove_orion_metadata(Orion.get("urn:ngsiv2:i40Asset:Part:core001")), self.obj
+            remove_orion_metadata(Orion.get("urn:ngsiv2:i40Asset:Part:part001")), self.obj
         )
         with patch("requests.get") as mocked_get:
             mocked_get.status_code = 201
             with self.assertRaises(RuntimeError):
-                Orion.get("urn:ngsiv2:i40Asset:Part:core001")
+                Orion.get("urn:ngsiv2:i40Asset:Part:part001")
 
     def test_exists(self):
-        self.assertTrue(Orion.exists("urn:ngsiv2:i40Asset:Part:core001"))
+        self.assertTrue(Orion.exists("urn:ngsiv2:i40Asset:Part:part001"))
         self.assertFalse(Orion.exists("urn:ngsiv2:i40Asset:Part_Core002"))
 
     def test_get_workstations(self):
