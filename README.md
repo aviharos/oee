@@ -34,7 +34,7 @@ Before reading further, it is strongly advised to read the following official Fi
 
 You can run the component from a docker image. You can build it using the [Dockerfile](Dockerfile):
 
-	$ docker build -t oee:<version> .
+	docker build -t oee:<version> .
 
 ## Requirements
 
@@ -60,7 +60,7 @@ You need to set your timezone in the docker compose file in the oee microservice
 ### Notifying Cygnus of all context changes
 After running the docker compose project, you need to set Orion to notify Cygnus of all context changes using the script:
 
-    $ ./notify_cygnus.sh
+    ./notify_cygnus.sh
 
 This script should be executed once, immediately after starting the docker compose project.
 
@@ -315,26 +315,26 @@ WARNING: the tests set environment variables, change the Orion Context Broker an
 
 For testing, you need to create an environment and install necessary packages. Example with conda:
 
-    $ conda create -n oee python=3.8
-    $ conda activate oee
-    $ conda install pandas psycopg2 requests sqlalchemy
+    conda create -n oee python=3.8
+    conda activate oee
+    conda install pandas psycopg2 requests sqlalchemy
 
 Then start the *test* [docker-compose](test/docker-compose.yml) project, that is not identical to the minimal [docker-compose.yml](docker-compose.yml) mentioned in Usage:
 
-    $ cd test
-    $ docker compose up -d
+    cd test
+    docker compose up -d
 
 Then run the tests as follows.
 
-    $ source env
-    $ python test_Orion.py
-    $ python test_OEE.py
-    $ python test_LoopHandler.py
-    $ python test_main.py
+    source env
+    python test_Orion.py
+    python test_OEE.py
+    python test_LoopHandler.py
+    python test_main.py
 
 Now you can stop the test docker compose project:
 
-    $ docker compose down
+    docker compose down
 
 Please note that the tests were originally written in the GMT+2 time zone, so they might fail in other time zones.
 
@@ -342,7 +342,7 @@ Please note that the tests were originally written in the GMT+2 time zone, so th
 
 If you encounter any trouble using the OEE microservice, inspect its logs:
 
-    $ docker logs <container name>
+    docker logs <container name>
 
 In the default MOMAMS setup, the container name is `momams-oee`.
 
