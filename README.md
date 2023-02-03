@@ -176,7 +176,7 @@ The Workstation cannot be turned on any day before the Shift's `start` attribute
         },
         "refOperation": {
             "type": "Relationship",
-            "value": "urn:ngsiv2:i40Recipe:Operation:core001:injectionMoulding"
+            "value": "urn:ngsiv2:i40Recipe:Operation:core001:001"
         },
         "jobTargetNumber": {
             "type": "Number",
@@ -234,7 +234,7 @@ Attributes:
         "operations": {
             "type": "List",
             "value": [
-                "urn:ngsiv2:i40Recipe:Operation:core001:injectionMoulding"
+                "urn:ngsiv2:i40Recipe:Operation:core001:001"
             ]
         }
     }
@@ -249,7 +249,7 @@ The SequenceOfOperations objects are not compulsory. The OEE microservice does n
 #### Operation
 
     {
-        "id": "urn:ngsiv2:i40Recipe:Operation:core001:injectionMoulding",
+        "id": "urn:ngsiv2:i40Recipe:Operation:core001:001",
         "type": "i40Recipe",
         "i40RecipeType": {
             "type": "Text",
