@@ -794,6 +794,8 @@ class OEECalculator:
                 The number of successful or failed cycles
         """
         self.logger.debug(f"Count Workstation cycles based on counter values: {values}")
+        if self.operation["orion"]["partsPerCycle"]["value"] == 0:
+            raise ZeroDivisionError(f"The following operation's partsPerCycle value is 0, cannot calculate OEE: {self.operation['id']}")
         values = np.unique(np.array(values))
         try:
             values = values.astype(int)
@@ -860,6 +862,8 @@ class OEECalculator:
         """Handle everythin related to the performance KPI
 
         Store the result in self.oee["performance"]["value"]"""
+        if self.total_available_time == 0:
+            raise ZeroDivisionError("The total available time is 0, cannot calculate Performance")
         self.oee["performance"] = (
             self.n_total_cycles
             * self.operation["orion"]["cycleTime"]["value"]
@@ -891,6 +895,8 @@ class OEECalculator:
         Returns:
             self.throughput: Throughput Object that will eventually be uploaded to Orion
         """
+        if self.operation["orion"]["cycleTime"]["value"] == 0:
+            raise ZeroDivisionError(f"The following operation's cycle time is 0, cannot calculate throughput: {self.operation['id']}")
         self.shift_length_in_milliseconds = self.datetime_to_milliseconds(
             self.today["end"]
         ) - self.datetime_to_milliseconds(self.today["reference_start_time"])
