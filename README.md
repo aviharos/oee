@@ -308,7 +308,7 @@ The microservice does not contain an API.
 
 ## Demo
 
-You can try the OEE microservice as described [here](https://github.com/aviharos/momams#try-momams).
+You can try the OEE microservice as described [here](https://github.com/aviharos/momams#try-momams). A YouTube tutorial is also available that guides you through the live demo.
 
 ## Testing
 
