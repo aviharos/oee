@@ -16,6 +16,7 @@ An OEE calculator microservice to be used with Fiware Cygnus time series data. A
   - [Testing](#testing)
   - [Troubleshooting](#troubleshooting)
   - [Limitations](#limitations)
+  - [Miscellaneous](#miscellaneous)
   - [License](#license)
 
 ## Background
@@ -349,6 +350,10 @@ In the default MOMAMS setup, the container name is `momams-oee`.
 ## Limitations
 
 The OEE microservice currently cannot handle HTTPS and Fiware’s authentication system.
+
+## Miscellaneous
+
+Warning: both the OEE microservice and Cygnus generates a lot of logs when the logging level is set to `DEBUG`. If the logs fill the storage of the MOMAMS server, some MOMAMS containers can crash, and as a result, MOMAMS can crash too. To prevent this, it is advised to either set docker to limit log size per container or configure Cygnus and the OEE microservice in the docker-compose file to log only the important events. This is handled in the template docker-compose file.
 
 ## License
 
